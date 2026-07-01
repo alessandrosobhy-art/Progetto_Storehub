@@ -533,15 +533,17 @@ def _build_dashboard_day_snapshot(*, store_code: str, d_iso: str) -> Dict[str, A
     except Exception:
         sales_row = None
 
-    if sales_row:
+    if sales_row and str(sales_row.get("source") or "").strip().lower() != "legacy_datidatabase":
         giro = float(sales_row.get("gross_revenue") or giro)
-        diff = float(sales_row.get("cash_difference") or diff)
         distinte = float(sales_row.get("cash_deposits_total") or distinte)
         ticket_si = float(sales_row.get("ticket_cash_effect") or ticket_si)
         delivery_si = float(sales_row.get("delivery_cash_effect") or delivery_si)
+        delivery_no = float(sales_row.get("delivery_cash_amount") or delivery_no)
         coupon_si = float(sales_row.get("coupon_cash_effect") or coupon_si)
         pos = float(sales_row.get("pos_amount") or pos)
-        spnet = float(sales_row.get("expenses_net") or spnet)
+        # Le spese possono essere state modificate dopo il salvataggio della distinta:
+        # ricalcoliamo la differenza usando sempre il netto spese corrente.
+        diff = distinte + ticket_si + delivery_si + coupon_si + pos + spnet - giro
 
     chiusura_rows = []
     for (key, lbl, t) in _CHIUSURA_FIELDS:
@@ -608,6 +610,9 @@ def _build_dashboard_day_snapshot(*, store_code: str, d_iso: str) -> Dict[str, A
         "date": d_iso,
         "giro": giro,
         "diff": diff,
+        "pos": pos,
+        "annullati": annullati,
+        "scontrini": float(chiusura.get("scontrini", 0.0)),
         "distinte": distinte,
         "ticket_si": ticket_si,
         "delivery_si": delivery_si,
@@ -3555,7 +3560,13 @@ def api_dashboard_month():
                 agg["coupon_si"] += s
 
     days = {}
-    all_days = set(by_day.keys()) | set((photo_days or {}).keys()) | set((validated_days or {}).keys())
+    all_days = (
+        set(by_day.keys())
+        | set((photo_days or {}).keys())
+        | set((validated_days or {}).keys())
+        | set((spese_by_day or {}).keys())
+        | set((daily_sales_map or {}).keys())
+    )
     for d_iso in sorted(all_days):
         a = by_day.get(d_iso) or {
             "vendite_lorde": 0.0,
@@ -3579,63 +3590,48 @@ def api_dashboard_month():
             - giro
         )
         sales_row = daily_sales_map.get(d_iso) or {}
-        if sales_row:
+        if sales_row and str(sales_row.get("source_family") or "").strip().lower() == "storehub":
             giro = float(sales_row.get("gross_revenue") or giro)
-            diff = float(sales_row.get("cash_difference") or diff)
+            pos = float(sales_row.get("pos_amount") or a.get("pos", 0.0))
+            distinte = float(sales_row.get("cash_deposits_total") or a.get("distinte", 0.0))
+            ticket_si = float(sales_row.get("ticket_cash_effect") or a.get("ticket_si", 0.0))
+            delivery_si = float(sales_row.get("delivery_cash_effect") or a.get("delivery_si", 0.0))
+            coupon_si = float(sales_row.get("coupon_cash_effect") or a.get("coupon_si", 0.0))
+            annullati = float(sales_row.get("cancelled_amount") or a.get("annullati", 0.0))
+            scontrini = float(sales_row.get("receipts_count") or a.get("scontrini", 0.0))
+            diff = distinte + ticket_si + delivery_si + coupon_si + pos + spnet - giro
+        else:
+            pos = float(a.get("pos", 0.0))
+            distinte = float(a.get("distinte", 0.0))
+            ticket_si = float(a.get("ticket_si", 0.0))
+            delivery_si = float(a.get("delivery_si", 0.0))
+            coupon_si = float(a.get("coupon_si", 0.0))
+            annullati = float(a.get("annullati", 0.0))
+            scontrini = float(a.get("scontrini", 0.0))
         foto_file = str((photo_days or {}).get(d_iso) or "").strip()
         days[d_iso] = {
             "giro": giro,
             "diff": diff,
+            "pos": pos,
+            "annullati": annullati,
+            "scontrini": scontrini,
+            "distinte": distinte,
+            "ticket_si": ticket_si,
+            "delivery_si": delivery_si,
+            "coupon_si": coupon_si,
+            "spese_net": spnet,
             "has_photo": bool(foto_file),
             "photo_url": url_for("rendiconto.distinta_cassa_photo_scoped", store_code=str(store_code), filename=foto_file) if foto_file else "",
             "validated": bool((validated_days or {}).get(d_iso)),
         }
 
-    # Totali mese (riepilogo)
-    tot_vendite_lorde = 0.0
-    tot_annullati = 0.0
-    tot_pos = 0.0
-    tot_scontrini = 0.0
-    tot_distinte = 0.0
-    tot_ticket_si = 0.0
-    tot_delivery_si = 0.0
-    tot_coupon_si = 0.0
-
-    for _d_iso, a in by_day.items():
-        tot_vendite_lorde += float(a.get("vendite_lorde", 0.0))
-        tot_annullati += float(a.get("annullati", 0.0))
-        tot_pos += float(a.get("pos", 0.0))
-        tot_scontrini += float(a.get("scontrini", 0.0))
-        tot_distinte += float(a.get("distinte", 0.0))
-        tot_ticket_si += float(a.get("ticket_si", 0.0))
-        tot_delivery_si += float(a.get("delivery_si", 0.0))
-        tot_coupon_si += float(a.get("coupon_si", 0.0))
-
-    tot_spese_net = 0.0
-    for _d_iso, srec in (spese_by_day or {}).items():
-        try:
-            tot_spese_net += float((srec or {}).get("net") or 0.0)
-        except Exception:
-            pass
-
-    giro_mese = float(tot_vendite_lorde) - float(tot_annullati)
-    diff_mese = (
-        float(tot_distinte)
-        + float(tot_ticket_si)
-        + float(tot_delivery_si)
-        + float(tot_coupon_si)
-        + float(tot_pos)
-        + float(tot_spese_net)
-        - float(giro_mese)
-    )
-
-    if daily_sales_map:
-        giro_mese = sum(float((row or {}).get("gross_revenue") or 0.0) for row in daily_sales_map.values())
-        diff_mese = sum(float((row or {}).get("cash_difference") or 0.0) for row in daily_sales_map.values())
-        tot_pos = sum(float((row or {}).get("pos_amount") or 0.0) for row in daily_sales_map.values())
-        tot_distinte = sum(float((row or {}).get("cash_deposits_total") or 0.0) for row in daily_sales_map.values())
-        tot_annullati = sum(float((row or {}).get("cancelled_amount") or 0.0) for row in daily_sales_map.values())
-        tot_scontrini = sum(float((row or {}).get("receipts_count") or 0.0) for row in daily_sales_map.values())
+    # Totali mese (riepilogo) ricostruiti dai valori giornalieri gia normalizzati.
+    giro_mese = sum(float((row or {}).get("giro") or 0.0) for row in days.values())
+    diff_mese = sum(float((row or {}).get("diff") or 0.0) for row in days.values())
+    tot_pos = sum(float((row or {}).get("pos") or 0.0) for row in days.values())
+    tot_distinte = sum(float((row or {}).get("distinte") or 0.0) for row in days.values())
+    tot_annullati = sum(float((row or {}).get("annullati") or 0.0) for row in days.values())
+    tot_scontrini = sum(float((row or {}).get("scontrini") or 0.0) for row in days.values())
 
     try:
         scontrini_mese = int(round(float(tot_scontrini)))

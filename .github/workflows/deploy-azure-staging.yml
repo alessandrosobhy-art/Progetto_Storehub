@@ -11,7 +11,7 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.12"
-  AZURE_WEBAPP_NAME: "storehub-fp-app"
+  AZURE_WEBAPP_NAME: "progetto-storehub"
   AZURE_WEBAPP_SLOT: "staging"
 
 jobs:
