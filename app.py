@@ -245,8 +245,9 @@ def _guard_modules_by_blueprint():
     return None
 
 # ---- Security defaults ----
-# Stronger secret key default for dev if FLASK_SECRET not set.
-_flask_secret = os.getenv('FLASK_SECRET')
+# Stronger secret key default for dev if no configured secret is available.
+# Azure/App Service setups may use either FLASK_SECRET or FLASK_SECRET_KEY.
+_flask_secret = os.getenv('FLASK_SECRET') or os.getenv('FLASK_SECRET_KEY')
 if not _flask_secret:
     try:
         _flask_secret = os.urandom(32)
