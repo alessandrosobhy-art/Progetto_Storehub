@@ -48,3 +48,6 @@ outputs/manual-storehub-presentation/
 tools/gh-cli/
 credentials/
 secrets/
+
+# Local Azure helper files with secrets
+.azure-appsettings-*.txt
