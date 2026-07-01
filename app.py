@@ -90,6 +90,7 @@ from markupsafe import escape
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from werkzeug.middleware.proxy_fix import ProxyFix
 from ai_assistant_service import ask_storehub_assistant, openai_is_configured
 from versamenti_repository import search_versamenti_range_multi
 from admin_versamenti_finance_match_repository import (
@@ -156,6 +157,7 @@ except Exception:
     pass
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 register_controller_monitoring(
     app,
     app_name="fp",
@@ -257,6 +259,30 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # In production behind HTTPS (Render), this should be True.
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', '1') == '1'
+app.config['PREFERRED_URL_SCHEME'] = 'https'
+
+
+def _is_truthy_env(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'y', 'on'}
+
+
+@app.before_request
+def _redirect_insecure_requests():
+    """Avoid silent login loops when secure session cookies meet plain HTTP."""
+    if not _is_truthy_env(os.getenv('FORCE_HTTPS'), default=True):
+        return None
+    if request.is_secure:
+        return None
+    host = (request.host or '').split(':', 1)[0].strip().lower()
+    if host in {'127.0.0.1', 'localhost'}:
+        return None
+    forwarded_proto = (request.headers.get('X-Forwarded-Proto') or '').split(',')[0].strip().lower()
+    if forwarded_proto == 'https':
+        return None
+    secure_url = request.url.replace('http://', 'https://', 1)
+    return redirect(secure_url, code=308)
 
 
 # Google app.secret_key = os.getenv('FLASK_SECRET', 'secret')
