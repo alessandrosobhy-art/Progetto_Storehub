@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Rendiconto - Gestione delivery{% endblock %}
+
+{% macro delivery_card(key, label, logo, data, prev_rating, provider_base, rating_unit, opening_mode, opening_label, opening_hint='') %}
+  <div class="col-12 col-lg-6">
+    <div class="card delivery-card" data-platform="{{ key }}" data-provider-base="{{ provider_base }}" data-rating-unit="{{ rating_unit }}" data-opening-mode="{{ opening_mode }}" data-prev-rating="{{ prev_rating|e }}">
+      <div class="card-header d-flex align-items-center gap-2">
+        {% if logo %}
+          <img class="delivery-logo" src="{{ url_for('static', filename='img/' ~ logo) }}" alt="{{ label }}">
+        {% else %}
+          <span class="delivery-logo delivery-logo--text">{{ label[:1] }}</span>
+        {% endif %}
+        <strong>{{ label }}</strong>
+      </div>
+      <div class="card-body">
+        <div class="delivery-section">
+          <div class="delivery-section__title d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <span>{{ tr('rendiconto', 'delivery.sales', 'Vendite') }}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-action="import-provider">{{ tr('rendiconto', 'delivery.import_statement', 'Importa distinta') }}</button>
+          </div>
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="small text-muted">{{ tr('rendiconto', 'delivery.import_help', 'I pagamenti vengono importati dalla distinta cassa della settimana selezionata ma restano modificabili prima del salvataggio.') }}</div>
+              <div class="small mt-1" data-field="import_status"></div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.payment_online', 'Pagamento online') }} (€)</label>
+              <input type="number" step="0.01" class="form-control" name="{{ key }}_payment_online" value="{{ data.payment_online }}" data-field="payment_online">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.payment_cash', 'Pagamento contanti') }} (€)</label>
+              <input type="number" step="0.01" class="form-control" name="{{ key }}_payment_cash" value="{{ data.payment_cash }}" data-field="payment_cash">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'common.total', 'Totale') }} (€)</label>
+              <input type="text" class="form-control calc-field" value="" readonly data-field="total_payment">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.orders', 'Numero ordini') }}</label>
+              <input type="number" step="1" class="form-control" name="{{ key }}_orders" value="{{ data.orders }}" data-field="orders">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.cancelled_orders', 'Ordini cancellati') }}</label>
+              <input type="number" step="1" class="form-control" name="{{ key }}_cancelled_orders" value="{{ data.cancelled_orders }}" data-field="cancelled_orders">
+            </div>
+            <div class="col-12">
+              <div class="alert alert-secondary py-2 mb-0 delivery-distinta-alert" role="alert" data-field="distinta_alert"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="delivery-section">
+          <div class="delivery-section__title">{{ tr('rendiconto', 'delivery.refunds', 'Rimborsi') }}</div>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.refunds', 'Rimborsi') }}</label>
+              <input type="number" step="1" class="form-control" name="{{ key }}_complaints_received" value="{{ data.complaints_received }}" data-field="complaints_received">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.refund_value', 'Valore rimborsi') }} (€)</label>
+              <input type="number" step="0.01" class="form-control" name="{{ key }}_refund_value" value="{{ data.refund_value }}" data-field="refund_value">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.refund_disputes', 'Contestazioni dei rimborsi') }}</label>
+              <input type="number" step="1" class="form-control" name="{{ key }}_complaints_contested" value="{{ data.complaints_contested }}" data-field="complaints_contested">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.accepted_disputes', 'Contestazioni accettate') }}</label>
+              <input type="number" step="1" class="form-control" name="{{ key }}_appeals_accepted" value="{{ data.appeals_accepted }}" data-field="appeals_accepted">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.cancelled_refund_value', 'Valore rimborsi annullati') }} (€)</label>
+              <input type="number" step="0.01" class="form-control" name="{{ key }}_refunds_cancelled_value" value="{{ data.refunds_cancelled_value }}" data-field="refunds_cancelled_value">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.refund_pct', '% Rimborsi su ordini') }}</label>
+              <div class="input-group">
+                <input type="text" class="form-control calc-field" value="" readonly data-field="complaints_pct">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.refund_pct_net', '% Rimborsi su ordini (netto contestazioni)') }}</label>
+              <div class="input-group">
+                <input type="text" class="form-control calc-field" value="" readonly data-field="complaints_pct_net">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="delivery-section">
+          <div class="delivery-section__title">{{ tr('rendiconto', 'delivery.opening', 'Apertura') }}</div>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ opening_label }}</label>
+              {% if opening_hint %}<div class="delivery-field-hint">{{ opening_hint }}</div>{% endif %}
+              <div class="input-group">
+                <input type="number" step="0.01" class="form-control" name="{{ key }}_opening_pct" value="{{ data.opening_pct }}" data-field="opening_pct">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.potential_sales', 'Vendite potenziali stimate') }} (€)</label>
+              <input type="text" class="form-control calc-field" value="" readonly data-field="opening_potential_sales">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.lost_sales', 'Vendite perse stimate') }} (€)</label>
+              <input type="text" class="form-control calc-field" value="" readonly data-field="opening_lost_sales">
+            </div>
+          </div>
+        </div>
+
+        <div class="delivery-section mb-0">
+          <div class="delivery-section__title">{{ tr('rendiconto', 'delivery.rating', 'Rating') }}</div>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.weekly_rating', 'Rating settimanale') }}</label>
+              <input type="number" step="0.01" class="form-control" name="{{ key }}_rating" value="{{ data.rating }}" data-field="rating">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">{{ tr('rendiconto', 'delivery.prev_week_comparison', 'Confronto settimana precedente') }}</label>
+              <input type="text" class="form-control calc-field" value="" readonly data-field="rating_delta">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endmacro %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/rendiconto_delivery_v1.css') }}?v=1.0.4">
+{% endblock %}
+
+{% block content %}
+  {% include "_rendiconto_toolbar.html" %}
+
+  <div class="container py-4">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+      <div>
+        <h3 class="mb-1">{{ tr('rendiconto', 'delivery.title', 'Gestione delivery') }}</h3>
+        <div class="text-muted small">
+          {% if store_code %}
+            {{ tr('rendiconto', 'common.store', 'Store') }}: <strong>{{ store_code }}</strong>{% if store_name %} - {{ store_name }}{% endif %}
+          {% else %}
+            {{ tr('rendiconto', 'delivery.no_store', 'Seleziona uno store per inserire e visualizzare i dati.') }}
+          {% endif %}
+        </div>
+      </div>
+
+      <form method="get" class="d-flex align-items-end gap-2 flex-wrap">
+        <div>
+          <label class="form-label mb-1 small">{{ tr('rendiconto', 'delivery.week', 'Settimana') }}</label>
+          <input type="week" class="form-control form-control-sm" name="week_start" id="weekPicker" value="{{ week_value }}">
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" type="submit">{{ tr('rendiconto', 'common.go', 'Vai') }}</button>
+      </form>
+    </div>
+
+    {% if not store_code %}
+      <div class="alert alert-warning">{{ tr('rendiconto', 'delivery.select_store', 'Seleziona uno store per procedere.') }}</div>
+    {% endif %}
+
+    <form id="deliveryForm" method="post" action="{{ url_for('rendiconto.gestione_delivery') }}" class="mb-4" {% if not store_code %}style="opacity:.6; pointer-events:none;"{% endif %}>
+      <input type="hidden" name="week_start" id="weekStart" value="{{ week_start }}">
+
+      <div class="row g-3">
+        {% for provider in providers %}
+          {{ delivery_card(
+            provider.provider_key,
+            provider.label,
+            provider.logo_filename,
+            provider.data,
+            provider.prev_rating,
+            provider.platform,
+            provider.rating_unit,
+            provider.opening_mode,
+            provider.opening_label
+          ) }}
+        {% else %}
+          <div class="col-12">
+            <div class="alert alert-warning mb-0">{{ tr('rendiconto', 'delivery.no_provider', 'Nessun provider delivery attivo per questo tenant.') }}</div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="mt-3 d-flex justify-content-end gap-2 flex-wrap">
+        <button type="button" class="btn btn-outline-secondary" id="importAllDeliveryPayments">{{ tr('rendiconto', 'delivery.import_all', 'Importa pagamenti da distinta') }}</button>
+        {% for provider in providers %}
+          <button type="submit" class="btn btn-outline-primary" name="save_scope" value="{{ provider.provider_key }}">{{ tr('rendiconto', 'common.save', 'Salva') }} {{ provider.label }}</button>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary" {% if not providers %}disabled{% endif %}>{{ tr('rendiconto', 'delivery.save_all', 'Salva dati delivery') }}</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/rendiconto_delivery_v1.js') }}?v=1.0.8"></script>
+{% endblock %}

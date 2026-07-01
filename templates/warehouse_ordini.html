@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Magazzino - Ordini{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse_ordini_v1.css') }}?v=1.6.1">
+{% endblock %}
+
+{% block content %}
+  {% include "_warehouse_toolbar.html" %}
+
+  <div class="container py-4 warehouse-ordini" data-store-code="{{ store_code }}">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">Ordini</h1>
+        <div class="text-muted small">Suggerimento ordine (stock + previsioni + safety)</div>
+        <div class="text-muted small">Store: {{ store_code }}{% if store_name %} - {{ store_name }}{% endif %}</div>
+      </div>
+      <div class="text-end">
+        <span id="ordCount" class="badge text-bg-light">Righe: 0</span>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-4">
+            <label class="form-label" for="ordSupplier">Fornitore</label>
+            <select id="ordSupplier" class="form-select">
+              <option value="">Seleziona…</option>
+              {% for s in suppliers %}
+                <option value="{{ s }}">{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-lg-3">
+            <label class="form-label" for="ordListino">Listino</label>
+            <select id="ordListino" class="form-select">
+              {% for t in listino_types or ['FoodPaper', 'Operating'] %}
+                <option value="{{ t }}">{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-lg-5 d-flex justify-content-lg-end gap-2">
+            <button id="ordRun" class="btn btn-primary" type="button">Calcola</button>
+            <button id="ordExport" class="btn btn-outline-secondary" type="button" disabled>Estrai CSV</button>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-3">
+            <label class="form-label" for="ordOrderDay">OGGI</label>
+            <input id="ordOrderDay" type="date" class="form-control" value="{{ today_iso }}" readonly>
+          </div>
+
+          <div class="col-lg-3">
+            <label class="form-label" for="ordDate">Consegna 1</label>
+            <input id="ordDate" type="date" class="form-control" value="{{ next_iso or '' }}">
+          </div>
+
+          <div class="col-lg-3">
+            <label class="form-label" for="ordNext">Consegna 2</label>
+            <input id="ordNext" type="date" class="form-control" value="">
+          </div>
+
+          <div class="col-lg-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-white">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <div class="fw-semibold">Suggerimento ordine</div>
+            <div class="small text-muted" id="ordMetaLabel">—</div>
+          </div>
+          <div class="small text-muted">Clic su una riga per dettagli</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="ordMeta" class="mb-3"></div>
+
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <div class="flex-grow-1" style="max-width: 420px;">
+            <input type="text" class="form-control form-control-sm" id="ordSearchInput" placeholder="Cerca prodotto (codice/descrizione)...">
+          </div>
+          <div class="small text-muted" id="ordFilterInfo"></div>
+        </div>
+
+        <!-- MOBILE: lista prodotti (card) -->
+        <div class="d-md-none mb-3" id="ordMobileListWrap">
+          <div class="list-group shadow-sm" id="ordMobileList"></div>
+          <div class="small text-muted mt-2 d-none" id="ordMobileEmpty">Nessun prodotto trovato</div>
+        </div>
+
+        <div class="table-responsive d-none d-md-block">
+          <table class="table table-sm align-middle" id="ordTable">
+            <thead>
+              <tr>
+                <th>Codice</th>
+                <th>Descrizione</th>
+                <th class="text-end">U/1000€</th>
+                <th class="text-end">Stock</th>
+                <th class="text-end">Consumo previsto</th>
+                <th class="text-end">Safety</th>
+                <th class="text-end">Target</th>
+                <th class="text-end">Ordine (pz)</th>
+                <th class="text-end">Ordine (colli)</th>
+                <th>Ultimo INV</th>
+                <th class="text-end">Info</th>
+              </tr>
+            </thead>
+            <tbody id="ordBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Avvisi: popup (toast) -->
+  <div class="toast-container position-fixed top-0 end-0 p-3" id="ordToastContainer" style="z-index: 2005;"></div>
+
+  <!-- Popup dettaglio -->
+  <div id="ordDetailBackdrop" class="ord-modal-backdrop" style="display:none;"></div>
+  <div id="ordDetailModal" class="ord-modal" style="display:none;" role="dialog" aria-modal="true">
+    <div class="ord-modal-card">
+      <div class="ord-modal-header">
+        <div>
+          <div id="ordDetailTitle" class="fw-semibold"></div>
+          <div id="ordDetailSubtitle" class="text-muted small"></div>
+        </div>
+        <button type="button" id="ordDetailClose" class="btn btn-sm btn-outline-secondary">Chiudi</button>
+      </div>
+      <div id="ordDetailBody" class="ord-modal-body"></div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/warehouse_ordini_v1.js') }}?v=1.6.1"></script>
+{% endblock %}

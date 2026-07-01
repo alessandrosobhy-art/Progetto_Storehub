@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "_estrazioni_hq_toolbar.html" %}
+<style>
+  .finance-card .form-label { font-size: .82rem; }
+  .finance-tabs { display:flex; gap:.5rem; flex-wrap:wrap; }
+  .finance-store-dropdown-menu {
+    max-height: 260px;
+    overflow: auto;
+    min-width: 320px;
+    padding: .5rem;
+  }
+  .finance-store-actions {
+    position: sticky;
+    top: -.5rem;
+    z-index: 2;
+    background: #fff;
+    border-bottom: 1px solid var(--bs-border-color);
+    padding-bottom: .45rem;
+    margin-bottom: .35rem;
+  }
+  .finance-store-option {
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+    padding:.2rem 0;
+    font-size:.92rem;
+  }
+  .finance-store-option .form-check-input {
+    position: static;
+    margin: 0;
+    flex: 0 0 auto;
+  }
+  .finance-kpis {
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: .85rem;
+  }
+  .finance-kpi {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .85rem;
+    background: linear-gradient(180deg, #fff, #fafbfc);
+    padding: .9rem 1rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  }
+  .finance-kpi .label {
+    font-size: .74rem;
+    color: var(--bs-secondary-color);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 700;
+  }
+  .finance-kpi .value {
+    margin-top: .3rem;
+    font-size: 1.45rem;
+    font-weight: 700;
+  }
+  .finance-table-wrap {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+    overflow: auto;
+  }
+  .finance-table {
+    margin: 0;
+    font-size: .84rem;
+    white-space: nowrap;
+  }
+  .finance-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8f9fa;
+    border-bottom-width: 2px;
+  }
+  .finance-table td, .finance-table th {
+    padding: .48rem .58rem;
+    vertical-align: middle;
+  }
+  .finance-pagination {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+</style>
+
+{% macro qs_page(page_value) -%}
+  {{ url_for('estrazioni.finance',
+    table=table_key,
+    date_field=date_field,
+    start=start_iso,
+    end=end_iso,
+    banca=banca,
+    societa=societa,
+    type_value=type_value,
+    tessera=tessera,
+    atm=atm,
+    q=search,
+    include_blank_store='1' if include_blank_store else '',
+    stores=selected_store_values,
+    page=page_value
+  ) }}
+{%- endmacro %}
+
+<div class="container py-4">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <h3 class="mb-1">Finance</h3>
+      <div class="text-muted small">Consulta le tabelle di ILP_FINANCE con filtri e ricerca.</div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-3 finance-card">
+    <div class="card-body">
+      <div class="finance-tabs mb-3">
+        {% for tab in table_tabs %}
+          <a class="btn btn-sm {{ 'btn-primary' if tab.key == table_key else 'btn-outline-primary' }}"
+             href="{{ url_for('estrazioni.finance', table=tab.key) }}">
+            {{ tab.label }}
+          </a>
+        {% endfor %}
+      </div>
+
+      <form method="get" action="{{ url_for('estrazioni.finance') }}" data-no-overlay="1">
+        <input type="hidden" name="table" value="{{ table_key }}">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-2">
+            <label class="form-label">Data su</label>
+            <select class="form-select form-select-sm" name="date_field">
+              {% for opt in date_field_options %}
+                <option value="{{ opt.key }}" {% if date_field == opt.key %}selected{% endif %}>{{ opt.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Dal</label>
+            <input type="date" class="form-control form-control-sm" name="start" value="{{ start_iso }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Al</label>
+            <input type="date" class="form-control form-control-sm" name="end" value="{{ end_iso }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Banca</label>
+            <input type="text" class="form-control form-control-sm" name="banca" value="{{ banca }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Società</label>
+            <input type="text" class="form-control form-control-sm" name="societa" value="{{ societa }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">{{ result.type_label }}</label>
+            <input type="text" class="form-control form-control-sm" name="type_value" value="{{ type_value }}">
+          </div>
+
+          {% if result.has_store %}
+          <div class="col-md-4">
+            <label class="form-label">Store</label>
+            <div class="dropdown">
+              <button class="btn btn-outline-secondary btn-sm dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="financeStoreDropdown">
+                <span id="financeStoreDropdownLabel">Tutti gli store visibili</span>
+              </button>
+              <div class="dropdown-menu finance-store-dropdown-menu">
+                <div class="finance-store-actions">
+                  <button type="button" class="btn btn-link btn-sm p-0 me-3" id="financeStoreAll">Tutti</button>
+                  <button type="button" class="btn btn-link btn-sm p-0" id="financeStoreNone">Nessuno</button>
+                </div>
+                {% for opt in store_options %}
+                  <label class="finance-store-option">
+                    <input class="form-check-input finance-store-check" type="checkbox" name="stores" value="{{ opt.value }}" {% if opt.value in selected_store_values %}checked{% endif %}>
+                    <span>{{ opt.label }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if result.has_tessera %}
+          <div class="col-md-2">
+            <label class="form-label">Numero tessera</label>
+            <input type="text" class="form-control form-control-sm" name="tessera" value="{{ tessera }}">
+          </div>
+          {% endif %}
+
+          {% if result.has_atm %}
+          <div class="col-md-2">
+            <label class="form-label">Numero ATM</label>
+            <input type="text" class="form-control form-control-sm" name="atm" value="{{ atm }}">
+          </div>
+          {% endif %}
+
+          <div class="col-md-4">
+            <label class="form-label">Cerca</label>
+            <input type="text" class="form-control form-control-sm" name="q" value="{{ search }}" placeholder="Descrizione, note, store, banca...">
+          </div>
+
+          {% if result.has_store %}
+          <div class="col-md-3">
+            <div class="form-check mt-4 pt-1">
+              <input class="form-check-input" type="checkbox" value="1" id="includeBlankStore" name="include_blank_store" {% if include_blank_store %}checked{% endif %}>
+              <label class="form-check-label" for="includeBlankStore">
+                Includi righe senza store
+              </label>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="col-12 d-flex gap-2 pt-1">
+            <button class="btn btn-primary btn-sm" type="submit">Cerca</button>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('estrazioni.finance', table=table_key) }}">Reset</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="finance-kpis mb-3">
+    <div class="finance-kpi">
+      <div class="label">Tabella</div>
+      <div class="value">{{ table_title }}</div>
+    </div>
+    <div class="finance-kpi">
+      <div class="label">Righe trovate</div>
+      <div class="value">{{ summary.rows }}</div>
+    </div>
+    <div class="finance-kpi">
+      <div class="label">Importo totale</div>
+      <div class="value">{{ "{:,.2f}".format(summary.total_importo).replace(",", "X").replace(".", ",").replace("X", ".") }} €</div>
+    </div>
+    <div class="finance-kpi">
+      <div class="label">Pagina</div>
+      <div class="value">{{ summary.page }} / {{ summary.pages }}</div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div>
+          <h5 class="mb-0">{{ table_title }}</h5>
+          <div class="text-muted small">Vista filtrata della tabella {{ table_title }}.</div>
+        </div>
+        <div>
+          {% if is_admin %}
+          <a class="btn btn-outline-secondary btn-sm me-2" href="{{ url_for('admin_finance_store_map') }}">
+            Mappatura store
+          </a>
+          {% endif %}
+          <a class="btn btn-outline-primary btn-sm"
+             href="{{ url_for('estrazioni.finance_xlsx',
+               table=table_key,
+               date_field=date_field,
+               start=start_iso,
+               end=end_iso,
+               banca=banca,
+               societa=societa,
+               type_value=type_value,
+               tessera=tessera,
+               atm=atm,
+               q=search,
+               include_blank_store='1' if include_blank_store else '',
+               stores=selected_store_values
+             ) }}">
+            Estrai Excel
+          </a>
+        </div>
+      </div>
+
+      <div class="finance-table-wrap">
+        <table class="table table-bordered table-striped table-hover finance-table">
+          <thead>
+            <tr>
+              {% for col in result.columns %}
+                <th>{{ col.label }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in result.rows %}
+              <tr>
+                {% for col in result.columns %}
+                  {% set value = row.get(col.key) %}
+                  <td>
+                    {% if col.key == 'Importo' %}
+                      {{ "{:,.2f}".format((value or 0)|float).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                    {% elif col.key == 'StoreApp' %}
+                      {% if value %}
+                        <span class="fw-semibold">{{ value }}</span>
+                      {% else %}
+                        <span class="text-muted">Non riconosciuto</span>
+                      {% endif %}
+                    {% elif col.key == 'DataInserimento' and value %}
+                      {{ value.strftime('%d/%m/%Y %H:%M') if value.strftime else value }}
+                    {% else %}
+                      {{ value or '' }}
+                    {% endif %}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="{{ result.columns|length }}" class="text-center text-muted py-4">
+                  Nessun record trovato con i filtri correnti.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if summary.pages > 1 %}
+      <div class="finance-pagination mt-3">
+        <div class="text-muted small">Visualizzate fino a 200 righe per pagina.</div>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary btn-sm {% if summary.page <= 1 %}disabled{% endif %}"
+             href="{{ qs_page(summary.page - 1) if summary.page > 1 else '#' }}">Precedente</a>
+          <a class="btn btn-outline-secondary btn-sm {% if summary.page >= summary.pages %}disabled{% endif %}"
+             href="{{ qs_page(summary.page + 1) if summary.page < summary.pages else '#' }}">Successiva</a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const checks = Array.from(document.querySelectorAll('.finance-store-check'));
+    const label = document.getElementById('financeStoreDropdownLabel');
+    const allBtn = document.getElementById('financeStoreAll');
+    const noneBtn = document.getElementById('financeStoreNone');
+
+    function refreshLabel() {
+      if (!label) return;
+      const selected = checks.filter(c => c.checked);
+      if (!selected.length) {
+        label.textContent = 'Nessuno store selezionato';
+      } else if (selected.length === checks.length) {
+        label.textContent = 'Tutti gli store visibili';
+      } else if (selected.length === 1) {
+        label.textContent = selected[0].parentElement.textContent.trim();
+      } else {
+        label.textContent = `${selected.length} store selezionati`;
+      }
+    }
+
+    checks.forEach(ch => ch.addEventListener('change', refreshLabel));
+    if (allBtn) allBtn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      checks.forEach(ch => { ch.checked = true; });
+      refreshLabel();
+    });
+    if (noneBtn) noneBtn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      checks.forEach(ch => { ch.checked = false; });
+      refreshLabel();
+    });
+    refreshLabel();
+  })();
+</script>
+{% endblock %}

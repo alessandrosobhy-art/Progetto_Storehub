@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}MBO - Address-store{% endblock %}
+{% block head_extra %}
+<style>
+  .mbo-address-page {
+    max-width: 1680px;
+  }
+
+  .mbo-address-head,
+  .mbo-address-panel,
+  .mbo-address-kpis {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+  }
+
+  .mbo-address-head,
+  .mbo-address-panel {
+    padding: 1rem;
+  }
+
+  .mbo-address-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
+    gap: .75rem;
+    padding: .75rem;
+  }
+
+  .mbo-address-kpi {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .625rem .75rem;
+  }
+
+  .mbo-address-kpi span {
+    display: block;
+    color: var(--bs-secondary-color);
+    font-size: .8rem;
+  }
+
+  .mbo-address-kpi strong {
+    display: block;
+    font-size: 1.35rem;
+    line-height: 1.15;
+  }
+
+  .mbo-address-table {
+    min-width: 1200px;
+  }
+
+  .mbo-address-table th {
+    color: var(--bs-secondary-color);
+    font-size: .75rem;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+
+  .mbo-address-cell {
+    max-width: 520px;
+  }
+
+  @media (max-width: 991.98px) {
+    .mbo-address-kpis {
+      grid-template-columns: repeat(2, minmax(150px, 1fr));
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .mbo-address-kpis {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+{% block content %}
+{% include "_mbo_toolbar.html" %}
+
+<div class="container-fluid mbo-address-page py-4">
+  <div class="mbo-address-head d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+      <h1 class="mb-1">Address-store</h1>
+      <div class="text-muted">Verifica e modifica l'associazione tra ADDRESS Yoobic e store Supabase.</div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label mb-1">Anno</label>
+        <select name="year" class="form-select">
+          {% for y in mbo_year_options %}
+          <option value="{{ y }}" {% if y == mbo_year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline-primary">Carica</button>
+    </form>
+  </div>
+
+  <div class="mbo-address-kpis mb-3">
+    <div class="mbo-address-kpi">
+      <span>Address audit</span>
+      <strong>{{ mapping_matrix.total_count }}</strong>
+    </div>
+    <div class="mbo-address-kpi">
+      <span>Match automatici</span>
+      <strong class="text-success">{{ mapping_matrix.automatic_count }}</strong>
+    </div>
+    <div class="mbo-address-kpi">
+      <span>Override manuali</span>
+      <strong class="text-primary">{{ mapping_matrix.manual_count }}</strong>
+    </div>
+    <div class="mbo-address-kpi">
+      <span>Senza match</span>
+      <strong class="text-danger">{{ mapping_matrix.unmatched_count }}</strong>
+    </div>
+  </div>
+
+  <section class="mbo-address-panel">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mbo-address-table mb-0">
+        <thead>
+          <tr>
+            <th>Address Yoobic</th>
+            <th>Audit</th>
+            <th>Ultimo audit</th>
+            <th>Origine</th>
+            <th>Store assegnato</th>
+            <th style="min-width: 280px;">Modifica store</th>
+            <th class="text-end">Azione</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in mapping_matrix.rows %}
+          <tr>
+            <td class="mbo-address-cell">
+              <div class="fw-semibold">{{ row.address }}</div>
+              <div class="text-muted small">{{ row.address_norm }}</div>
+            </td>
+            <td>{{ row.audit_count }}</td>
+            <td>{{ row.latest_audit_date }}</td>
+            <td>
+              {% if row.source == 'manuale' %}
+              <span class="badge text-bg-primary">Manuale</span>
+              {% elif row.source == 'automatico' %}
+              <span class="badge text-bg-success">Automatico YOOBIC</span>
+              {% else %}
+              <span class="badge text-bg-danger">Senza match</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.effective_store_code %}
+              <div class="fw-semibold">{{ row.effective_store_name }}</div>
+              <div class="text-muted small">{{ row.effective_store_code }}</div>
+              {% else %}
+              <span class="text-muted">Non assegnato</span>
+              {% endif %}
+            </td>
+            <td>
+              <form id="address_map_{{ loop.index }}" method="post" class="m-0">
+                <input type="hidden" name="action" value="save_address_mapping">
+                <input type="hidden" name="year" value="{{ mbo_year }}">
+                <input type="hidden" name="address_norm" value="{{ row.address_norm }}">
+                <input type="hidden" name="address_sample" value="{{ row.address }}">
+              </form>
+              <select form="address_map_{{ loop.index }}" name="store_code" class="form-select form-select-sm" required>
+                <option value="">Seleziona store</option>
+                {% for store in mapping_matrix.stores %}
+                <option value="{{ store.store_code }}" {% if store.store_code == row.effective_store_code %}selected{% endif %}>
+                  {{ store.store_name }}{% if store.store_code %} ({{ store.store_code }}){% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-end">
+              <button form="address_map_{{ loop.index }}" class="btn btn-sm btn-outline-primary">Salva</button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">Nessun ADDRESS audit disponibile per l'anno selezionato.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

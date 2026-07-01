@@ -1,0 +1,20 @@
+<div class="app-sectionbar">
+  <div class="container app-sectionbar__inner">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="app-sectionbar__label">{{ tr('estrazioni', 'toolbar.title', 'Estrazioni') }}</span>
+      {% set is_delivery_weekly = request.path.startswith('/estrazioni/delivery-weekly') %}
+      {% set is_dati_magazzino = request.endpoint == 'warehouse.riepilogo' %}
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_delivery_weekly else 'btn-outline-primary' }}"
+         href="{{ url_for('estrazioni.delivery_weekly') }}">
+        {{ tr('estrazioni', 'toolbar.delivery_data', 'Dati Delivery') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_dati_magazzino else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.riepilogo') }}">
+        {{ tr('estrazioni', 'toolbar.warehouse_data', 'Dati Magazzino') }}
+      </a>
+
+    </div>
+  </div>
+</div>

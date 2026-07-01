@@ -1,0 +1,1198 @@
+﻿{% extends "base.html" %}
+{% block content %}
+{% include "_warehouse_toolbar.html" %}
+
+<div class="container py-4">
+  <h1 class="h4 mb-3">{{ tr('warehouse', 'inventory_edit.title', 'Modifica Dati Inventario') }}</h1>
+
+  <form method="post" class="mb-3" id="invEditForm">
+    <input type="hidden" name="submit_action" id="submit_action" value="load">
+
+    <div class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label" for="data_mov">{{ tr('warehouse', 'inventory.movement_date', 'Data movimentazione') }}</label>
+        <input class="form-control" id="data_mov" name="data_mov" type="date" value="{{ header.data_mov if header else '' }}" required>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label" for="mov_type">{{ tr('warehouse', 'search.movement_type', 'Tipo movimentazione') }}</label>
+        {% set mt = header.mov_type if header else 'INV' %}
+        <select class="form-select" id="mov_type" name="mov_type" required>
+          <option value="INV" {% if mt=='INV' %}selected{% endif %}>{{ tr('warehouse', 'warehouse.mov_type.inv', 'Inventario') }}</option>
+          <option value="TXIN" {% if mt=='TXIN' %}selected{% endif %}>{{ tr('warehouse', 'warehouse.mov_type.txin', 'Trasferimenti In') }}</option>
+          <option value="TXOUT" {% if mt=='TXOUT' %}selected{% endif %}>{{ tr('warehouse', 'warehouse.mov_type.txout', 'Trasferimenti Out') }}</option>
+          <option value="WASTE CRUDO" {% if mt=='WASTE CRUDO' %}selected{% endif %}>{{ tr('warehouse', 'warehouse.mov_type.waste_crudo', 'Waste Crudo') }}</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label" for="supplier_name">{{ tr('warehouse', 'analysis.supplier', 'Fornitore') }}</label>
+        <select class="form-select" id="supplier_name" name="supplier_name" required>
+          <option value="">{{ tr('warehouse', 'delivery.select_supplier', 'Seleziona un fornitore...') }}</option>
+          {% for s in suppliers %}
+            <option value="{{ s.name }}" {% if header.supplier_name == s.name %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+        {% if suppliers_error %}
+          <div class="small text-danger mt-1">{{ suppliers_error }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" type="submit" id="btnLoad">{{ tr('warehouse', 'search.search', 'Cerca') }}</button>
+      </div>
+    </div>
+
+    <div class="row g-3 align-items-end mt-0">
+      <div class="col-md-3 offset-md-3" id="site2Wrap" style="display:none;">
+        <label class="form-label" for="site2">{{ tr('warehouse', 'inventory.site2_transfer', 'SITE2 (trasferimento)') }}</label>
+        <select class="form-select" id="site2" name="site2">
+          <option value="">{{ tr('warehouse', 'inventory.select_store_option', 'Seleziona store...') }}</option>
+          {# Popolamento server-side: evita che la tendina resti vuota se la fetch fallisce #}
+          {% for s in (stores_all or stores or []) %}
+            {% set sc = s.code if s.code is defined else s.get('code') %}
+            {% set sn = s.name if s.name is defined else s.get('name') %}
+            <option value="{{ sc }}" {% if header and header.site2 and (header.site2|string) == (sc|string) %}selected{% endif %}>
+              {{ sc }} - {{ sn or '' }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+{% if doc and doc.rows and doc.rows|length > 0 %}
+      <hr class="my-3">
+
+      {% set cols = doc.cols or [] %}
+      {% set rows = doc.rows or [] %}
+
+      <input type="hidden" name="cols_count" value="{{ cols|length }}">
+      <input type="hidden" name="rows_count" value="{{ rows|length }}">
+      {% for c in cols %}
+        <input type="hidden" name="col-{{ loop.index0 }}-name" value="{{ c }}">
+      {% endfor %}
+
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <div class="flex-grow-1" style="max-width: 420px;">
+          <input type="text" class="form-control form-control-sm" id="invSearchInput" placeholder="{{ tr('warehouse', 'delivery.search_product_placeholder', 'Cerca prodotto (descrizione)...') }}">
+          <div class="text-muted small mt-1">
+            {{ tr('warehouse', 'delivery.rows_found', 'Righe trovate') }}: <strong>{{ rows|length }}</strong>
+            <span class="ms-2">{{ tr('warehouse', 'common.store', 'Store') }}: <strong>{{ store_code }}</strong> - {{ store_name }}</span>
+          </div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+          <button class="btn btn-success" type="submit" id="btnSave">{{ tr('warehouse', 'common.save', 'Salva') }}</button>
+          <button class="btn btn-outline-primary" type="button" id="invPdfBtn">PDF</button>
+          <button class="btn btn-outline-secondary d-none d-md-inline-block" type="button" id="btnToggleDetails">{{ tr('warehouse', 'consumi.show_details', 'Mostra dettagli') }}</button>
+        </div>
+      </div>
+
+
+      <div class="card border-0 shadow-sm mb-3" id="invTotalsCard">
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="small text-muted">{{ tr('warehouse', 'inventory.partial_total', 'Totale parziale inventario') }}</div>
+            <div class="small">
+              <span class="text-muted">{{ tr('warehouse', 'analysis.supplier', 'Fornitore') }}:</span>
+              <strong id="invTotalsSupplier">-</strong>
+              <span class="ms-3 text-muted">{{ tr('warehouse', 'common.total_eur', 'Tot EUR') }}:</span>
+              <strong id="invTotalsGrand">0,00</strong>
+            </div>
+          </div>
+          <div class="table-responsive mt-2">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>{{ tr('warehouse', 'delivery.group', 'Gruppo') }}</th>
+                  <th class="text-end">{{ tr('warehouse', 'common.total_eur', 'Tot EUR') }}</th>
+                </tr>
+              </thead>
+              <tbody id="invTotalsByGroup">
+                <tr><td class="text-muted" colspan="2">{{ tr('warehouse', 'delivery.no_amount_entered', 'Nessun importo inserito') }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      
+    <!-- Mobile: elenco prodotti (solo descrizione) -->
+    <div class="d-md-none mb-3" id="invEditMobileListWrap">
+      <div class="list-group shadow-sm" id="invEditMobileList">
+        {% for r in rows %}
+          {% set idx = loop.index0 %}
+          {% set anag = r.anag or {} %}
+          {% set ns = namespace(desc_val='') %}
+          {% for c in cols %}
+            {% set cl = (c|string)|lower %}
+            {% if (not ns.desc_val) and ('descr' in cl) %}
+              {% set ns.desc_val = (anag.get(c) or '') %}
+            {% endif %}
+          {% endfor %}
+          <button type="button"
+                  class="list-group-item list-group-item-action mobile-product-item"
+                  data-row-index="{{ idx }}">
+            {{ ns.desc_val if ns.desc_val else tr('warehouse', 'delivery.without_description', '(Senza descrizione)') }}
+          </button>
+        {% endfor %}
+      </div>
+      <div class="small text-muted mt-2 d-none" id="invEditMobileEmpty">{{ tr('warehouse', 'delivery.no_product_found', 'Nessun prodotto trovato') }}</div>
+    </div>
+
+<div class="table-responsive inv-table-wrap d-none d-md-block">
+        <table class="table table-sm table-striped table-bordered align-middle mb-0 inv-table">
+          <thead class="table-light">
+            <tr>
+              <th class="inv-sticky inv-col-del" style="width:52px;"></th>
+
+              {% for c in cols %}
+                {% set cl = (c|string)|lower %}
+                {% set is_tipolistino = ('tipolistino' in cl) %}
+                {% set is_desc = ('descr' in cl) %}
+                {% set is_grp = ('gruppo' in cl) %}
+                {% set is_unit = ('unit' in cl or 'unità' in cl or 'unita' in cl or cl == 'um') %}
+                {% set is_qtacar = ('qtacar' in cl or 'qta car' in cl or 'qta_car' in cl) %}
+                {% set is_qtaint = ('qtaint' in cl or 'qta int' in cl or 'qta_int' in cl) %}
+                {% set is_price = ('prezzo' in cl or cl == 'price') %}
+                {% set is_detail = (is_unit or is_qtacar or is_qtaint or is_price) and (not is_tipolistino) %}
+                {% set is_base = (is_desc or is_grp) and (not is_tipolistino) %}
+                {% set is_hidden = (not is_base) and (not is_detail) or is_tipolistino %}
+                {% set col_label = c %}
+                {% if is_desc %}
+                  {% set col_label = tr('warehouse', 'delivery.col_description', 'Descrizione') %}
+                {% elif is_grp %}
+                  {% set col_label = tr('warehouse', 'delivery.group', 'Gruppo') %}
+                {% elif is_price %}
+                  {% set col_label = tr('warehouse', 'delivery.col_price', 'Prezzo') %}
+                {% elif is_unit %}
+                  {% set col_label = tr('warehouse', 'delivery.unit', 'Unità') %}
+                {% elif is_qtacar %}
+                  {% set col_label = tr('warehouse', 'delivery.col_pack_qty', 'Qta car') %}
+                {% elif is_qtaint %}
+                  {% set col_label = tr('warehouse', 'delivery.col_inner_qty', 'Qta int') %}
+                {% endif %}
+                <th class="{% if is_desc %}inv-sticky inv-col-desc{% endif %}{% if is_detail %} inv-detail-col d-none{% endif %}{% if is_hidden %} inv-col-hidden d-none{% endif %}">
+                  {{ col_label }}
+                </th>
+              {% endfor %}
+
+              <th class="inv-col-input">CAR</th>
+              <th class="inv-col-input">INT</th>
+              <th class="inv-col-input">PEZ</th>
+              <th class="inv-col-input">KG</th>
+              <th class="inv-col-input">TOTPZ</th>
+              <th class="inv-col-input">TOT€</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for r in rows %}
+              {% set idx = loop.index0 %}
+              {% set anag = r.anag or {} %}
+
+              {# detect desc + code per data attributes #}
+              {% set ns = namespace(desc_val='', code_val='') %}
+              {% for c in cols %}
+                {% set cl = (c|string)|lower %}
+                {% if not ns.desc_val and ('descr' in cl) %}
+                  {% set ns.desc_val = (anag.get(c) or '') %}
+                {% endif %}
+                {% if not ns.code_val and (cl == 'codice' or 'codice' in cl or cl == 'code' or cl == 'sku') %}
+                  {% set ns.code_val = (anag.get(c) or '') %}
+                {% endif %}
+              {% endfor %}
+
+              <tr class="inv-row" data-row-index="{{ idx }}" data-desc="{{ ns.desc_val|e }}" data-code="{{ ns.code_val|e }}">
+                <td class="inv-sticky inv-col-del text-center">
+                  <button type="button" class="btn btn-sm btn-outline-danger inv-delete-row" title="{{ tr('warehouse', 'inventory.delete_row', 'Elimina riga') }}">x</button>
+                  <input type="hidden" name="row-{{ idx }}-deleted" value="0" class="row-deleted-flag">
+
+                  <input type="hidden" name="row-{{ idx }}-orig-car" value="{{ r.car }}">
+                  <input type="hidden" name="row-{{ idx }}-orig-interno" value="{{ r.interno }}">
+                  <input type="hidden" name="row-{{ idx }}-orig-pez" value="{{ r.pez }}">
+                  <input type="hidden" name="row-{{ idx }}-orig-totpz" value="{{ r.totpz }}">
+                  <input type="hidden" name="row-{{ idx }}-orig-toteuro" value="{{ r.toteuro }}">
+
+                  <input type="hidden" name="row-{{ idx }}-effective-price" value="" class="inv-effective-price">
+                </td>
+
+                {% for c in cols %}
+                  {% set cl = (c|string)|lower %}
+                  {% set is_tipolistino = ('tipolistino' in cl) %}
+                  {% set is_desc = ('descr' in cl) %}
+                  {% set is_grp = ('gruppo' in cl) %}
+                  {% set is_unit = ('unit' in cl or 'unità' in cl or 'unita' in cl or cl == 'um') %}
+                  {% set is_qtacar = ('qtacar' in cl or 'qta car' in cl or 'qta_car' in cl) %}
+                  {% set is_qtaint = ('qtaint' in cl or 'qta int' in cl or 'qta_int' in cl) %}
+                  {% set is_price = ('prezzo' in cl or cl == 'price') %}
+                  {% set is_detail = (is_unit or is_qtacar or is_qtaint or is_price) and (not is_tipolistino) %}
+                  {% set is_base = (is_desc or is_grp) and (not is_tipolistino) %}
+                  {% set is_hidden = (not is_base) and (not is_detail) or is_tipolistino %}
+
+                  {% set val = anag.get(c) %}
+                  <td class="{% if is_desc %}inv-sticky inv-col-desc{% endif %}{% if is_grp %} inv-col-gruppo{% endif %}{% if is_qtacar %} inv-qtacar{% endif %}{% if is_qtaint %} inv-qtaint{% endif %}{% if is_price %} inv-price-cell{% endif %}{% if is_detail %} inv-detail-col d-none{% endif %}{% if is_hidden %} inv-col-hidden d-none{% endif %}">{% if is_price %}
+                      <span class="inv-price-text" data-listino-price="{{ val }}">{{ val }}</span>
+                      <span class="badge text-bg-secondary ms-1 inv-price-badge" style="display:none;">AVG4W</span>
+                    {% else %}
+                      {{ val }}
+                    {% endif %}
+
+                    <input type="hidden" name="row-{{ idx }}-col-{{ loop.index0 }}" value="{{ val }}">
+                  </td>
+                {% endfor %}
+
+                <td>
+                  <input type="text" class="form-control form-control-sm inv-inp inv-car" name="row-{{ idx }}-car" value="{{ r.car }}" inputmode="decimal">
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm inv-inp inv-interno" name="row-{{ idx }}-interno" value="{{ r.interno }}" inputmode="decimal">
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm inv-inp inv-pez" name="row-{{ idx }}-pez" value="{{ r.pez }}" inputmode="decimal">
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm inv-inp inv-kg" name="row-{{ idx }}-kg" value="" inputmode="decimal" placeholder="(opz)">
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm inv-totpz" name="row-{{ idx }}-totpz" value="{{ r.totpz }}" readonly>
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm inv-toteuro" name="row-{{ idx }}-toteuro" value="{{ r.toteuro }}" readonly>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert alert-info mt-3 mb-0">
+        <div class="small">
+          <strong>{{ tr('warehouse', 'inventory_edit.operational_notes', 'Note operative') }}</strong>
+          <ul class="mb-0">
+            <li>{{ tr('warehouse', 'inventory_edit.help_delete_row', 'Per eliminare una riga usa x: la cancellazione e immediata in DB.') }}</li>
+            <li>{{ tr('warehouse', 'inventory_edit.help_quantities', 'Le modifiche alle quantita (CAR/INT/PEZ/KG) si salvano con Salva, solo sulle righe cambiate.') }}</li>
+            <li>{{ tr('warehouse', 'inventory_edit.help_site2', 'Per TXIN/TXOUT devi selezionare SITE2 prima di caricare o salvare.') }}</li>
+          </ul>
+        </div>
+      </div>
+
+      {# --- Cambio intestazione movimento (come Modifica DDT) --- #}
+      <input type="hidden" name="orig_data_mov" value="{{ header.data_mov }}">
+      <input type="hidden" name="orig_mov_type" value="{{ header.mov_type }}">
+      <input type="hidden" name="orig_site2" value="{{ header.site2 }}">
+
+      <hr class="my-4">
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="mb-0">{{ tr('warehouse', 'inventory_edit.change_header_title', 'Cambio intestazione movimento') }}</h6>
+            <small class="text-muted">{{ tr('warehouse', 'inventory_edit.change_header_subtitle', 'Aggiorna tutte le righe del movimento') }}</small>
+          </div>
+
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+              <label class="form-label">{{ tr('warehouse', 'inventory_edit.new_date', 'Nuova data') }}</label>
+              <input type="date" class="form-control" name="new_data_mov" value="{{ header.data_mov }}">
+            </div>
+
+            {% if header.mov_type in ['TXIN', 'TXOUT'] %}
+            <div class="col-12 col-md-3">
+              <label class="form-label">{{ tr('warehouse', 'inventory_edit.new_type', 'Nuovo tipo') }}</label>
+              <select class="form-select" name="new_mov_type">
+                <option value="TXOUT" {% if header.mov_type == 'TXOUT' %}selected{% endif %}>{{ tr('warehouse', 'warehouse.mov_type.txout', 'Trasferimenti Out') }}</option>
+                <option value="TXIN" {% if header.mov_type == 'TXIN' %}selected{% endif %}>{{ tr('warehouse', 'warehouse.mov_type.txin', 'Trasferimenti In') }}</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">{{ tr('warehouse', 'inventory_edit.new_site2', 'Nuovo SITE2') }}</label>
+              <select class="form-select" name="new_site2">
+                <option value="">{{ tr('warehouse', 'analysis.select_supplier', 'Seleziona...') }}</option>
+                                {% for s in (stores_all or stores or []) %}
+                  {% set sc = s.code if s.code is defined else s.get('code') %}
+                  {% set sn = s.name if s.name is defined else s.get('name') %}
+                  <option value="{{ sc }}" {% if (header.site2|string) == (sc|string) %}selected{% endif %}>{{ sc }} - {{ sn or '' }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+
+            <div class="col-12 col-md-2 text-end">
+              <button type="button" class="btn btn-outline-warning w-100" id="btnChangeHeader">{{ tr('warehouse', 'analysis.apply', 'Applica') }}</button>
+            </div>
+          </div>
+
+          <div class="form-text mt-2">
+            {{ tr('warehouse', 'inventory_edit.change_header_help', 'Per i trasferimenti (TXIN/TXOUT) puoi anche correggere mittente/destinatario cambiando tipo e/o SITE2.') }}
+          </div>
+        </div>
+      </div>
+
+    {% endif %}
+  </form>
+</div>
+
+<style>
+  /* Tabelle Inventario/TX: sticky come Modifica DDT */
+  .inv-table { font-size: 0.80rem; width: max-content; min-width: 100%; }
+  .inv-table th, .inv-table td { padding: .25rem .35rem; vertical-align: middle; }
+  .inv-table thead th { white-space: normal; }
+  .inv-table td { white-space: nowrap; }
+
+  /* Colonna descrizione: compatta e leggibile */
+  .inv-col-desc { min-width: 240px; max-width: 340px; white-space: normal; }
+
+  /* Wrapper tabella */
+  .inv-table-wrap { max-height: 70vh; overflow: auto; }
+
+  /* Sticky: X + Descrizione */
+  .inv-sticky { position: sticky; background: #fff; }
+  .inv-col-del { left: 0; z-index: 6; width: 52px; }
+  .inv-col-desc { left: 52px; z-index: 5; box-shadow: 2px 0 0 rgba(0,0,0,.06); }
+
+  /* Sticky celle devono seguire lo striped di Bootstrap (altrimenti testo sotto si vede e “si accavalla”) */
+  .inv-table tbody .inv-sticky {
+    background-color: var(--bs-table-bg-type, var(--bs-table-bg));
+  }
+  /* fallback se --bs-table-bg-type non è disponibile */
+  .inv-table.table-striped > tbody > tr:nth-of-type(odd) > .inv-sticky {
+    background-color: var(--bs-table-striped-bg);
+  }
+  .inv-table.table-striped > tbody > tr:nth-of-type(even) > .inv-sticky {
+    background-color: var(--bs-table-bg);
+  }
+  .inv-table thead .inv-sticky {
+    background-color: #f8f9fa;
+    z-index: 7;
+  }
+
+  .inv-col-input { min-width: 90px; }
+  .inv-inp { width: 95px; }
+
+  @media (max-width: 768px) {
+    .inv-col-desc { min-width: 220px; max-width: 320px; }
+    /* evita zoom/layout shift su iOS quando si clicca negli input del modal */
+    #invEditMobileModal .form-control { font-size: 16px; }
+    body.modal-open { padding-right: 0 !important; }
+  }
+</style>
+
+
+  <!-- Mobile: popup prodotto -->
+  <div class="modal fade" id="invEditMobileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="invEditMobileModalTitle">{{ tr('warehouse', 'delivery.product', 'Prodotto') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('rendiconto', 'common.close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body">
+          <div class="small text-muted mb-2" id="invEditMobileModalMeta"></div>
+
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label mb-1">CAR</label>
+              <input type="text" inputmode="decimal" class="form-control" id="invECar">
+            </div>
+            <div class="col-6">
+              <label class="form-label mb-1">INT</label>
+              <input type="text" inputmode="decimal" class="form-control" id="invEInt">
+            </div>
+            <div class="col-6">
+              <label class="form-label mb-1">PEZ</label>
+              <input type="text" inputmode="decimal" class="form-control" id="invEPez">
+            </div>
+            <div class="col-6">
+              <label class="form-label mb-1">KG</label>
+              <input type="text" inputmode="decimal" class="form-control" id="invEKg">
+            </div>
+          </div>
+
+          <div class="border rounded p-2 mt-3">
+            <div class="d-flex justify-content-between">
+              <div class="small text-muted">{{ tr('warehouse', 'inventory_edit.current_total_pieces', 'Totpz (attuale)') }}</div>
+              <div class="fw-semibold" id="invETotpz">0</div>
+            </div>
+            <div class="d-flex justify-content-between">
+              <div class="small text-muted">{{ tr('warehouse', 'inventory_edit.current_total_eur', 'Tot EUR (attuale)') }}</div>
+              <div class="fw-semibold" id="invETotEuro">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-danger me-auto" id="invEDelete">{{ tr('warehouse', 'inventory.delete', 'Elimina') }}</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ tr('rendiconto', 'common.close', 'Chiudi') }}</button>
+          <button type="button" class="btn btn-primary" id="invESave">{{ tr('warehouse', 'common.save', 'Salva') }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  window.WH_INVENTORY_I18N = {
+    noAmount: {{ tr('warehouse', 'delivery.no_amount_entered', 'Nessun importo inserito')|tojson }},
+    noGroup: {{ tr('warehouse', 'delivery.no_group', '(Senza gruppo)')|tojson }},
+    showDetails: {{ tr('warehouse', 'consumi.show_details', 'Mostra dettagli')|tojson }},
+    hideDetails: {{ tr('warehouse', 'consumi.hide_details', 'Nascondi dettagli')|tojson }},
+    product: {{ tr('warehouse', 'delivery.product', 'Prodotto')|tojson }},
+    group: {{ tr('warehouse', 'delivery.group', 'Gruppo')|tojson }},
+    withoutDescription: {{ tr('warehouse', 'delivery.without_description', '(Senza descrizione)')|tojson }},
+    missingHeader: {{ tr('warehouse', 'inventory_edit.missing_header', 'Dati header mancanti: data, tipo e fornitore.')|tojson }},
+    site2Required: {{ tr('warehouse', 'inventory_edit.site2_required', 'Per TXIN/TXOUT devi selezionare SITE2.')|tojson }},
+    site2RequiredSave: {{ tr('warehouse', 'inventory_edit.site2_required_save', 'Per TXIN/TXOUT devi selezionare SITE2 prima di salvare.')|tojson }},
+    missingRowIdentity: {{ tr('warehouse', 'inventory_edit.missing_row_identity', 'Descrizione o codice non disponibili: impossibile eliminare la riga.')|tojson }},
+    confirmDeleteRowPrefix: {{ tr('warehouse', 'delivery_edit.confirm_delete_row_prefix', 'Confermi eliminazione della riga')|tojson }},
+    deleteRowError: {{ tr('warehouse', 'delivery_edit.delete_row_error', 'Errore eliminazione riga.')|tojson }},
+    deleteNetworkError: {{ tr('warehouse', 'delivery_edit.delete_network_error', 'Errore rete durante eliminazione:')|tojson }},
+    requiredEditSave: {{ tr('warehouse', 'inventory_edit.required_save', 'Compila fornitore, tipo e data prima di salvare.')|tojson }},
+    noChangedRows: {{ tr('warehouse', 'inventory_edit.no_changed_rows', 'Nessuna riga modificata: nulla da salvare.')|tojson }},
+    confirmSaveChanges: {{ tr('warehouse', 'inventory_edit.confirm_save_changes', 'Confermi il salvataggio delle modifiche?')|tojson }},
+    changedRows: {{ tr('warehouse', 'inventory_edit.changed_rows', 'Righe modificate')|tojson }},
+    otherRows: {{ tr('warehouse', 'inventory_edit.other_rows', 'altre righe')|tojson }},
+    row: {{ tr('warehouse', 'delivery.row', 'Riga')|tojson }},
+    selectNewDate: {{ tr('warehouse', 'inventory_edit.select_new_date', 'Seleziona la nuova data prima di applicare.')|tojson }},
+    confirmChangeHeader: {{ tr('warehouse', 'inventory_edit.confirm_change_header', 'Applico la modifica di intestazione a tutte le righe del movimento?')|tojson }},
+    requiredPdfFields: {{ tr('warehouse', 'inventory_edit.required_pdf_fields', 'Per esportare in PDF compila fornitore, tipo e data.')|tojson }},
+    noRowsToExport: {{ tr('warehouse', 'inventory.no_rows_to_export', 'Nessuna riga da esportare.')|tojson }},
+    pdfExportError: {{ tr('warehouse', 'inventory.pdf_export_error', 'Errore export PDF')|tojson }}
+  };
+  const I18N = window.WH_INVENTORY_I18N || {};
+  const CONV_MAP = {{ conv_map|tojson|safe }};
+  const AVG_PRICE_MAP = {{ avg_price_map|tojson|safe }};
+
+  function normKey(s) {
+    return (s || '').toString().trim().toLowerCase();
+  }
+
+  function parseNumAny(v) {
+    if (v === null || v === undefined) return 0;
+    if (typeof v === 'number') return v;
+    let s = String(v).trim();
+    if (!s) return 0;
+    s = s.replace('€', '').replace(/\s+/g, '');
+    if (s.includes(',') && s.includes('.')) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(',', '.');
+    }
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function formatEU2(n) {
+    try {
+      return (Number(n) || 0).toFixed(2).replace('.', ',');
+    } catch (e) {
+      return '0,00';
+    }
+  }
+
+  function formatEU4(n) {
+    try {
+      return (Number(n) || 0).toFixed(4).replace('.', ',');
+    } catch (e) {
+      return '0,0000';
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+    });
+  }
+
+  let _invTotalsScheduled = false;
+  function scheduleInvTotals() {
+    if (_invTotalsScheduled) return;
+    _invTotalsScheduled = true;
+    window.requestAnimationFrame(() => {
+      _invTotalsScheduled = false;
+      updateInvTotals();
+    });
+  }
+
+  function updateInvTotals() {
+    const supplierEl = document.getElementById('supplier_name');
+    let supplierName = '-';
+    if (supplierEl) {
+      if (supplierEl.selectedIndex >= 0) supplierName = supplierEl.options[supplierEl.selectedIndex].text || supplierEl.value || '-';
+      else supplierName = supplierEl.value || '-';
+    }
+    const lbl = document.getElementById('invTotalsSupplier');
+    if (lbl) lbl.textContent = supplierName || '-';
+
+    const groupMap = {};
+    let grand = 0;
+
+    document.querySelectorAll('.inv-row').forEach(row => {
+      const tot = parseNumAny((row.querySelector('.inv-toteuro') || {}).value);
+      if (!tot) return;
+
+      let grp = (row.querySelector('.inv-col-gruppo')?.textContent || '').trim();
+    if (!grp) grp = I18N.noGroup || '(Senza gruppo)';
+
+      groupMap[grp] = (groupMap[grp] || 0) + tot;
+      grand += tot;
+    });
+
+    const grandEl = document.getElementById('invTotalsGrand');
+    if (grandEl) grandEl.textContent = formatEU2(grand);
+
+    const body = document.getElementById('invTotalsByGroup');
+    if (!body) return;
+
+    body.innerHTML = '';
+    const keys = Object.keys(groupMap);
+    if (keys.length === 0) {
+      body.innerHTML = '<tr><td class="text-muted" colspan="2">' + escapeHtml(I18N.noAmount || 'Nessun importo inserito') + '</td></tr>';
+      return;
+    }
+
+    const rows = keys.map(k => [k, groupMap[k]]);
+    rows.sort((a,b) => b[1] - a[1]);
+
+    rows.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + escapeHtml(item[0]) + '</td>' +
+                     '<td class="text-end fw-semibold">' + formatEU2(item[1]) + '</td>';
+      body.appendChild(tr);
+    });
+  }
+
+  function getConv(desc) {
+    const k = normKey(desc);
+    return CONV_MAP && Object.prototype.hasOwnProperty.call(CONV_MAP, k) ? parseNumAny(CONV_MAP[k]) : 0;
+  }
+
+  function getAvgPrice(desc) {
+    const k = normKey(desc);
+    return AVG_PRICE_MAP && Object.prototype.hasOwnProperty.call(AVG_PRICE_MAP, k) ? parseNumAny(AVG_PRICE_MAP[k]) : 0;
+  }
+
+  function recalcRow(row) {
+    const desc = row.getAttribute('data-desc') || '';
+    const qtacar = parseNumAny((row.querySelector('.inv-qtacar') || {}).textContent);
+    const qtaint = parseNumAny((row.querySelector('.inv-qtaint') || {}).textContent);
+
+    const car = parseNumAny((row.querySelector('.inv-car') || {}).value);
+    const inte = parseNumAny((row.querySelector('.inv-interno') || {}).value);
+    const pez = parseNumAny((row.querySelector('.inv-pez') || {}).value);
+    const kg = parseNumAny((row.querySelector('.inv-kg') || {}).value);
+
+    const priceTextEl = row.querySelector('.inv-price-text');
+    const badgeEl = row.querySelector('.inv-price-badge');
+    const listinoPrice = parseNumAny(priceTextEl ? priceTextEl.getAttribute('data-listino-price') : 0);
+    const avgPrice = getAvgPrice(desc);
+    const effectivePrice = listinoPrice > 0 ? listinoPrice : (avgPrice > 0 ? avgPrice : 0);
+
+    if (priceTextEl) {
+      priceTextEl.textContent = formatEU2(effectivePrice);
+    }
+    if (badgeEl) {
+      badgeEl.style.display = (listinoPrice > 0 || avgPrice <= 0) ? 'none' : 'inline-block';
+    }
+
+    // store effective price in hidden input for server-side override
+    const effInput = row.querySelector('.inv-effective-price');
+    if (effInput) effInput.value = String(Number(effectivePrice || 0).toFixed(6));
+
+    // calc totpz
+    let totpz = 0;
+    if (qtacar > 0) {
+      totpz += car * qtacar;
+      if (qtacar > 0 && qtaint > 0) {
+        totpz += inte * (qtacar / qtaint);
+      }
+    }
+    totpz += pez;
+
+    const conv = getConv(desc);
+    if (conv > 0 && kg > 0) {
+      totpz += (kg / conv);
+    }
+
+    // calc euro
+    let toteuro = 0;
+    if (qtacar > 0) {
+      toteuro = (totpz / qtacar) * effectivePrice;
+    }
+
+    const totpzEl = row.querySelector('.inv-totpz');
+    const toteuroEl = row.querySelector('.inv-toteuro');
+    if (totpzEl) totpzEl.value = formatEU4(totpz);
+    if (toteuroEl) toteuroEl.value = formatEU2(toteuro);
+      scheduleInvTotals();
+  }
+
+  function prefillKgFromStoredTotpz(row) {
+    const desc = row.getAttribute('data-desc') || '';
+    const conv = getConv(desc);
+    if (conv <= 0) return;
+
+    const car = parseNumAny((row.querySelector('.inv-car') || {}).value);
+    const inte = parseNumAny((row.querySelector('.inv-interno') || {}).value);
+    const pez = parseNumAny((row.querySelector('.inv-pez') || {}).value);
+    const kgEl = row.querySelector('.inv-kg');
+    if (!kgEl) return;
+
+    if (car !== 0 || inte !== 0 || pez !== 0) return;
+    if (parseNumAny(kgEl.value) > 0) return;
+
+    const totpzStored = parseNumAny((row.querySelector('input[name="row-' + row.getAttribute('data-row-index') + '-orig-totpz"]') || {}).value);
+    if (totpzStored > 0) {
+      const kg = totpzStored * conv;
+      kgEl.value = formatEU4(kg);
+    }
+  }
+
+  // site2 show/hide + load store list
+  async function loadStoresIntoSite2() {
+    const site2Select = document.getElementById('site2');
+    if (!site2Select) return;
+
+    // if already has options beyond placeholder, skip
+    if (site2Select.options && site2Select.options.length > 1) return;
+
+    try {
+      const res = await fetch('{{ url_for("warehouse.stores_json_all") }}');
+      const data = await res.json();
+      const stores = data.stores || [];
+
+      const current = (site2Select.getAttribute('data-current') || site2Select.value || '').trim();
+      stores.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.code;
+        opt.textContent = s.code + ' - ' + (s.name || '');
+        if (current && String(current) === String(s.code)) opt.selected = true;
+        site2Select.appendChild(opt);
+      });
+
+      // set from header (server)
+      const headerSite2 = '{{ header.site2 if header else "" }}';
+      if (headerSite2) {
+        site2Select.value = headerSite2;
+      }
+    } catch (e) {
+      // silent
+    }
+  }
+
+  function updateSite2Visibility() {
+    const mt = (document.getElementById('mov_type') || {}).value || '';
+    const wrap = document.getElementById('site2Wrap');
+    const site2 = document.getElementById('site2');
+    const isTx = (mt === 'TXIN' || mt === 'TXOUT');
+    if (wrap) wrap.style.display = isTx ? '' : 'none';
+    if (site2) {
+      if (!isTx) {
+        // keep value but it's not required
+      } else {
+        loadStoresIntoSite2();
+      }
+    }
+  }
+
+  // delete row realtime
+  function bindDeleteRow() {
+    document.querySelectorAll('.inv-delete-row').forEach(btn => {
+      btn.addEventListener('click', async function() {
+        const row = btn.closest('.inv-row');
+        if (!row) return;
+
+        const supplier = (document.getElementById('supplier_name') || {}).value || '';
+        const movType = (document.getElementById('mov_type') || {}).value || '';
+        const dataMov = (document.getElementById('data_mov') || {}).value || '';
+        const site2 = (document.getElementById('site2') || {}).value || '';
+        const descr = row.getAttribute('data-desc') || '';
+        const code = row.getAttribute('data-code') || '';
+
+        if (!supplier || !movType || !dataMov) {
+          alert(I18N.missingHeader || 'Dati header mancanti: data, tipo e fornitore.');
+          return;
+        }
+        const isTx = (movType === 'TXIN' || movType === 'TXOUT');
+        if (isTx && !site2) {
+          alert(I18N.site2Required || 'Per TXIN/TXOUT devi selezionare SITE2.');
+          return;
+        }
+        if (!descr && !code) {
+          alert(I18N.missingRowIdentity || 'Descrizione o codice non disponibili: impossibile eliminare la riga.');
+          return;
+        }
+
+        if (!confirm((I18N.confirmDeleteRowPrefix || 'Confermi eliminazione della riga') + ' "' + (descr || code) + '"?')) return;
+
+        try {
+          const resp = await fetch('{{ url_for("warehouse.inventory_delete_row") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              supplier_name: supplier,
+              mov_type: movType,
+              data_mov: dataMov,
+              site2: site2,
+              descrizione: descr,
+              codice: code
+            })
+          });
+          const json = await resp.json();
+          if (!json.success) {
+            alert(json.error || I18N.deleteRowError || 'Errore eliminazione riga.');
+            return;
+          }
+          const flag = row.querySelector('.row-deleted-flag');
+          if (flag) flag.value = '1';
+          row.remove();
+          scheduleInvTotals();
+          if (typeof window.__invEditRebuildMobileList === 'function') {
+            window.__invEditRebuildMobileList();
+          }
+        } catch (e) {
+          alert((I18N.deleteNetworkError || 'Errore rete durante eliminazione:') + ' ' + e);
+        }
+      });
+    });
+  }
+
+  // confirm save: only changed rows
+  function bindSaveConfirm() {
+    const saveBtn = document.getElementById('btnSave');
+    if (!saveBtn) return;
+
+    saveBtn.addEventListener('click', function(ev) {
+      const supplier = (document.getElementById('supplier_name') || {}).value || '';
+      const movType = (document.getElementById('mov_type') || {}).value || '';
+      const dataMov = (document.getElementById('data_mov') || {}).value || '';
+      const site2 = (document.getElementById('site2') || {}).value || '';
+
+      if (!supplier || !movType || !dataMov) {
+        alert(I18N.requiredEditSave || 'Compila fornitore, tipo e data prima di salvare.');
+        ev.preventDefault();
+        return;
+      }
+
+      const isTx = (movType === 'TXIN' || movType === 'TXOUT');
+      if (isTx && !site2) {
+        alert(I18N.site2RequiredSave || 'Per TXIN/TXOUT devi selezionare SITE2 prima di salvare.');
+        ev.preventDefault();
+        return;
+      }
+
+      const summary = [];
+      document.querySelectorAll('.inv-row').forEach(row => {
+        const idx = row.getAttribute('data-row-index');
+        const car = parseNumAny((row.querySelector('.inv-car') || {}).value);
+        const inte = parseNumAny((row.querySelector('.inv-interno') || {}).value);
+        const pez = parseNumAny((row.querySelector('.inv-pez') || {}).value);
+        const totpz = parseNumAny((row.querySelector('.inv-totpz') || {}).value);
+        const toteuro = parseNumAny((row.querySelector('.inv-toteuro') || {}).value);
+
+        const oCar = parseNumAny((row.querySelector('input[name="row-' + idx + '-orig-car"]') || {}).value);
+        const oInt = parseNumAny((row.querySelector('input[name="row-' + idx + '-orig-interno"]') || {}).value);
+        const oPez = parseNumAny((row.querySelector('input[name="row-' + idx + '-orig-pez"]') || {}).value);
+        const oTotpz = parseNumAny((row.querySelector('input[name="row-' + idx + '-orig-totpz"]') || {}).value);
+        const oTotEuro = parseNumAny((row.querySelector('input[name="row-' + idx + '-orig-toteuro"]') || {}).value);
+
+        const changed = (Math.abs(car - oCar) > 1e-9) ||
+                        (Math.abs(inte - oInt) > 1e-9) ||
+                        (Math.abs(pez - oPez) > 1e-9) ||
+                        (Math.abs(totpz - oTotpz) > 1e-9) ||
+                        (Math.abs(toteuro - oTotEuro) > 1e-9);
+        if (!changed) return;
+
+        const label = row.getAttribute('data-desc') || row.getAttribute('data-code') || ((I18N.row || 'Riga') + ' ' + idx);
+        summary.push('- ' + label + ' | CAR ' + formatEU4(car) + ' | INT ' + formatEU4(inte) + ' | PEZ ' + formatEU4(pez) + ' | TOTPZ ' + formatEU4(totpz) + ' | € ' + formatEU2(toteuro));
+      });
+
+      if (summary.length === 0) {
+        alert(I18N.noChangedRows || 'Nessuna riga modificata: nulla da salvare.');
+        ev.preventDefault();
+        return;
+      }
+
+      const msg = (I18N.confirmSaveChanges || 'Confermi il salvataggio delle modifiche?') + '\n\n' +
+        (I18N.changedRows || 'Righe modificate') + ' (' + summary.length + '):\n' +
+        summary.slice(0, 20).join('\n') + (summary.length > 20 ? '\n... (' + (I18N.otherRows || 'altre righe') + ')' : '');
+      if (!confirm(msg)) {
+        ev.preventDefault();
+        return;
+      }
+
+      document.getElementById('submit_action').value = 'save';
+    });
+  }
+
+  function bindLoadButton() {
+    const btnLoad = document.getElementById('btnLoad');
+    if (!btnLoad) return;
+    btnLoad.addEventListener('click', function() {
+      document.getElementById('submit_action').value = 'load';
+    });
+  }
+
+  function bindChangeHeaderButton() {
+    const btn = document.getElementById('btnChangeHeader');
+    if (!btn) return;
+
+    btn.addEventListener('click', function(ev) {
+      const newDate = (document.querySelector('input[name="new_data_mov"]') || {}).value || '';
+      if (!newDate) {
+        alert(I18N.selectNewDate || 'Seleziona la nuova data prima di applicare.');
+        return;
+      }
+      if (!confirm(I18N.confirmChangeHeader || 'Applico la modifica di intestazione a tutte le righe del movimento?')) {
+        return;
+      }
+      document.getElementById('submit_action').value = 'change_header';
+      // submit il form
+      const form = btn.closest('form');
+      if (form) form.submit();
+    });
+  }
+
+  function bindToggleDetails() {
+    const btn = document.getElementById('btnToggleDetails');
+    if (!btn) return;
+
+    let shown = false;
+    btn.addEventListener('click', function() {
+      shown = !shown;
+      document.querySelectorAll('.inv-detail-col').forEach(el => {
+        el.classList.toggle('d-none', !shown);
+      });
+      btn.textContent = shown ? (I18N.hideDetails || 'Nascondi dettagli') : (I18N.showDetails || 'Mostra dettagli');
+    });
+  }
+
+  function bindPdfExport() {
+    const btn = document.getElementById('invPdfBtn');
+    if (!btn) return;
+
+    btn.addEventListener('click', async function() {
+      const supplier = (document.getElementById('supplier_name') || {}).value || '';
+      const movType = (document.getElementById('mov_type') || {}).value || '';
+      const dataMov = (document.getElementById('data_mov') || {}).value || '';
+
+      if (!supplier || !movType || !dataMov) {
+        alert(I18N.requiredPdfFields || 'Per esportare in PDF compila fornitore, tipo e data.');
+        return;
+      }
+
+      const outRows = [];
+      document.querySelectorAll('tr.inv-row').forEach(row => {
+        // riga rimossa / nascosta
+        if (row && row.style && row.style.display === 'none') return;
+        const descr = (row.getAttribute('data-desc') || '').trim();
+        if (!descr) return;
+        outRows.push({
+          fornitore: supplier,
+          descrizione: descr,
+          car: (row.querySelector('.inv-car') || {}).value || '',
+          int: (row.querySelector('.inv-interno') || {}).value || '',
+          pez: (row.querySelector('.inv-pez') || {}).value || '',
+          kg: (row.querySelector('.inv-kg') || {}).value || '',
+        });
+      });
+
+      if (!outRows.length) {
+        alert(I18N.noRowsToExport || 'Nessuna riga da esportare.');
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        const payload = {
+          header: {
+            supplier_name: supplier,
+            mov_type: movType,
+            data_mov: dataMov,
+          },
+          rows: outRows,
+        };
+
+        const res = await fetch("{{ url_for('warehouse.inventory_pdf') }}", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || I18N.pdfExportError || 'Errore export PDF');
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeMt = String(movType || 'INV').replace(/\s+/g, '_');
+        a.download = `Inventario_${safeMt}_${dataMov}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) {
+        alert(String(e?.message || e));
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // init
+  updateSite2Visibility();
+  (document.getElementById('mov_type') || {}).addEventListener?.('change', updateSite2Visibility);
+
+  // ensure site2 options loaded if needed
+  if (['TXIN', 'TXOUT'].includes((document.getElementById('mov_type') || {}).value)) {
+    loadStoresIntoSite2();
+  }
+
+  // prefill kg and recalc rows
+  document.querySelectorAll('.inv-row').forEach(row => {
+    prefillKgFromStoredTotpz(row);
+    recalcRow(row);
+  });
+
+  // Totali parziali (per gruppo)
+  const supplierSel = document.getElementById('supplier_name');
+  if (supplierSel) supplierSel.addEventListener('change', () => scheduleInvTotals());
+  scheduleInvTotals();
+
+  // recalc on input
+  document.querySelectorAll('.inv-inp').forEach(inp => {
+    inp.addEventListener('input', function() {
+      const row = inp.closest('.inv-row');
+      if (row) recalcRow(row);
+    });
+  });
+
+  bindDeleteRow();
+  bindSaveConfirm();
+  bindLoadButton();
+  bindChangeHeaderButton();
+  bindToggleDetails();
+  bindPdfExport();
+
+  // ricerca (desktop): filtra righe per descrizione
+  function applyTableSearchFilter() {
+    const s = document.getElementById('invSearchInput');
+    const q = s ? (s.value || '').toLowerCase().trim() : '';
+    document.querySelectorAll('tr.inv-row').forEach((tr) => {
+      const d = tr.querySelector('.inv-col-desc');
+      const txt = d ? (d.textContent || '').toLowerCase() : '';
+      tr.style.display = (!q || txt.includes(q)) ? '' : 'none';
+    });
+  }
+  const _invSearchEl = document.getElementById('invSearchInput');
+  if (_invSearchEl) {
+    _invSearchEl.addEventListener('input', applyTableSearchFilter);
+    applyTableSearchFilter();
+  }
+
+/* ============================
+   Mobile (telefono): elenco + popup prodotto (MODIFICA inventario)
+   ============================ */
+document.addEventListener('DOMContentLoaded', function() {
+  const listEl = document.getElementById('invEditMobileList');
+  const emptyEl = document.getElementById('invEditMobileEmpty');
+  const modalEl = document.getElementById('invEditMobileModal');
+  if (!listEl || !modalEl) return;
+  if (!(window.bootstrap && bootstrap.Modal)) return;
+
+  const modal = new bootstrap.Modal(modalEl);
+  const titleEl = document.getElementById('invEditMobileModalTitle');
+  const metaEl  = document.getElementById('invEditMobileModalMeta');
+  const inpCar = document.getElementById('invECar');
+  const inpInt = document.getElementById('invEInt');
+  const inpPez = document.getElementById('invEPez');
+  const inpKg  = document.getElementById('invEKg');
+  const outTotpz = document.getElementById('invETotpz');
+  const outTotEuro = document.getElementById('invETotEuro');
+  const btnSave = document.getElementById('invESave');
+  const btnDelete = document.getElementById('invEDelete');
+
+  let activeTr = null;
+
+  function getDesc(tr) {
+    const d = tr.querySelector('.inv-col-desc');
+    return d ? (d.textContent || '').trim() : (tr.dataset.desc || '');
+  }
+  function getGroup(tr) {
+    const g = tr.querySelector('.inv-col-gruppo');
+    return g ? (g.textContent || '').trim() : '';
+  }
+  function getInput(tr, sel) { return tr ? tr.querySelector(sel) : null; }
+
+  function ensureRowIndexes() {
+    const trs = Array.from(document.querySelectorAll('tr.inv-row'));
+    trs.forEach((tr, i) => {
+      if (!tr.dataset.rowIndex) tr.dataset.rowIndex = String(i);
+    });
+  }
+
+  function applyMobileFilter() {
+    const searchInput = document.getElementById('invSearchInput');
+    const q = searchInput ? (searchInput.value || '').toLowerCase().trim() : '';
+    const items = listEl.querySelectorAll('.mobile-product-item');
+    let visible = 0;
+    items.forEach((it) => {
+      const t = (it.textContent || '').toLowerCase();
+      const show = (!q || t.includes(q));
+      it.style.display = show ? '' : 'none';
+      if (show) visible += 1;
+    });
+    if (emptyEl) {
+      if (visible === 0) emptyEl.classList.remove('d-none');
+      else emptyEl.classList.add('d-none');
+    }
+  }
+
+  function rebuildList() {
+    ensureRowIndexes();
+    listEl.innerHTML = '';
+    const trs = Array.from(document.querySelectorAll('tr.inv-row'));
+    trs.forEach((tr) => {
+      const desc = getDesc(tr) || I18N.withoutDescription || '(Senza descrizione)';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'list-group-item list-group-item-action mobile-product-item';
+      btn.dataset.rowIndex = tr.dataset.rowIndex;
+      btn.textContent = desc;
+      listEl.appendChild(btn);
+    });
+    applyMobileFilter();
+  }
+
+  // esponi per delete desktop (se presente)
+  window.__invEditRebuildMobileList = rebuildList;
+
+  function openModalFor(tr) {
+    activeTr = tr;
+    const desc = getDesc(tr);
+    const grp = getGroup(tr);
+
+    if (titleEl) titleEl.textContent = desc || I18N.product || 'Prodotto';
+    if (metaEl) metaEl.textContent = grp ? ((I18N.group || 'Gruppo') + ': ' + grp) : '';
+
+    // car/int/pez/kg
+    const elCar = getInput(tr, 'input.inv-car');
+    const elInt = getInput(tr, 'input.inv-interno');
+    const elPez = getInput(tr, 'input.inv-pez');
+    const elKg  = getInput(tr, 'input.inv-kg');
+
+    inpCar.value = elCar ? (elCar.value || '') : '';
+    inpInt.value = elInt ? (elInt.value || '') : '';
+    inpPez.value = elPez ? (elPez.value || '') : '';
+    inpKg.value  = elKg  ? (elKg.value || '')  : '';
+
+    // tot attuali
+    const elTotpz = getInput(tr, 'input.inv-totpz');
+    const elTotE  = getInput(tr, 'input.inv-toteuro');
+    outTotpz.textContent = elTotpz ? (elTotpz.value || '0') : '0';
+    outTotEuro.textContent = elTotE ? (elTotE.value || '0') : '0';
+
+    modal.show();
+  }
+
+  listEl.addEventListener('click', function(ev) {
+    const btn = ev.target.closest('.mobile-product-item');
+    if (!btn) return;
+    const idx = btn.dataset.rowIndex;
+    const tr = document.querySelector('tr.inv-row[data-row-index="' + idx + '"]');
+    if (tr) openModalFor(tr);
+  });
+
+  btnSave.addEventListener('click', function() {
+    if (!activeTr) return;
+
+    const elCar = getInput(activeTr, 'input.inv-car');
+    const elInt = getInput(activeTr, 'input.inv-interno');
+    const elPez = getInput(activeTr, 'input.inv-pez');
+    const elKg  = getInput(activeTr, 'input.inv-kg');
+
+    if (elCar) elCar.value = inpCar.value || '';
+    if (elInt) elInt.value = inpInt.value || '';
+    if (elPez) elPez.value = inpPez.value || '';
+    if (elKg)  elKg.value  = inpKg.value  || '';
+
+    // ricalcola solo sulla pagina (NON DB)
+    try { recalcRow(activeTr); } catch(e) {}
+    try { scheduleInvTotals(); } catch(e) {}
+
+    // aggiorna tot mostrati nel popup (dopo recalc)
+    const elTotpz = getInput(activeTr, 'input.inv-totpz');
+    const elTotE  = getInput(activeTr, 'input.inv-toteuro');
+    outTotpz.textContent = elTotpz ? (elTotpz.value || '0') : '0';
+    outTotEuro.textContent = elTotE ? (elTotE.value || '0') : '0';
+
+    modal.hide();
+  });
+
+  if (btnDelete) {
+    btnDelete.addEventListener('click', function() {
+      if (!activeTr) return;
+      const supplier = (document.getElementById('supplier_name') || {}).value || '';
+      const movType = (document.getElementById('mov_type') || {}).value || '';
+      const dataMov = (document.getElementById('data_mov') || {}).value || '';
+      const site2 = (document.getElementById('site2') || {}).value || '';
+      const descr = activeTr.getAttribute('data-desc') || '';
+      const code = activeTr.getAttribute('data-code') || '';
+
+      if (!supplier || !movType || !dataMov) {
+        alert(I18N.missingHeader || 'Dati header mancanti: data, tipo e fornitore.');
+        return;
+      }
+      const isTx = (movType === 'TXIN' || movType === 'TXOUT');
+      if (isTx && !site2) {
+        alert(I18N.site2Required || 'Per TXIN/TXOUT devi selezionare SITE2.');
+        return;
+      }
+      if (!descr && !code) {
+        alert(I18N.missingRowIdentity || 'Descrizione o codice non disponibili: impossibile eliminare la riga.');
+        return;
+      }
+      if (!confirm((I18N.confirmDeleteRowPrefix || 'Confermi eliminazione della riga') + ' "' + (descr || code) + '"?')) return;
+
+      fetch('{{ url_for("warehouse.inventory_delete_row") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplier_name: supplier,
+          mov_type: movType,
+          data_mov: dataMov,
+          site2: site2,
+          descrizione: descr,
+          codice: code
+        })
+      }).then((r) => r.json()).then((json) => {
+        if (!json.success) {
+          alert(json.error || I18N.deleteRowError || 'Errore eliminazione riga.');
+          return;
+        }
+        activeTr.remove();
+        activeTr = null;
+        try { scheduleInvTotals(); } catch(e) {}
+        rebuildList();
+        modal.hide();
+      }).catch((e) => {
+        alert((I18N.deleteNetworkError || 'Errore rete durante eliminazione:') + ' ' + e);
+      });
+    });
+  }
+
+  rebuildList();
+
+  const searchInput = document.getElementById('invSearchInput');
+  if (searchInput) searchInput.addEventListener('input', applyMobileFilter);
+});
+
+</script>
+
+{% endblock %}
+
+
+
+

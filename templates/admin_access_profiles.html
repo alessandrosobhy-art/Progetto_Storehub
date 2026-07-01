@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Admin – Profili accesso{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+      <h1 class="h4 mb-0">Profili accesso</h1>
+      {% if selected_tenant_key %}<div class="text-muted small">Tenant: {{ selected_tenant_key }}</div>{% endif %}
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-primary" href="{{ url_for('admin_access_profiles_new') }}">Nuovo profilo</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin_users') }}">Utenti</a>
+    </div>
+  </div>
+  {% if not tenant_profile_scope_available and selected_tenant_key != 'default' %}
+    <div class="alert alert-warning">
+      Profili accesso tenant-specific non ancora abilitati su Supabase. Aggiungi la colonna <code>tenant_key</code> alla tabella <code>access_profiles</code>.
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Moduli</th>
+            <th class="text-center">Utenti</th>
+            <th class="text-end">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in profiles %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ p.name }}</div>
+              {% if p.description %}<div class="text-muted small">{{ p.description }}</div>{% endif %}
+            </td>
+            <td>
+              {% set mods = p.modules or {} %}
+              {% set shown = namespace(n=0) %}
+              {% for k, label in module_catalog %}
+                {% if mods.get(k) %}
+                  {% set shown.n = shown.n + 1 %}
+                  <span class="badge bg-success me-1 mb-1">{{ label }}</span>
+                {% endif %}
+              {% endfor %}
+              {% if shown.n == 0 %}
+                <span class="text-muted small">Nessun modulo</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="badge bg-secondary">{{ user_counts.get(p.id|string, 0) }}</span>
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin_access_profiles_edit', profile_id=p.id) }}">Modifica</a>
+              <a class="btn btn-sm btn-outline-primary ms-1" href="{{ url_for('admin_access_profiles_assign', profile_id=p.id) }}">Assegna</a>
+              <form class="d-inline" method="post" action="{{ url_for('admin_access_profiles_delete', profile_id=p.id) }}" onsubmit="return confirm('Eliminare il profilo ' + ({{ p.name|tojson }} || 'selezionato') + '?');">
+                <button class="btn btn-sm btn-outline-danger ms-1">Elimina</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted text-center">Nessun profilo.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

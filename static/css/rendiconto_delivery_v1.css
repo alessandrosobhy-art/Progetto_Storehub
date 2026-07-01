@@ -1,0 +1,53 @@
+.delivery-logo{
+  height:22px;
+  width:auto;
+}
+
+.delivery-logo--text{
+  width:22px;
+  border-radius:50%;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#e9eefb;
+  color:#2f4b9a;
+  font-weight:700;
+  font-size:.8rem;
+}
+
+.delivery-card .card-header{
+  background: rgba(0,0,0,0.03);
+}
+
+.delivery-card .form-label{
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+#deliveryForm input.calc-field[readonly]{
+  background-color: #e9ecef;
+}
+
+#deliveryForm .delivery-distinta-alert{
+  font-size: 0.85rem;
+}
+
+.delivery-section{
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(248,249,250,0.65);
+}
+
+.delivery-section__title{
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.delivery-field-hint{
+  font-size: 0.78rem;
+  color: #6c757d;
+  margin-bottom: 0.35rem;
+}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="card shadow-sm" style="border-radius:18px;">
+    <div class="card-body p-4">
+      <h3 class="mb-2">{{ title }}</h3>
+      <p class="text-muted mb-3">{{ subtitle }}</p>
+      <div class="alert alert-warning">
+        <strong>Conferma richiesta</strong><br>
+        Procedendo, salveremo anche i match con anomalie semantiche. I conflitti veri restano comunque bloccati.
+      </div>
+      <div class="list-group mb-4">
+        {% for item in warnings %}
+        <div class="list-group-item">
+          <div class="fw-semibold">{{ item.title }}</div>
+          <div class="small text-muted">{{ item.message }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <form method="post" action="{{ post_url }}">
+        <input type="hidden" name="force_confirm" value="1">
+        <input type="hidden" name="batch_payload" value="{{ batch_payload }}">
+        <input type="hidden" name="return_store_code" value="{{ return_store_code }}">
+        <input type="hidden" name="return_start" value="{{ return_start }}">
+        <input type="hidden" name="return_end" value="{{ return_end }}">
+        <input type="hidden" name="return_view" value="{{ return_view }}">
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Procedi comunque</button>
+          <a class="btn btn-outline-secondary" href="javascript:history.back()">Annulla</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

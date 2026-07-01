@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Admin – Assegna profilo{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width: 980px;">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+      <h1 class="h4 mb-0">Assegna profilo</h1>
+      <div class="text-muted">Profilo: <span class="fw-semibold">{{ profile.name }}</span></div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin_access_profiles_edit', profile_id=profile.id) }}">Indietro</a>
+    </div>
+  </div>
+
+  <form method="post">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+          <div>
+            <h2 class="h6 mb-0">Seleziona utenti</h2>
+            <div class="form-text">Puoi assegnare lo stesso profilo a più utenti contemporaneamente.</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAll">Tutti</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnNone">Nessuno</button>
+          </div>
+        </div>
+
+        <input id="userSearch" type="text" class="form-control mb-2" placeholder="Cerca per email o nome…">
+
+        <div class="list-group" id="userList" style="max-height: 420px; overflow:auto;">
+          {% for u in users %}
+            <label class="list-group-item d-flex align-items-start gap-2 user-row" data-email="{{ (u.email or '')|lower }}" data-name="{{ (u.name or '')|lower }}">
+              <input class="form-check-input mt-1 user-check" type="checkbox" name="user_ids" value="{{ u.id }}">
+              <span class="flex-grow-1">
+                <div class="fw-semibold">{{ u.email }}</div>
+                <div class="text-muted small">
+                  {{ u.name or '' }}
+                  {% if u.access_profile_id == profile.id %} · <span class="badge bg-success">già assegnato</span>{% endif %}
+                </div>
+              </span>
+              <span class="badge {{ 'bg-success' if u.role=='admin' else 'bg-secondary' }}">{{ u.role }}</span>
+            </label>
+          {% else %}
+            <div class="text-muted small">Nessun utente trovato.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin_access_profiles_edit', profile_id=profile.id) }}">Annulla</a>
+      <button class="btn btn-primary">Assegna profilo</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function(){
+  const search = document.getElementById('userSearch');
+  const rows = Array.from(document.querySelectorAll('#userList .user-row'));
+  const checks = Array.from(document.querySelectorAll('#userList .user-check'));
+  const btnAll = document.getElementById('btnAll');
+  const btnNone = document.getElementById('btnNone');
+
+  function applyFilter(){
+    const q = (search.value || '').trim().toLowerCase();
+    rows.forEach(r => {
+      if(!q){ r.style.display = ''; return; }
+      const email = r.getAttribute('data-email') || '';
+      const name = r.getAttribute('data-name') || '';
+      r.style.display = (email.includes(q) || name.includes(q)) ? '' : 'none';
+    });
+  }
+
+  if(search){ search.addEventListener('input', applyFilter); }
+  if(btnAll){ btnAll.addEventListener('click', () => { checks.forEach(c => c.checked = true); }); }
+  if(btnNone){ btnNone.addEventListener('click', () => { checks.forEach(c => c.checked = false); }); }
+})();
+</script>
+{% endblock %}

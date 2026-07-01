@@ -1,0 +1,50 @@
+.env
+.env.*
+old.env
+
+# Virtual environments
+.venv/
+.venv_broken_old/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local runtime / temporary folders
+logs/
+tmp/
+outputs/
+BK/
+backups/
+
+# Local scratch exports
+_tmp_*.json
+_tmp_*.js
+tmp_*.txt
+*.log
+*.tmp
+*.bak
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/
+
+# Build / coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local generated presentation assets
+tmp/presentations/
+outputs/manual-storehub-presentation/
+
+# Local tools / credentials
+tools/gh-cli/
+credentials/
+secrets/

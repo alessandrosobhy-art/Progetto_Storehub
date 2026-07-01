@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Dati Rendiconto{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse_riepilogo_v1.css') }}?v=1.0.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/cruscotto_riepilogo_v1.css') }}?v=1.0.3">
+{% endblock %}
+
+{% block content %}
+  {% include "_estrazioni_hq_toolbar.html" %}
+
+  <div class="container py-4 warehouse-riepilogo cruscotto-riepilogo">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">Dati Rendiconto</h1>
+        <div class="text-muted small">Riepilogo mensile multi-store (valori in €)</div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-3">
+            <label class="form-label">Seleziona mese</label>
+            <input type="month" class="form-control" id="crRiepMonthPicker">
+          </div>
+
+          <div class="col-lg-9">
+            <div class="d-flex gap-2 justify-content-lg-end align-items-end flex-wrap">
+              <div class="me-lg-auto">
+                <div class="small text-muted">Intervallo</div>
+                <div class="fw-semibold" id="crRiepMonthRangeLabel">—</div>
+              </div>
+              <button class="btn btn-outline-secondary" type="button" id="crRiepMonthPrev">◀</button>
+              <button class="btn btn-outline-secondary" type="button" id="crRiepMonthNext">▶</button>
+              <button class="btn btn-primary" type="button" id="crRiepApply">Carica</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-white">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <div class="fw-semibold">Tabella riepilogativa</div>
+            <div class="small text-muted" id="crRiepPeriodLabel">—</div>
+          </div>
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <button class="btn btn-outline-success btn-sm" type="button" id="crRiepExcel">Esporta Excel</button>
+            <button class="btn btn-outline-success btn-sm" type="button" id="crRiepExcelDaily">Esporta Excel (giornaliero)</button>
+            <div class="text-end">
+              <div class="small text-muted">Giro affari totale</div>
+              <div class="fw-semibold" id="crRiepGiroTotal">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-danger d-none" id="crRiepError"></div>
+        <div class="alert alert-secondary d-none" id="crRiepWarnings"></div>
+        <div class="table-responsive" id="crRiepTableWrap"></div>
+        <div class="small text-muted mt-2">Suggerimento: clic su <span class="fw-semibold">Spese</span> o <span class="fw-semibold">Versamenti</span> per aprire la pagina del Rendiconto del mese selezionato.</div>
+        <div class="small text-muted">Il riepilogo resta disponibile quando torni indietro o riapri la sezione.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.CR_RIEPILOGO = {
+      apiUrl: "{{ url_for('rendiconto.api_riepilogo_mensile') }}",
+      exportUrl: "{{ url_for('rendiconto.api_riepilogo_mensile_xlsx') }}",
+      exportDailyUrl: "{{ url_for('rendiconto.api_riepilogo_giornaliero_xlsx') }}",
+      timeoutMs: 180000
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/cruscotto_riepilogo_v1.js') }}?v=1.0.11"></script>
+{% endblock %}

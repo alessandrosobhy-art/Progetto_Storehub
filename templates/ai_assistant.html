@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Assistente AI{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width: 1180px;">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Assistente AI</h1>
+      <div class="text-muted">Panoramiche sintetiche sui dati dei tuoi store.</div>
+    </div>
+    <div class="text-muted small text-end">
+      <div>Store visibili: <strong>{{ available_store_count }}</strong></div>
+      <div>Stato AI:
+        {% if ai_configured %}
+          <span class="text-success fw-semibold">configurata</span>
+        {% else %}
+          <span class="text-danger fw-semibold">non configurata</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-8">
+      <div class="card h-100">
+        <div class="card-body">
+          <form id="aiAssistantForm" method="post" class="row g-3" data-no-overlay="1">
+            <input type="hidden" name="page_context" value="{{ page_context or request.endpoint or request.path }}">
+            <div class="col-12 position-relative">
+              <label class="form-label fw-semibold">Domanda</label>
+              <textarea id="questionInput" name="question" class="form-control" rows="4" placeholder="Es. Com'e andata la settimana scorsa @4004 rispetto al budget e all'anno precedente?">{{ question or '' }}</textarea>
+              <div id="aiMentionMenu" class="dropdown-menu shadow-sm" style="display:none; position:absolute; left:0; right:0; top:100%;"></div>
+              <div class="form-text">Puoi taggare uno o piu store con <code>@</code>. Scrivi per esempio <code>@b</code> per vedere i suggerimenti.</div>
+            </div>
+            <div class="col-12 d-flex gap-2 flex-wrap">
+              <button id="aiAssistantSubmitBtn" class="btn btn-primary" {% if not ai_configured %}disabled{% endif %}>
+                <span class="label-default">Analizza</span>
+                <span class="label-loading d-none">Analisi in corso...</span>
+              </button>
+              <a class="btn btn-outline-secondary" href="{{ url_for('ai_assistant') }}">Reset</a>
+            </div>
+          </form>
+          <div id="aiAssistantInlineLoading" class="app-ai-panel-loading d-none mt-3" aria-live="polite">
+            <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+            <span>Sto preparando la risposta...</span>
+          </div>
+          <div id="aiAssistantInlineError" class="alert alert-danger d-none mt-3 mb-0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Percorso guidato</h2>
+          <div class="row g-2">
+            <div class="col-12">
+              <label class="form-label">Tipo analisi</label>
+              <select class="form-select" id="guideMode">
+                <option value="business">Business</option>
+                <option value="administrative">Amministrativa</option>
+                <option value="mixed">Panoramica completa</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Periodo</label>
+              <select class="form-select" id="guidePeriod">
+                <option value="settimana scorsa">Settimana scorsa</option>
+                <option value="questa settimana">Questa settimana</option>
+                <option value="mese scorso">Mese scorso</option>
+                <option value="questo mese">Questo mese</option>
+                <option value="ieri">Ieri</option>
+                <option value="oggi">Oggi</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Focus</label>
+              <select class="form-select" id="guideFocus">
+                <option value="overview">Panoramica</option>
+                <option value="budget">Budget e anno precedente</option>
+                <option value="delivery">Delivery</option>
+                <option value="admin">Spese e versamenti</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <button type="button" class="btn btn-outline-primary w-100" id="guideBuildBtn">Compila domanda</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3 align-items-center">
+        <div class="col-12 col-lg-7">
+          <h2 class="h6 mb-2">Esempi rapidi</h2>
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href='{{ url_for("ai_assistant", q="Come andata la settimana scorsa nei miei store rispetto al budget e all'anno precedente?") }}'>Settimana scorsa vs budget e LY</a>
+            <a class="btn btn-outline-secondary btn-sm" href='{{ url_for("ai_assistant", q="Fammi una panoramica amministrativa del mese scorso: spese, versamenti e differenze cassa") }}'>Mese scorso amministrativo</a>
+            <a class="btn btn-outline-secondary btn-sm" href='{{ url_for("ai_assistant", q="Come sta andando il delivery la settimana scorsa @4004?") }}'>Delivery store specifico</a>
+          </div>
+        </div>
+        <div class="col-12 col-lg-5 text-muted small">
+          L'assistente legge solo gli store visibili per l'utente, interpreta il periodo in modo deterministico e usa l'AI solo per scrivere la sintesi.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3{% if not analysis_context %} d-none{% endif %}" id="aiAssistantSummaryCard">
+    <div class="card-body d-flex flex-wrap gap-4">
+      <div>
+        <div class="text-muted small">Periodo considerato</div>
+        <div class="fw-semibold" id="aiSummaryPeriod">{% if analysis_context %}{{ analysis_context.period.label }} ({{ analysis_context.period.start_iso }} -> {{ analysis_context.period.end_iso }}){% endif %}</div>
+      </div>
+      <div>
+        <div class="text-muted small">Store considerati</div>
+        <div class="fw-semibold" id="aiSummaryStores">{% if analysis_context %}{{ analysis_context.stores|length }}{% endif %}</div>
+      </div>
+      {% if analysis_context.question_profile %}
+      <div>
+        <div class="text-muted small">Lettura domanda</div>
+        <div class="fw-semibold text-capitalize" id="aiSummaryMode">{% if analysis_context and analysis_context.question_profile %}{{ analysis_context.question_profile.mode }}{% endif %}</div>
+      </div>
+      {% endif %}
+      {% if ai_usage and ai_usage.total_tokens %}
+      <div>
+        <div class="text-muted small">Token</div>
+        <div class="fw-semibold" id="aiSummaryTokens">{% if ai_usage and ai_usage.total_tokens %}{{ ai_usage.total_tokens }}{% endif %}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card mb-3{% if not answer %} d-none{% endif %}" id="aiAssistantAnswerCard">
+    <div class="card-body">
+      <h2 class="h6 mb-3">Risposta</h2>
+      <div id="aiAssistantAnswer" style="white-space: pre-wrap; line-height:1.45;">{{ answer or '' }}</div>
+    </div>
+  </div>
+
+  <div class="row g-3{% if not analysis_context %} d-none{% endif %}" id="aiAssistantDetailsRow">
+    <div class="col-12 col-lg-5">
+      <div class="card h-100" id="aiAssistantContextCard">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Contesto usato</h2>
+          <div class="mb-3">
+            <div class="text-muted small mb-1">Store</div>
+            <div class="d-flex flex-wrap gap-2" id="aiContextStores">
+              {% for s in (analysis_context.stores if analysis_context else []) %}
+              <span class="badge text-bg-light border">{{ s.code }}{% if s.name and s.name != s.code %} - {{ s.name }}{% endif %}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% if analysis_context and analysis_context.assumptions %}
+          <div class="mb-3">
+            <div class="text-muted small mb-1">Assunzioni</div>
+            <ul class="mb-0 small" id="aiContextAssumptions">
+              {% for item in analysis_context.assumptions %}
+              <li>{{ item }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+          {% if analysis_context and analysis_context.unresolved_mentions %}
+          <div>
+            <div class="text-muted small mb-1">Tag non riconosciuti</div>
+            <div class="d-flex flex-wrap gap-2" id="aiContextUnresolved">
+              {% for tag in analysis_context.unresolved_mentions %}
+              <span class="badge text-bg-warning">{{ tag }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-7">
+      <div class="card h-100" id="aiAssistantTotalsCard">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Totali periodo</h2>
+          <div class="row g-3 small" id="aiTotalsGrid">
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Vendite nette</div>
+              <div class="fw-semibold" data-key="revenues_actual_net">{{ '%.2f'|format((analysis_context.totals.revenues_actual_net if analysis_context else 0) or 0) }}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Budget</div>
+              <div class="fw-semibold" data-key="revenues_budget">{{ '%.2f'|format((analysis_context.totals.revenues_budget if analysis_context else 0) or 0) }}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Anno precedente</div>
+              <div class="fw-semibold" data-key="revenues_ly">{{ '%.2f'|format((analysis_context.totals.revenues_ly if analysis_context else 0) or 0) }}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Scost. budget</div>
+              <div class="fw-semibold" data-key="vs_budget">{{ '%.2f'|format(((analysis_context.totals.vs_budget if analysis_context else 0) or 0)) }}{% if analysis_context and analysis_context.totals.vs_budget_pct is not none %} ({{ '%.2f'|format(analysis_context.totals.vs_budget_pct or 0) }}%){% endif %}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Scost. anno prec.</div>
+              <div class="fw-semibold" data-key="vs_ly">{{ '%.2f'|format(((analysis_context.totals.vs_ly if analysis_context else 0) or 0)) }}{% if analysis_context and analysis_context.totals.vs_ly_pct is not none %} ({{ '%.2f'|format(analysis_context.totals.vs_ly_pct or 0) }}%){% endif %}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Incidenza delivery</div>
+              <div class="fw-semibold" data-key="delivery_incidence_pct">{% if analysis_context and analysis_context.totals.delivery_incidence_pct is not none %}{{ '%.2f'|format(analysis_context.totals.delivery_incidence_pct or 0) }}%{% else %}-{% endif %}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Differenza cassa</div>
+              <div class="fw-semibold" data-key="diff_cassa">{{ '%.2f'|format((analysis_context.totals.diff_cassa if analysis_context else 0) or 0) }}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Spese lorde</div>
+              <div class="fw-semibold" data-key="spese_gross">{{ '%.2f'|format((analysis_context.totals.spese_gross if analysis_context else 0) or 0) }}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Versamenti</div>
+              <div class="fw-semibold" data-key="versamenti">{{ '%.2f'|format((analysis_context.totals.versamenti if analysis_context else 0) or 0) }}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Ore lavorate</div>
+              <div class="fw-semibold" data-key="hours_total">{{ '%.2f'|format((analysis_context.totals.hours_total if analysis_context else 0) or 0) }}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Ore training</div>
+              <div class="fw-semibold" data-key="hours_training">{{ '%.2f'|format((analysis_context.totals.hours_training if analysis_context else 0) or 0) }}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Costo lavoro</div>
+              <div class="fw-semibold" data-key="labor_cost">{{ '%.2f'|format((analysis_context.totals.labor_cost if analysis_context else 0) or 0) }}</div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">Produttività €/h</div>
+              <div class="fw-semibold" data-key="productivity_eur_per_hour">{{ '%.2f'|format((analysis_context.totals.productivity_eur_per_hour if analysis_context else 0) or 0) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="aiAssistantStoresData" type="application/json">{{ (available_stores or [])|tojson }}</script>
+<script src="{{ url_for('static', filename='js/ai_assistant_v1.js') }}?v=20260419a"></script>
+{% endblock %}

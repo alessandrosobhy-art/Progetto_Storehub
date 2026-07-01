@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% block title %}MBO{% endblock %}
+{% block content %}
+{% include "_mbo_toolbar.html" %}
+
+{% macro pct(value) -%}
+  {% if value is none %}-{% else %}{{ "%.1f"|format(value) }}%{% endif %}
+{%- endmacro %}
+
+{% macro points(metric) -%}
+  {{ "%.1f"|format(metric.points_taken or 0) }} / {{ "%.1f"|format(metric.points_theoretical or 0) }}
+{%- endmacro %}
+
+<div class="container-fluid py-4 px-3 px-xl-4">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+      <h1 class="mb-1">Riepilogo MBO</h1>
+      <div class="text-muted">Crea report con periodo salvato. Aprendoli, i risultati vengono ricalcolati sui dati aggiornati.</div>
+    </div>
+    <div class="badge text-bg-light border fs-6 px-3 py-2">Anno {{ mbo_year }}</div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small mb-2">Store gestiti</div>
+          <div class="display-6 fw-semibold">{{ mbo_summary.store_count or 0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small mb-2">Default collegati da ILP</div>
+          <div class="display-6 fw-semibold text-success">{{ mbo_summary.default_count or 0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small mb-2">Override mensili</div>
+          <div class="display-6 fw-semibold text-primary">{{ mbo_summary.override_count or 0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small mb-2">Store senza match AM</div>
+          <div class="display-6 fw-semibold text-danger">{{ mbo_summary.unmatched_count or 0 }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 align-items-stretch mb-4">
+    <div class="col-12 col-xl-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Nuovo report</h2>
+          <form method="post" class="vstack gap-3">
+            <input type="hidden" name="action" value="save_report">
+            <input type="hidden" name="year" value="{{ mbo_year }}">
+            <div>
+              <label class="form-label">Nome</label>
+              <input class="form-control" name="report_name" placeholder="Es. MBO - Q1" value="{{ selected_report.report_name if selected_report else '' }}" required>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">Da mese</label>
+                <input class="form-control" type="month" name="start_year_month" value="{{ selected_report.start_year_month if selected_report else (mbo_year ~ '-01') }}" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label">A mese</label>
+                <input class="form-control" type="month" name="end_year_month" value="{{ selected_report.end_year_month if selected_report else (mbo_year ~ '-03') }}" required>
+              </div>
+            </div>
+            {% if selected_report %}
+            <input type="hidden" name="report_uuid" value="{{ selected_report.report_uuid }}">
+            <button class="btn btn-outline-primary" type="submit">Aggiorna report selezionato</button>
+            {% else %}
+            <button class="btn btn-primary" type="submit">Genera report</button>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-8">
+      <div class="card h-100">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Report salvati</h2>
+          {% if mbo_reports %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Periodo</th>
+                  <th class="text-end">Azione</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for report in mbo_reports %}
+                <tr class="{% if selected_report and selected_report.report_uuid == report.report_uuid %}table-primary{% endif %}">
+                  <td class="fw-semibold">{{ report.report_name }}</td>
+                  <td>{{ report.start_year_month }} / {{ report.end_year_month }}</td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('mbo.home', year=mbo_year, report_uuid=report.report_uuid) }}">Apri</a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info mb-0">Nessun report creato. Inserisci nome e periodo per generare il primo riepilogo.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if report_dashboard %}
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <div>
+      <h2 class="h4 mb-1">{{ report_dashboard.report.report_name }}</h2>
+      <div class="text-muted">{{ report_dashboard.report.start_year_month }} / {{ report_dashboard.report.end_year_month }}</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% set am_export_options = report_dashboard.area_manager.rows or [] %}
+      <form method="get" action="{{ url_for('mbo.mbo_report_export_xlsx', report_uuid=report_dashboard.report.report_uuid) }}" class="d-flex gap-2 flex-wrap align-items-end" data-no-overlay="1">
+        <div>
+          <label class="form-label small mb-1">Area Manager</label>
+          <select class="form-select form-select-sm" name="area_manager_uuid">
+            <option value="">Tutti</option>
+            {% for row in am_export_options %}
+            <option value="{{ row.subject_key }}">{{ row.manager_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="form-label small mb-1">Estratto</label>
+          <select class="form-select form-select-sm" name="section">
+            <option value="all">Excel completo</option>
+            <option value="store">Store</option>
+            <option value="staff">Store Manager / Assistant / Multistore</option>
+            <option value="area_manager">Area Manager</option>
+          </select>
+        </div>
+        <button class="btn btn-outline-success btn-sm" type="submit">Scarica Excel</button>
+      </form>
+      <a class="btn btn-outline-secondary" href="{{ url_for('mbo.settings', year=mbo_year) }}">Impostazioni premi e pesi</a>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h3 class="h5 mb-3">Store</h3>
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-md-4">
+          <div class="border rounded p-3 h-100">
+            <div class="text-muted small">P&L</div>
+            <div class="h4 mb-0">{{ pct(report_dashboard.store.totals.pnl.pct) }}</div>
+            <div class="small text-muted">{{ points(report_dashboard.store.totals.pnl) }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="border rounded p-3 h-100">
+            <div class="text-muted small">Rating</div>
+            <div class="h4 mb-0">{{ pct(report_dashboard.store.totals.rating.pct) }}</div>
+            <div class="small text-muted">{{ points(report_dashboard.store.totals.rating) }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="border rounded p-3 h-100">
+            <div class="text-muted small">Google</div>
+            <div class="h4 mb-0">{{ pct(report_dashboard.store.totals.google.pct) }}</div>
+            <div class="small text-muted">{{ points(report_dashboard.store.totals.google) }}</div>
+          </div>
+        </div>
+      </div>
+      <h4 class="h6 mb-2">TOP 10 store</h4>
+      <div class="table-responsive mb-3">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 70px;">Rank</th>
+              <th>Store</th>
+              <th class="text-end">Totale</th>
+              <th class="text-end">P&L</th>
+              <th class="text-end">Rating</th>
+              <th class="text-end">Google</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in report_dashboard.store.top10 %}
+            <tr>
+              <td class="fw-semibold">#{{ loop.index }}</td>
+              <td>
+                <div class="fw-semibold">{{ row.store_name }}</div>
+                <div class="text-muted small">{{ row.store_code }}</div>
+              </td>
+              <td class="text-end fw-semibold">
+                {{ pct(row.top_score.pct) }}
+                <div class="small text-muted">{{ points(row.top_score) }}</div>
+              </td>
+              <td class="text-end">{{ pct(row.metrics.pnl.pct) }}<div class="small text-muted">{{ points(row.metrics.pnl) }}</div></td>
+              <td class="text-end">{{ pct(row.metrics.rating.pct) }}<div class="small text-muted">{{ points(row.metrics.rating) }}</div></td>
+              <td class="text-end">{{ pct(row.metrics.google.pct) }}<div class="small text-muted">{{ points(row.metrics.google) }}</div></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-3">Nessun dato disponibile per la TOP 10.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="table-responsive" style="max-height: 520px;">
+        <table class="table table-sm table-hover align-middle">
+          <thead class="table-light sticky-top">
+            <tr>
+              <th>Store</th>
+              <th class="text-end">P&L</th>
+              <th class="text-end">Rating</th>
+              <th class="text-end">Google</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in report_dashboard.store.rows %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ row.store_name }}</div>
+                <div class="text-muted small">{{ row.store_code }}</div>
+              </td>
+              <td class="text-end">{{ pct(row.metrics.pnl.pct) }}<div class="small text-muted">{{ points(row.metrics.pnl) }}</div></td>
+              <td class="text-end">{{ pct(row.metrics.rating.pct) }}<div class="small text-muted">{{ points(row.metrics.rating) }}</div></td>
+              <td class="text-end">{{ pct(row.metrics.google.pct) }}<div class="small text-muted">{{ points(row.metrics.google) }}</div></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" class="card mb-4">
+    <div class="card-body">
+      <input type="hidden" name="action" value="save_staff_multipliers">
+      <input type="hidden" name="year" value="{{ mbo_year }}">
+      <input type="hidden" name="report_uuid" value="{{ report_dashboard.report.report_uuid }}">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+          <h3 class="h5 mb-1">Store Manager, Assistant, Multistore</h3>
+        </div>
+        <button class="btn btn-primary" type="submit">Salva Multi</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Persona</th>
+              <th>Store</th>
+              <th class="text-end">P&L</th>
+              <th class="text-end">Rating</th>
+              <th class="text-end">Google</th>
+              <th class="text-end">Survey + Soft</th>
+              <th class="text-end">Totale riparam.</th>
+              <th style="width: 110px;">Multi %</th>
+              <th class="text-end">Premio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in report_dashboard.staff.rows %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ row.full_name }}</div>
+                <div class="text-muted small">{{ row.role }}</div>
+              </td>
+              <td>
+                <div>{{ row.store_name }}</div>
+                <div class="text-muted small">{{ row.store_code }}</div>
+              </td>
+              <td class="text-end">{{ pct(row.categories.pnl.pct) }}<div class="small text-muted">peso {{ pct(row.categories.pnl.weight_pct) }} = {{ pct(row.categories.pnl.weighted_pct) }}</div></td>
+              <td class="text-end">{{ pct(row.categories.rating.pct) }}<div class="small text-muted">peso {{ pct(row.categories.rating.weight_pct) }} = {{ pct(row.categories.rating.weighted_pct) }}</div></td>
+              <td class="text-end">{{ pct(row.categories.google.pct) }}<div class="small text-muted">peso {{ pct(row.categories.google.weight_pct) }} = {{ pct(row.categories.google.weighted_pct) }}</div></td>
+              <td class="text-end">
+                {{ pct(row.categories.survey_soft.pct) }}
+                <div class="small text-muted">Soft {{ pct(row.soft_pct) }} / Survey {{ pct(row.survey_pct) }}</div>
+                <div class="small text-muted">peso {{ pct(row.categories.survey_soft.weight_pct) }} = {{ pct(row.categories.survey_soft.weighted_pct) }}</div>
+              </td>
+              <td class="text-end fw-semibold">{{ pct(row.total_pct) }}</td>
+              <td><input class="form-control form-control-sm" type="number" min="0" max="100" step="0.01" name="multi__{{ row.subject_key }}__{{ row.store_code }}" value="{{ '%.2f'|format(row.multi_pct or 100) }}"></td>
+              <td class="text-end">
+                <div class="fw-semibold">{{ "%.2f"|format(row.reward_due or 0) }} EUR</div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="text-muted text-center py-4">Nessuna compilazione soft skills nel periodo del report.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </form>
+
+  <form method="post" class="card mb-4">
+    <div class="card-body">
+      <input type="hidden" name="action" value="save_area_manager_multipliers">
+      <input type="hidden" name="year" value="{{ mbo_year }}">
+      <input type="hidden" name="report_uuid" value="{{ report_dashboard.report.report_uuid }}">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+          <h3 class="h5 mb-1">Area Manager</h3>
+        </div>
+        <button class="btn btn-primary" type="submit">Salva Ricalcolo</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Area Manager</th>
+              <th>Store</th>
+              <th class="text-end">P&L</th>
+              <th class="text-end">Rating</th>
+              <th class="text-end">Google</th>
+              <th class="text-end">Survey</th>
+              <th class="text-end">Totale riparam.</th>
+              <th style="width: 120px;">Ricalcolo %</th>
+              <th class="text-end">Premio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in report_dashboard.area_manager.rows %}
+            <tr>
+              <td class="fw-semibold">{{ row.manager_name }}</td>
+              <td>
+                <details>
+                  <summary>{{ row.store_count }} store</summary>
+                  <div class="small text-muted mt-2">
+                    {% for store in row.store_rows %}
+                    <div>{{ store.store_name }} ({{ store.months|length }} mesi)</div>
+                    {% endfor %}
+                  </div>
+                </details>
+              </td>
+              <td class="text-end">{{ pct(row.categories.pnl.pct) }}<div class="small text-muted">peso {{ pct(row.categories.pnl.weight_pct) }} = {{ pct(row.categories.pnl.weighted_pct) }}</div></td>
+              <td class="text-end">{{ pct(row.categories.rating.pct) }}<div class="small text-muted">peso {{ pct(row.categories.rating.weight_pct) }} = {{ pct(row.categories.rating.weighted_pct) }}</div></td>
+              <td class="text-end">{{ pct(row.categories.google.pct) }}<div class="small text-muted">peso {{ pct(row.categories.google.weight_pct) }} = {{ pct(row.categories.google.weighted_pct) }}</div></td>
+              <td class="text-end">{{ pct(row.categories.survey.pct) }}<div class="small text-muted">{{ row.categories.survey.count or 0 }} compilazioni</div><div class="small text-muted">peso {{ pct(row.categories.survey.weight_pct) }} = {{ pct(row.categories.survey.weighted_pct) }}</div></td>
+              <td class="text-end fw-semibold">{{ pct(row.total_pct) }}</td>
+              <td><input class="form-control form-control-sm" type="number" min="0" step="0.01" name="ricalcolo__{{ row.subject_key }}" value="{{ '%.2f'|format(row.ricalcolo_pct or 100) }}"></td>
+              <td class="text-end">
+                <div class="fw-semibold">{{ "%.2f"|format(row.reward_due or 0) }} EUR</div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="text-muted text-center py-4">Nessuna assegnazione Area Manager attiva nel periodo.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

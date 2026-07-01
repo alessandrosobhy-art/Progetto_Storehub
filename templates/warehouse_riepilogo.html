@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tr('warehouse', 'riepilogo.title', 'Dati Magazzino') }}{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse_riepilogo_v1.css') }}">
+{% endblock %}
+
+{% block content %}
+  {% include "_estrazioni_toolbar.html" %}
+
+  <div class="container py-4 warehouse-riepilogo">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">{{ tr('warehouse', 'riepilogo.title', 'Dati Magazzino') }}</h1>
+        <div class="text-muted small">{{ tr('warehouse', 'riepilogo.subtitle', 'Riepilogo mensile (valori in euro)') }}</div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-3">
+            <label class="form-label">{{ tr('warehouse', 'analysis.select_month', 'Seleziona mese') }}</label>
+            <input type="month" class="form-control" id="riepMonthPicker">
+          </div>
+
+          <div class="col-lg-3">
+            <label class="form-label">{{ tr('warehouse', 'common.price_list', 'Listino') }}</label>
+            <select class="form-select" id="riepBucket">
+              <option value="FoodPaper">FoodPaper</option>
+              <option value="Operating">Operating</option>
+            </select>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="d-flex gap-2 justify-content-lg-end align-items-end flex-wrap">
+              <div class="me-lg-auto">
+                <div class="small text-muted">{{ tr('warehouse', 'analysis.range', 'Intervallo') }}</div>
+                <div class="fw-semibold" id="riepMonthRangeLabel">-</div>
+              </div>
+              <button class="btn btn-outline-secondary" type="button" id="riepMonthPrev">&lt;</button>
+              <button class="btn btn-outline-secondary" type="button" id="riepMonthNext">&gt;</button>
+              <button class="btn btn-primary" type="button" id="riepApply">{{ tr('warehouse', 'analysis.apply', 'Applica') }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-white">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <div class="fw-semibold">{{ tr('warehouse', 'riepilogo.summary_table', 'Tabella riepilogativa') }}</div>
+            <div class="small text-muted" id="riepPeriodLabel">-</div>
+          </div>
+          <div class="text-end">
+            <div class="small text-muted">{{ tr('warehouse', 'riepilogo.total_revenues_net', 'Revenues (net) totali') }}</div>
+            <div class="fw-semibold" id="riepRevenuesTotal">-</div>
+            <div class="mt-2">
+              <a class="btn btn-outline-success btn-sm" id="riepExportBtn" href="#" role="button">{{ tr('warehouse', 'common.export_excel', 'Esporta Excel') }}</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-danger d-none" id="riepError"></div>
+        <div class="alert alert-secondary d-none" id="riepWarnings"></div>
+        <div class="table-responsive" id="riepTableWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.WH_RIEPILOGO = {
+      apiUrl: "{{ url_for('warehouse.api_riepilogo_mensile') }}",
+      exportUrl: "{{ url_for('warehouse.riepilogo_export') }}",
+      i18n: {
+        loading: {{ tr('common', 'loading', 'Caricamento...')|tojson }},
+        error: {{ tr('warehouse', 'analysis.error', 'Errore')|tojson }},
+        selectPrompt: {{ tr('warehouse', 'riepilogo.select_prompt', 'Seleziona mese e listino, poi premi "Applica".')|tojson }},
+        store: {{ tr('warehouse', 'common.store', 'Store')|tojson }},
+        total: {{ tr('warehouse', 'analysis.total', 'Totale')|tojson }}
+      }
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/warehouse_riepilogo_v1.js') }}?v=2"></script>
+{% endblock %}

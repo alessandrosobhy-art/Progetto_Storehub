@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}P&L{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/controlli_pnl_v1.css') }}?v=1.1.7">
+{% endblock %}
+
+{% block content %}
+{% include "_controlli_toolbar.html" %}
+
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h2 class="h5 mb-0">P&amp;L</h2>
+    <div class="text-muted small">Periodo: <span id="pnlPeriodLabel">—</span></div>
+  </div>
+
+  <!-- Filtri -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Store</label>
+          <div class="input-group">
+            <input class="form-control" id="pnlStoresLabel"
+                   value="{% if store_code %}{{ store_code }}{% else %}Nessuno store selezionato{% endif %}"
+                   readonly>
+            <button class="btn btn-outline-secondary" type="button"
+                    data-bs-toggle="modal" data-bs-target="#pnlStoresModal">Seleziona</button>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Anno</label>
+          <select class="form-select" id="pnlYear"></select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Dal mese</label>
+          <select class="form-select" id="pnlMonthFrom"></select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Al mese</label>
+          <select class="form-select" id="pnlMonthTo"></select>
+        </div>
+
+        <div class="col-12 col-md-2">
+          <div class="d-flex gap-2 flex-md-column">
+            <button class="btn btn-primary w-100" id="pnlApply">Applica</button>
+            <button class="btn btn-outline-secondary w-100" id="pnlTogglePrev" type="button"
+                    title="Mostra/Nascondi anno precedente">Anno prec.</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-muted small mt-2" id="pnlHint"></div>
+    </div>
+  </div>
+
+  <!-- Risultati -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <!-- Mobile: solo macro voci -->
+      <div class="d-md-none" id="pnlMobileWrap">
+        <div class="pnl-mobile-list" id="pnlMobileList"></div>
+      </div>
+
+      <!-- Desktop: tabella completa -->
+      <div class="pnl-table-wrap pnl-hide-prev d-none d-md-block" id="pnlTableWrap">
+        <table class="table table-sm table-hover align-middle mb-0" id="pnlTable">
+          <thead>
+            <tr>
+              <th class="pnl-col-voice">Voce</th>
+              <th class="text-end pnl-col-group-budget">Budget</th>
+              <th class="text-end pnl-col-group-budget">Inc.%</th>
+              <th class="text-end pnl-col-group-actual">Actual</th>
+              <th class="text-end pnl-col-group-actual">Inc.%</th>
+              <th class="text-end pnl-col-group-delta">Δ €</th>
+              <th class="text-end pnl-col-group-delta">Δ %</th>
+              <th class="text-end pnl-col-prev pnl-col-group-ly">A.P.</th>
+              <th class="text-end pnl-col-prev pnl-col-group-ly">Inc.%</th>
+              <th class="text-end pnl-col-prev pnl-col-group-delta-ly">Δ €</th>
+              <th class="text-end pnl-col-prev pnl-col-group-delta-ly">Δ %</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="11" class="text-muted">Seleziona il periodo e premi “Applica”.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert alert-danger d-none mt-3" id="pnlError"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Multi-store selector (solo P&L) -->
+<div class="modal fade" id="pnlStoresModal" tabindex="-1" aria-labelledby="pnlStoresModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pnlStoresModalLabel">Seleziona store</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" class="form-control mb-2" id="pnlStoresSearch" placeholder="Cerca...">
+        <div class="d-flex gap-2 mb-2">
+          <button class="btn btn-sm btn-outline-secondary" type="button" id="pnlStoresAll">Tutti</button>
+          <button class="btn btn-sm btn-outline-secondary" type="button" id="pnlStoresNone">Nessuno</button>
+        </div>
+        <div id="pnlStoresList" class="list-group"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" type="button" id="pnlStoresConfirm" data-bs-dismiss="modal">Conferma</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dettaglio macro voci (mobile) -->
+<div class="modal fade" id="pnlDetailModal" tabindex="-1" aria-labelledby="pnlDetailTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pnlDetailTitle">Dettaglio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body" id="pnlDetailBody"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.__PnlCfg = {
+  apiUrl: "{{ url_for('controlli.api_pnl') }}",
+  defaultYear: {{ default_year|int }},
+  defaultMonth: {{ default_month|int }},
+  storeCode: "{{ store_code or '' }}",
+  storesJsonUrl: "{{ url_for('warehouse.stores_json') }}",
+  storeName: "{{ store_name or '' }}"
+};
+</script>
+<script src="{{ url_for('static', filename='js/controlli_pnl_v1.js') }}?v=1.2.0"></script>
+{% endblock %}

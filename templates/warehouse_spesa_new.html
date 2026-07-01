@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% include "_warehouse_toolbar.html" %}
+
+  <div class="container py-4">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">Spesa (DDT manuale)</h1>
+        {% if store_code %}
+          <div class="text-muted small">Store: {{ store_name or store_code }}</div>
+        {% endif %}
+      </div>
+      <div class="text-muted small" style="max-width: 520px;">
+        Inserisci un DDT senza listino: compila a mano fornitore e anagrafica prodotti. I movimenti saranno
+        ricercabili in <strong>Ricerca</strong> e modificabili da <strong>Modifica DDT</strong>.
+      </div>
+    </div>
+
+    <form method="post" id="spesaForm">
+      <input type="hidden" name="submit_action" value="save">
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+              <label for="data_doc" class="form-label">Data documento</label>
+              <input type="date" id="data_doc" name="data_doc" class="form-control" value="{{ header.data_doc or '' }}" required>
+            </div>
+            <div class="col-md-3">
+              <label for="data_rif" class="form-label">Data consegna</label>
+              <input type="date" id="data_rif" name="data_rif" class="form-control" value="{{ header.data_rif or '' }}" required>
+            </div>
+            <div class="col-md-6">
+              <label for="supplier_code" class="form-label">Fornitore</label>
+              <input type="text" id="supplier_code" name="supplier_code" class="form-control" value="{{ header.supplier_code or '' }}" placeholder="Es. Fornitore XYZ" required>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="small text-muted">Totale parziale</div>
+            <div class="small">
+              <span class="text-muted">Tot €:</span>
+              <strong id="spesaGrandTotal">0,00</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <div class="text-muted small">
+          Colonne salvate: <span class="badge text-bg-light">{{ col_desc }}</span>
+          <span class="badge text-bg-light">{{ col_group }}</span>
+          <span class="badge text-bg-light">{{ col_price }}</span>
+          <span class="badge text-bg-light">{{ col_qtacar }}</span>
+          <span class="badge text-bg-light">{{ col_unita }}</span>
+          <span class="badge text-bg-light">{{ col_code }}</span>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="spesaAddRow">Aggiungi riga</button>
+          <button type="submit" class="btn btn-success btn-sm">SALVA</button>
+        </div>
+      </div>
+
+      <div id="spesaValidationAlert" class="alert alert-danger d-none" role="alert"></div>
+
+      <input type="hidden" name="rows_count" id="rows_count" value="{{ rows_ui|length }}">
+
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered align-middle mb-0" id="spesaTable">
+          <thead class="table-light">
+            <tr class="text-muted small">
+              <th style="width:44px">#</th>
+              <th style="min-width:160px">Codice</th>
+              <th style="min-width:260px">Descrizione</th>
+              <th style="min-width:160px">Gruppo</th>
+              <th style="min-width:120px">Prezzo</th>
+              <th style="min-width:120px">{{ col_qtacar }}</th>
+              <th style="min-width:120px">{{ col_unita }}</th>
+              <th style="min-width:110px">Colli</th>
+              <th style="min-width:110px">Pezzi</th>
+<th style="min-width:120px">Q.tà tot</th>
+              <th style="min-width:140px">Valore €</th>
+            </tr>
+          </thead>
+          <tbody id="spesaRowsTbody">
+            {% for r in rows_ui %}
+              {% set i = loop.index0 %}
+              <tr class="spesa-row" data-row-index="{{ i }}">
+                <td class="text-muted small">{{ i + 1 }}</td>
+                <td>
+                  <input type="text" class="form-control form-control-sm" name="row-{{ i }}-code" value="{{ r.code }}" autocomplete="off">
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm" name="row-{{ i }}-desc" value="{{ r.desc }}" autocomplete="off">
+                </td>
+                <td>
+                  {% set g = (r.group or "")|upper %}
+                  <select class="form-select form-select-sm" name="row-{{ i }}-group">
+                    <option value="" {% if not g %}selected{% endif %}></option>
+                    {% set group_names = group_options or ["FOOD","PAPER","OPERATING"] %}
+                    {% if g and g not in group_names %}
+                      <option value="{{ r.group }}" selected>{{ r.group }}</option>
+                    {% endif %}
+                    {% for opt in group_names %}
+                      <option value="{{ opt }}" {% if g==opt %}selected{% endif %}>{{ opt }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm spesa-price" name="row-{{ i }}-price" value="{{ r.price }}" inputmode="decimal" autocomplete="off">
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm spesa-unit" name="row-{{ i }}-qtacar" value="{{ r.qtacar }}" inputmode="decimal" autocomplete="off" placeholder="1">
+                </td>
+                <td>
+                  {% set u = (r.unita or "")|upper %}
+                  <select class="form-select form-select-sm" name="row-{{ i }}-unita">
+                    <option value="" {% if not u %}selected{% endif %}></option>
+                    {% if u and u not in ["KG","PZ"] %}
+                      <option value="{{ r.unita }}" selected>{{ r.unita }}</option>
+                    {% endif %}
+                    <option value="KG" {% if u=="KG" %}selected{% endif %}>KG</option>
+                    <option value="PZ" {% if u=="PZ" %}selected{% endif %}>PZ</option>
+                  </select>
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm spesa-colli" name="row-{{ i }}-colli" value="{{ r.colli }}" inputmode="decimal" autocomplete="off">
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm spesa-pezzi" name="row-{{ i }}-pezzi" value="{{ r.pezzi }}" inputmode="decimal" autocomplete="off">
+                </td>
+<td>
+                  <input type="text" readonly class="form-control form-control-sm spesa-qta-tot" value="">
+                </td>
+                <td>
+                  <input type="text" readonly class="form-control form-control-sm spesa-valore" value="">
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <template id="spesaRowTemplate">
+        <tr class="spesa-row" data-row-index="__i__">
+          <td class="text-muted small">__n__</td>
+          <td><input type="text" class="form-control form-control-sm" name="row-__i__-code" value="" autocomplete="off"></td>
+          <td><input type="text" class="form-control form-control-sm" name="row-__i__-desc" value="" autocomplete="off"></td>
+          <td><select class="form-select form-select-sm" name="row-__i__-group"><option value=""></option>{% for opt in group_options or ["FOOD","PAPER","OPERATING"] %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}</select></td>
+          <td><input type="text" class="form-control form-control-sm spesa-price" name="row-__i__-price" value="" inputmode="decimal" autocomplete="off"></td>
+          <td><input type="text" class="form-control form-control-sm spesa-unit" name="row-__i__-qtacar" value="" inputmode="decimal" autocomplete="off" placeholder="1"></td>
+          <td><select class="form-select form-select-sm" name="row-__i__-unita"><option value=""></option><option value="KG">KG</option><option value="PZ">PZ</option></select></td>
+          <td><input type="text" class="form-control form-control-sm spesa-colli" name="row-__i__-colli" value="" inputmode="decimal" autocomplete="off"></td>
+          <td><input type="text" class="form-control form-control-sm spesa-pezzi" name="row-__i__-pezzi" value="" inputmode="decimal" autocomplete="off"></td>
+<td><input type="text" readonly class="form-control form-control-sm spesa-qta-tot" value=""></td>
+          <td><input type="text" readonly class="form-control form-control-sm spesa-valore" value=""></td>
+        </tr>
+      </template>
+
+    </form>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/warehouse_spesa_new_v1.js') }}?v=2"></script>
+{% endblock %}

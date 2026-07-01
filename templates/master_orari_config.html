@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Master - Configurazione Orari{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Configurazione Orari</h1>
+      <div class="text-muted small">Inquadramenti e causali per tenant.</div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label small mb-1">Tenant</label>
+        <select class="form-select form-select-sm" name="tenant_key" onchange="this.form.submit()">
+          {% for t in tenants %}
+            <option value="{{ t.tenant_key }}" {% if t.tenant_key == selected_tenant_key %}selected{% endif %}>{{ t.display_name }} ({{ t.tenant_key }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <div class="fw-semibold">{{ tenant.display_name }}</div>
+        <div class="text-muted small">{{ tenant.database_name }}</div>
+      </div>
+      <form method="post">
+        <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+        <input type="hidden" name="action" value="seed_defaults">
+        <button class="btn btn-outline-primary btn-sm">Inserisci standard mancanti</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white fw-semibold">Inquadramenti</div>
+        <div class="card-body">
+          <form method="post" class="row g-2 align-items-end mb-3">
+            <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+            <input type="hidden" name="action" value="save_inquadramento">
+            <div class="col-12">
+              <label class="form-label">Nome</label>
+              <input class="form-control" name="name" required>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Ordine</label>
+              <input class="form-control" type="number" name="sort_order" value="0">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Contratto</label>
+              <select class="form-select" name="requires_contract_match">
+                <option value="1">Richiede match</option>
+                <option value="0">Non richiede</option>
+              </select>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Attivo</label>
+              <select class="form-select" name="is_active">
+                <option value="1">Si</option>
+                <option value="0">No</option>
+              </select>
+            </div>
+            <div class="col-12 d-grid">
+              <button class="btn btn-primary">Salva</button>
+            </div>
+          </form>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead><tr><th>Nome</th><th>Ord.</th><th>Contratto</th><th></th></tr></thead>
+              <tbody>
+                {% for r in inquadramenti %}
+                  <tr>
+                    <td>
+                      <form id="inq{{ loop.index }}" method="post">
+                        <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                        <input type="hidden" name="action" value="save_inquadramento">
+                        <input class="form-control form-control-sm" name="name" value="{{ r.name }}" required>
+                      </form>
+                    </td>
+                    <td><input form="inq{{ loop.index }}" class="form-control form-control-sm" type="number" name="sort_order" value="{{ r.sort_order or 0 }}"></td>
+                    <td>
+                      <select form="inq{{ loop.index }}" class="form-select form-select-sm" name="requires_contract_match">
+                        <option value="1" {% if r.requires_contract_match %}selected{% endif %}>Si</option>
+                        <option value="0" {% if not r.requires_contract_match %}selected{% endif %}>No</option>
+                      </select>
+                      <input form="inq{{ loop.index }}" type="hidden" name="is_active" value="{{ 1 if r.is_active else 0 }}">
+                    </td>
+                    <td class="text-end text-nowrap">
+                      <button form="inq{{ loop.index }}" class="btn btn-sm btn-outline-primary">Salva</button>
+                      <form method="post" class="d-inline" onsubmit="return confirm('Eliminare questo inquadramento?');">
+                        <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                        <input type="hidden" name="action" value="delete_inquadramento">
+                        <input type="hidden" name="name" value="{{ r.name }}">
+                        <button class="btn btn-sm btn-outline-danger">Elimina</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white fw-semibold">Causali</div>
+        <div class="card-body">
+          <form method="post" class="row g-2 align-items-end mb-3">
+            <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+            <input type="hidden" name="action" value="save_causale">
+            <div class="col-12 col-lg-3"><label class="form-label">Nome</label><input class="form-control" name="name" required></div>
+            <div class="col-6 col-lg-1"><label class="form-label">Ord.</label><input class="form-control" type="number" name="sort_order" value="0"></div>
+            {% for key, label in [
+              ('justifies_contract_hours', 'Giustifica'),
+              ('counts_productivity', 'Prod.'),
+              ('counts_training', 'Training'),
+              ('counts_labor_cost', 'Costo'),
+              ('requires_loan_store', 'Prestito'),
+              ('requires_time_range', 'Orari'),
+              ('auto_extra_eligible', 'Auto extra')
+            ] %}
+              <div class="col-6 col-lg-1">
+                <label class="form-label">{{ label }}</label>
+                <select class="form-select" name="{{ key }}"><option value="0">No</option><option value="1">Si</option></select>
+              </div>
+            {% endfor %}
+            <input type="hidden" name="is_active" value="1">
+            <div class="col-12 d-grid"><button class="btn btn-primary">Salva causale</button></div>
+          </form>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>Nome</th><th>Ord.</th><th>Giustifica</th><th>Prod.</th><th>Training</th><th>Costo</th><th>Prestito</th><th>Orari</th><th>Auto extra</th><th>Attiva</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in causali %}
+                  <tr>
+                    <td>
+                      <form id="caus{{ loop.index }}" method="post">
+                        <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                        <input type="hidden" name="action" value="save_causale">
+                        <input class="form-control form-control-sm" name="name" value="{{ r.name }}" required>
+                      </form>
+                    </td>
+                    <td><input form="caus{{ loop.index }}" class="form-control form-control-sm" type="number" name="sort_order" value="{{ r.sort_order or 0 }}"></td>
+                    {% for key in ['justifies_contract_hours','counts_productivity','counts_training','counts_labor_cost','requires_loan_store','requires_time_range','auto_extra_eligible','is_active'] %}
+                      <td>
+                        <select form="caus{{ loop.index }}" class="form-select form-select-sm" name="{{ key }}">
+                          <option value="1" {% if r[key] %}selected{% endif %}>Si</option>
+                          <option value="0" {% if not r[key] %}selected{% endif %}>No</option>
+                        </select>
+                      </td>
+                    {% endfor %}
+                    <td class="text-end text-nowrap">
+                      <button form="caus{{ loop.index }}" class="btn btn-sm btn-outline-primary">Salva</button>
+                      <form method="post" class="d-inline" onsubmit="return confirm('Eliminare questa causale?');">
+                        <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                        <input type="hidden" name="action" value="delete_causale">
+                        <input type="hidden" name="name" value="{{ r.name }}">
+                        <button class="btn btn-sm btn-outline-danger">Elimina</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

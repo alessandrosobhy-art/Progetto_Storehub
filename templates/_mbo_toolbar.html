@@ -1,0 +1,70 @@
+<div class="app-sectionbar">
+  <div class="container app-sectionbar__inner">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="app-sectionbar__label">MBO</span>
+
+      {% set is_home = request.path == '/mbo' or request.path == '/mbo/' %}
+      {% set is_audit = request.path == '/mbo/audit' %}
+      {% set is_audit_addresses = request.path.startswith('/mbo/audit/indirizzi') %}
+      {% set is_pnl_scores = request.path.startswith('/mbo/calcoli-pl') %}
+      {% set is_google_scores = request.path.startswith('/mbo/calcoli-google') %}
+      {% set is_glovo_scores = request.path.startswith('/mbo/calcoli-glovo') %}
+      {% set is_deliveroo_scores = request.path.startswith('/mbo/calcoli-deliveroo') %}
+      {% set is_soft_skills = request.path.startswith('/mbo/soft-skills') %}
+      {% set is_custom_survey = request.path.startswith('/mbo/survey') %}
+      {% set is_settings = request.path.startswith('/mbo/impostazioni') %}
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_home else 'btn-outline-primary' }}"
+         href="{{ url_for('mbo.home') }}">
+        Riepilogo
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_audit else 'btn-outline-primary' }}"
+         href="{{ url_for('mbo.audit') }}">
+        Dati audit
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_audit_addresses else 'btn-outline-primary' }}"
+         href="{{ url_for('mbo.audit_address_mapping') }}">
+        Address-store
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_pnl_scores else 'btn-outline-primary' }}"
+         href="{{ url_for('mbo.pnl_scores') }}">
+        Calcoli P&amp;L
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_google_scores else 'btn-outline-primary' }}"
+         href="{{ url_for('mbo.google_scores') }}">
+        Calcoli Google
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_glovo_scores else 'btn-outline-primary' }}"
+         href="{{ url_for('mbo.glovo_scores') }}">
+        Calcoli Glovo
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_deliveroo_scores else 'btn-outline-primary' }}"
+         href="{{ url_for('mbo.deliveroo_scores') }}">
+        Calcoli Deliveroo
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_soft_skills else 'btn-outline-primary' }}"
+         href="{{ url_for('mbo.soft_skills') }}">
+        Soft skills
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_custom_survey else 'btn-outline-primary' }}"
+         href="{{ url_for('mbo.custom_surveys') }}">
+        Survey
+      </a>
+
+      {% if user and user.role == 'admin' %}
+      <a class="btn btn-sm {{ 'btn-primary' if is_settings else 'btn-outline-primary' }}"
+         href="{{ url_for('mbo.settings') }}">
+        Impostazioni
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>

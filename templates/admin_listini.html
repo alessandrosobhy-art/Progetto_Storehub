@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% block title %}{{ page_title or 'Listini Prezzi' }}{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_listini_v1.css') }}?v=1.1.13">
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h3 class="m-0">{{ page_title or 'Listini Prezzi' }}</h3>
+    <div class="small text-muted"></div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+          <label class="form-label small text-muted mb-1">Elenco prezzi</label>
+          <select id="priceList" class="form-select form-select-sm">
+            {% for p in price_lists or [] %}
+              <option value="{{ p.row_uuid }}">{{ p.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small text-muted mb-1">Tipo listino</label>
+          <select id="lstType" class="form-select form-select-sm">
+            {% for t in listino_types or ['FoodPaper', 'Operating'] %}
+              <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label small text-muted mb-1">Ricerca</label>
+          <input id="lstSearch" class="form-control form-control-sm" type="text" placeholder="Cerca per fornitore o prodotto…">
+        </div>
+
+        <div class="col-12 col-md-3 d-flex gap-2">
+          <button class="btn btn-primary btn-sm mt-md-4" id="btnLoad" type="button">
+            Carica
+          </button>
+          <button class="btn btn-outline-secondary btn-sm mt-md-4" id="btnResetFilters" type="button">
+            Reset
+          </button>
+        </div>
+
+        <div class="col-12 col-md-3 text-end mt-md-4">
+          <span class="badge text-bg-light border" id="lstCount">0 righe</span>
+          <span class="badge text-bg-warning d-none" id="lstDirty">Modifiche non salvate</span>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
+        <div class="small" id="lstStatus"></div>
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+          
+          <button class="btn btn-outline-danger btn-sm" id="btnDeleteSelected" type="button" disabled>
+            Elimina selezionati
+          </button>
+          <span class="badge bg-danger-subtle text-danger border d-none align-self-center" id="lstSelected">0 selezionati</span>
+<button class="btn btn-success btn-sm" id="btnApply" type="button" disabled>
+            Salva su SQL
+          </button>
+          <button class="btn btn-warning btn-sm" id="btnExportAll" type="button" disabled>
+            Applica a tutti gli store
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-listini-copy mt-3 pt-3 border-top">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <h6 class="m-0">Copia prodotti tra elenchi</h6>
+          <div class="small text-muted">Copia massiva sul tipo listino selezionato o su tutti i tipi</div>
+        </div>
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-lg-3">
+            <label class="form-label small text-muted mb-1">Origine</label>
+            <select id="copySourceList" class="form-select form-select-sm">
+              {% for p in price_lists or [] %}
+                <option value="{{ p.row_uuid }}">{{ p.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-lg-3">
+            <label class="form-label small text-muted mb-1">Destinazione</label>
+            <select id="copyTargetList" class="form-select form-select-sm">
+              {% for p in price_lists or [] %}
+                <option value="{{ p.row_uuid }}">{{ p.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-lg-2">
+            <label class="form-label small text-muted mb-1">Tipo</label>
+            <select id="copyType" class="form-select form-select-sm">
+              <option value="">Tutti</option>
+              {% for t in listino_types or ['FoodPaper', 'Operating'] %}
+                <option value="{{ t }}">{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-lg-2">
+            <div class="form-check mt-lg-4">
+              <input class="form-check-input" type="checkbox" id="copyOverwrite">
+              <label class="form-check-label small" for="copyOverwrite">Aggiorna prodotti già presenti</label>
+            </div>
+          </div>
+          <div class="col-12 col-lg-1">
+            <div class="form-check mt-lg-4">
+              <input class="form-check-input" type="checkbox" id="copySelectedOnly">
+              <label class="form-check-label small" for="copySelectedOnly">Solo selezionati</label>
+            </div>
+          </div>
+          <div class="col-12 col-lg-1 d-flex gap-2">
+            <button class="btn btn-outline-primary btn-sm mt-lg-4" id="btnCopyProducts" type="button">
+              Copia prodotti
+            </button>
+          </div>
+        </div>
+        <div class="small mt-2" id="copyStatus"></div>
+      </div>
+
+      <div class="admin-listini-export mt-3 pt-3 border-top">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <h6 class="m-0">Esporta listino</h6>
+          <div class="small text-muted">CSV nello stesso formato usato dall'import</div>
+        </div>
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-lg-5">
+            <div class="small text-muted">Esporta l'elenco prezzi e il tipo listino selezionati sopra.</div>
+          </div>
+          <div class="col-12 col-lg-2">
+            <button class="btn btn-outline-secondary btn-sm" id="btnExportListino" type="button">
+              Esporta CSV
+            </button>
+          </div>
+        </div>
+        <div class="small mt-2" id="exportStatus"></div>
+      </div>
+    
+
+  <div class="card mb-3 d-none" id="csvImportCard">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <h6 class="m-0">Importa CSV</h6>
+      </div>
+
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="form-label small text-muted mb-1">File CSV</label>
+          <input id="csvFile" class="form-control form-control-sm" type="file" accept=".csv,text/csv">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label small text-muted mb-1">Fornitori da importare</label>
+          <select id="csvSupplierFilter" class="form-select form-select-sm" multiple size="4"></select>
+          <div class="form-text">Lascia vuoto per importare tutti i fornitori presenti nel file.</div>
+        </div>
+        <div class="col-12 col-md-2 d-flex gap-2">
+          <button class="btn btn-outline-primary btn-sm mt-md-4" id="btnImportCsv" type="button" disabled>
+            Importa
+          </button>
+          <button class="btn btn-outline-secondary btn-sm mt-md-4" id="btnClearCsv" type="button" disabled>
+            Rimuovi file
+          </button>
+        </div>
+        <div class="col-12 col-md-2 text-end mt-md-4">
+          <span class="badge text-bg-light border d-none" id="csvInfo"></span>
+        </div>
+      </div>
+
+      <div class="small text-danger mt-2" id="csvError"></div>
+    </div>
+  </div>
+
+</div>
+  </div>
+
+
+<div id="tableWrap" class="admin-listini-table-wrap">
+    <div class="text-muted small">Nessun dato 	.</div>
+  </div>
+  
+    <div class="card mb-3 d-none" id="newProdCard">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <h6 class="m-0">Nuovo prodotto</h6>
+        <div class="small text-muted">Tutti i campi sono obbligatori</div>
+      </div>
+
+      <div class="row g-2" id="newProdFields"></div>
+
+      <div class="d-flex align-items-center gap-2 mt-2">
+        <button class="btn btn-outline-primary btn-sm" id="btnAddProd" type="button" disabled>
+          Aggiungi alla tabella
+        </button>
+        <div class="small text-danger ms-auto" id="newProdError"></div>
+      </div>
+    </div>
+  </div>
+  
+</div>
+
+<!-- Conferma -->
+<div class="modal fade" id="applyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="applyModalTitle">Conferma</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning mb-2">
+          Verranno inviate solo le righe <b>nuove</b> o <b>modificate</b> (chiave: <b>FORNITORE + DESCRIZIONE</b>).
+        </div>
+        <div class="small text-muted" id="applyModalMeta"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-success" id="btnApplyConfirm">Conferma</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stato -->
+<div class="modal fade" id="progressModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="progressTitle">Operazione in corso…</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi" id="progressCloseX" disabled></button>
+      </div>
+      <div class="modal-body">
+        <div class="small text-muted mb-2" id="progressText">Avvio…</div>
+        <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" style="width: 0%"></div>
+        </div>
+        <pre class="admin-listini-log mt-3 mb-0 d-none" id="progressLog"></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="progressClose" disabled>Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/admin_listini_v1.js') }}?v=1.1.14" defer></script>
+{% endblock %}

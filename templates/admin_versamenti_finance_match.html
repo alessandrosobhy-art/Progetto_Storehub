@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% include "_estrazioni_hq_toolbar.html" %}
+
+  <div class="container-fluid py-4">
+    <style>
+      .finance-match-page .page-nav { display:flex; gap:.75rem; flex-wrap:wrap; margin-bottom:1rem; }
+      .finance-match-page .page-link-card {
+        min-width: 190px; padding: 1rem 1.1rem; border-radius: 16px; text-decoration:none;
+        border:1px solid #d9dee7; background:#fff; color:#111827; box-shadow:0 6px 20px rgba(15,23,42,.05);
+      }
+      .finance-match-page .page-link-card.active { border-color:#111827; background:#111827; color:#fff; }
+      .finance-match-page .page-link-card .label { display:block; font-weight:700; }
+      .finance-match-page .page-link-card .count { display:block; font-size:1.45rem; line-height:1.1; margin-top:.35rem; }
+      .finance-match-page .filter-card, .finance-match-page .panel-card { border-radius:18px; }
+      .finance-match-page .match-table th, .finance-match-page .list-table th { white-space:nowrap; background:#f8fafc; }
+      .finance-match-page .match-table td, .finance-match-page .list-table td { vertical-align:top; }
+      .finance-match-page .info-muted { color:#6b7280; font-size:.83rem; }
+      .finance-match-page .app-col { min-width:340px; }
+      .finance-match-page .candidate-col { min-width:420px; }
+      .finance-match-page .badge-score-strong { background:#dcfce7; color:#166534; }
+      .finance-match-page .badge-score-mid { background:#fef3c7; color:#92400e; }
+      .finance-match-page .badge-score-low { background:#fee2e2; color:#991b1b; }
+      .finance-match-page .candidate-meta { font-size:.75rem; color:#6b7280; }
+      .finance-match-page .kpi-chip { display:inline-flex; align-items:center; gap:.35rem; padding:.35rem .6rem; border-radius:999px; background:#f3f4f6; color:#374151; font-size:.82rem; }
+    </style>
+
+    <div class="finance-match-page">
+      <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+        <div>
+          <h3 class="mb-1">Convalida Versamenti</h3>
+        </div>
+      </div>
+
+      {% set nav_items = [
+        ('queue', 'Associazioni', page_counts.queue),
+        ('assigned', 'Convalidati', page_counts.assigned),
+        ('unmatched_app', 'Non convalidati', page_counts.unmatched_app),
+        ('unassigned_finance', 'Non associati', page_counts.unassigned_finance)
+      ] %}
+      <div class="page-nav">
+        {% for key, title, count in nav_items %}
+        <a class="page-link-card {% if page_view == key %}active{% endif %}" href="{{ url_for('admin_versamenti_finance_match_test', view=key, store_code=selected_store_code, start=start_iso, end=end_iso) }}">
+          <span class="label">{{ title }}</span>
+          <span class="count">{{ count }}</span>
+        </a>
+        {% endfor %}
+      </div>
+
+      <div class="card shadow-sm filter-card mb-3">
+        <div class="card-body">
+          <form method="get" action="{{ url_for('admin_versamenti_finance_match_test') }}">
+            <input type="hidden" name="view" value="{{ page_view }}">
+            <div class="row g-3 align-items-end">
+              <div class="col-lg-4 col-md-6">
+                <label class="form-label">Store</label>
+                <select class="form-select" name="store_code">
+                  <option value="">Tutti gli store</option>
+                  {% for s in stores %}
+                    {% set code = (s.get('code') if s is mapping else s.code) %}
+                    {% set name = (s.get('name') if s is mapping else s.name) %}
+                    <option value="{{ code }}" {% if selected_store_code == (code|string) %}selected{% endif %}>{{ code }} - {{ name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-lg-3 col-md-3 col-6">
+                <label class="form-label">Dal</label>
+                <input type="date" class="form-control" name="start" value="{{ start_iso }}">
+              </div>
+              <div class="col-lg-3 col-md-3 col-6">
+                <label class="form-label">Al</label>
+                <input type="date" class="form-control" name="end" value="{{ end_iso }}">
+              </div>
+              <div class="col-lg-2 col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">Carica</button>
+                <a class="btn btn-outline-secondary" href="{{ url_for('admin_versamenti_finance_match_test', view=page_view) }}">Reset</a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {% if page_view == 'queue' %}
+      <div class="d-flex justify-content-end mb-2">
+        <button type="button" class="btn btn-primary btn-sm" onclick="submitFinanceBatch('versamenti-batch-form','.vers-row')">Convalida selezionati</button>
+      </div>
+      <form id="versamenti-batch-form" method="post" action="{{ url_for('admin_versamenti_finance_match_test_batch_save') }}">
+        <input type="hidden" name="batch_payload" value="">
+        <input type="hidden" name="return_store_code" value="{{ selected_store_code }}">
+        <input type="hidden" name="return_start" value="{{ start_iso }}">
+        <input type="hidden" name="return_end" value="{{ end_iso }}">
+        <input type="hidden" name="return_view" value="queue">
+      </form>
+      <div class="card shadow-sm panel-card">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table match-table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th class="app-col">Versamento app</th>
+                  <th class="candidate-col">Associazione finance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                <tr class="vers-row" data-app-record-key="{{ row.app_record_key }}" data-app-record-id="{{ row.id }}" data-app-store="{{ row.site }}">
+                  <td class="app-col">
+                    <div class="form-check mb-2"><input class="form-check-input batch-check" type="checkbox"></div>
+                    <div class="fw-semibold">{{ row.store_name }} <span class="text-muted">({{ row.site }})</span></div>
+                    <div class="info-muted mt-1">{{ row.nome }}{% if row.tipo %} - {{ row.tipo }}{% endif %}</div>
+                    <div class="row g-2 mt-2 small">
+                      <div class="col-sm-6"><span class="text-muted">Data:</span> {{ row.data_versamento or '-' }}</div>
+                      <div class="col-sm-6"><span class="text-muted">Periodo:</span> {{ row.dal or '-' }} - {{ row.al or '-' }}</div>
+                      <div class="col-sm-6"><span class="text-muted">Tessera:</span> {{ row.tessera or '-' }}</div>
+                      <div class="col-sm-6"><span class="text-muted">Riferimento:</span> {{ row.riferimento or '-' }}</div>
+                      <div class="col-sm-6"><span class="text-muted">Valore:</span> <strong>{{ "{:,.2f}".format(row.valore).replace(",", "X").replace(".", ",").replace("X", ".") }} &euro;</strong></div>
+                    </div>
+                  </td>
+                  <td class="candidate-col p-0">
+                    <form method="post" action="{{ url_for('admin_versamenti_finance_match_test_save') }}" class="m-0 p-3 border-0 bg-transparent">
+                      <input type="hidden" name="app_record_key" value="{{ row.app_record_key }}">
+                      <input type="hidden" name="app_record_id" value="{{ row.id }}">
+                      <input type="hidden" name="app_store" value="{{ row.site }}">
+                      <input type="hidden" name="return_store_code" value="{{ selected_store_code }}">
+                      <input type="hidden" name="return_start" value="{{ start_iso }}">
+                      <input type="hidden" name="return_end" value="{{ end_iso }}">
+                      <input type="hidden" name="return_view" value="queue">
+
+                      {% if row.auto_combo_hint %}
+                      <div class="alert alert-info py-2 px-3 small mb-2">{{ row.auto_combo_hint }}</div>
+                      {% endif %}
+                      {% if row.assigned_count > 0 %}
+                      <div class="alert {% if row.current_match_ok %}alert-success{% else %}alert-warning{% endif %} py-2 px-3 small mb-2">
+                        Totale selezione: {{ "{:,.2f}".format(row.current_match_total).replace(",", "X").replace(".", ",").replace("X", ".") }} &euro;
+                        {% if not row.current_match_ok %}
+                          | scostamento {{ "{:,.2f}".format(row.current_match_diff).replace(",", "X").replace(".", ",").replace("X", ".") }} &euro;
+                        {% endif %}
+                      </div>
+                      {% endif %}
+
+                      <div class="row g-2">
+                        {% for slot in [1,2,3] %}
+                        <div class="col-12">
+                          <label class="form-label small mb-1">Versamento finance {{ slot }}</label>
+                          <select class="form-select form-select-sm" name="finance_slot_{{ slot }}">
+                            <option value="">Nessuna associazione</option>
+                            {% for opt in row.candidate_options %}
+                            <option value="{{ opt.finance_id }}" {% if row.slot_values[slot] == (opt.finance_id|string) %}selected{% endif %}>
+                              {{ opt.label }}{% if opt.score %} | score {{ "%.0f"|format(opt.score) }}{% endif %}{% if opt.inferred_store_name %} | {{ opt.inferred_store_name }}{% endif %}
+                            </option>
+                            {% endfor %}
+                          </select>
+                          <input type="hidden" name="finance_score_{{ slot }}" value="{{ row.slot_scores[slot] }}">
+                        </div>
+                        {% endfor %}
+
+                        <div class="col-12 mt-2 d-flex gap-2 flex-wrap">
+                          {% for opt in row.candidate_options[:3] %}
+                            {% set score = opt.score|float %}
+                            <span class="badge {% if score >= 90 %}badge-score-strong{% elif score >= 70 %}badge-score-mid{% else %}badge-score-low{% endif %}">id {{ opt.finance_id }} - {{ '%.0f'|format(score) }}{% if opt.amount_diff %} | diff {{ "{:,.2f}".format(opt.amount_diff).replace(",", "X").replace(".", ",").replace("X", ".") }}{% endif %}</span>
+                          {% endfor %}
+                        </div>
+
+                        <div class="col-12 mt-3 d-grid gap-2">
+                          <button type="submit" class="btn btn-primary btn-sm">Convalida</button>
+                        </div>
+                      </div>
+                    </form>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" class="text-center text-muted py-5">Nessun record da associare.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% elif page_view == 'assigned' %}
+      <div class="card shadow-sm panel-card">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table list-table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Store</th>
+                  <th>Versamento app</th>
+                  <th>Match confermati</th>
+                  <th style="width:150px;">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                <tr>
+                  <td><strong>{{ row.store_name }}</strong><div class="info-muted">{{ row.site }}</div></td>
+                  <td>
+                    <div>{{ row.nome }}{% if row.tipo %} - {{ row.tipo }}{% endif %}</div>
+                    <div class="info-muted">{{ row.data_versamento or '-' }} | {{ row.dal or '-' }} - {{ row.al or '-' }}</div>
+                    <div class="info-muted">{{ row.riferimento or '-' }} | {{ "{:,.2f}".format(row.valore).replace(",", "X").replace(".", ",").replace("X", ".") }} &euro;</div>
+                  </td>
+                  <td>
+                    <div class="mb-2">
+                      <span class="kpi-chip">finance {{ "{:,.2f}".format(row.current_match_total).replace(",", "X").replace(".", ",").replace("X", ".") }} &euro;</span>
+                      <span class="kpi-chip {% if row.current_match_ok %}badge-score-strong{% else %}badge-score-low{% endif %}">
+                        scostamento {{ "{:,.2f}".format(row.current_match_diff).replace(",", "X").replace(".", ",").replace("X", ".") }} &euro;
+                      </span>
+                    </div>
+                    {% for m in row.current_matches %}
+                    <div class="mb-1"><span class="kpi-chip">slot {{ m.slot_no }}</span> <span class="info-muted">id {{ m.finance_id }} - {{ m.match_source }}</span></div>
+                    {% endfor %}
+                  </td>
+                  <td>
+                    <form method="post" action="{{ url_for('admin_versamenti_finance_match_test_save') }}" class="m-0">
+                      <input type="hidden" name="app_record_key" value="{{ row.app_record_key }}">
+                      <input type="hidden" name="app_record_id" value="{{ row.id }}">
+                      <input type="hidden" name="app_store" value="{{ row.site }}">
+                      <input type="hidden" name="return_store_code" value="{{ selected_store_code }}">
+                      <input type="hidden" name="return_start" value="{{ start_iso }}">
+                      <input type="hidden" name="return_end" value="{{ end_iso }}">
+                      <input type="hidden" name="return_view" value="assigned">
+                      <button type="submit" class="btn btn-outline-danger btn-sm w-100">Libera</button>
+                    </form>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-5">Nessun record convalidato.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% elif page_view == 'unmatched_app' %}
+      <div class="card shadow-sm panel-card">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table list-table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Store</th>
+                  <th>Nome</th>
+                  <th>Periodo</th>
+                  <th>Tessera</th>
+                  <th>Riferimento</th>
+                  <th class="text-end">Valore</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                <tr>
+                  <td><strong>{{ row.store_name }}</strong><div class="info-muted">{{ row.site }}</div></td>
+                  <td>{{ row.nome }}{% if row.tipo %}<div class="info-muted">{{ row.tipo }}</div>{% endif %}</td>
+                  <td>{{ row.data_versamento or '-' }}<div class="info-muted">{{ row.dal or '-' }} - {{ row.al or '-' }}</div></td>
+                  <td>{{ row.tessera or '-' }}</td>
+                  <td>{{ row.riferimento or '-' }}</td>
+                  <td class="text-end">{{ "{:,.2f}".format(row.valore).replace(",", "X").replace(".", ",").replace("X", ".") }} &euro;</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-5">Nessun versamento app non convalidato.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="card shadow-sm panel-card">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table list-table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Data contabile</th>
+                  <th>Data valuta</th>
+                  <th>Banca</th>
+                  <th>Nota</th>
+                  <th>Tessera</th>
+                  <th>Store inferito</th>
+                  <th class="text-end">Importo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for fin in finance_rows %}
+                <tr>
+                  <td>{{ fin.data_contabile_raw or '-' }}</td>
+                  <td>{{ fin.data_valuta_raw or '-' }}</td>
+                  <td>{{ fin.banca or '-' }}</td>
+                  <td>{{ fin.nota or '-' }}</td>
+                  <td>{{ fin.numero_tessera or '-' }}</td>
+                  <td>
+                    {% if fin.inferred_store_name %}
+                      {{ fin.inferred_store_name }}
+                      <div class="info-muted">score {{ '%.0f'|format(fin.inferred_store_score or 0) }}</div>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">{{ "{:,.2f}".format(fin.importo).replace(",", "X").replace(".", ",").replace("X", ".") }} &euro;</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-5">Nessun versamento finance non associato.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <script>
+    function submitFinanceBatch(formId, rowSelector) {
+      const rows = Array.from(document.querySelectorAll(rowSelector));
+      const payload = [];
+      rows.forEach((row) => {
+        const chk = row.querySelector('.batch-check');
+        if (!chk || !chk.checked) return;
+        const items = [];
+        [1,2,3].forEach((slot) => {
+          const sel = row.querySelector(`select[name="finance_slot_${slot}"]`);
+          const score = row.querySelector(`input[name="finance_score_${slot}"]`);
+          if (sel && sel.value) {
+            items.push({ finance_id: sel.value, slot_no: slot, match_score: score ? score.value : '0', match_source: 'manual' });
+          }
+        });
+        payload.push({
+          app_record_key: row.dataset.appRecordKey || '',
+          app_record_id: row.dataset.appRecordId || '',
+          app_store: row.dataset.appStore || '',
+          items
+        });
+      });
+      if (!payload.length) {
+        alert('Seleziona almeno un record.');
+        return;
+      }
+      const form = document.getElementById(formId);
+      form.querySelector('input[name="batch_payload"]').value = JSON.stringify(payload);
+      form.submit();
+    }
+  </script>
+{% endblock %}

@@ -1,0 +1,8 @@
+/* ro_overrides.css v1 - blocco select/tendine in sola lettura */
+#placeModal.pm-readonly select { pointer-events: none; opacity: .6; }
+#placeModal.pm-readonly .select2-container,
+#placeModal.pm-readonly .choices,
+#placeModal.pm-readonly .ts-wrapper,
+#placeModal.pm-readonly .bootstrap-select,
+#placeModal.pm-readonly .dropdown { pointer-events: none; opacity: .6; }
+#placeModal.pm-readonly .dropdown-menu.show { display: none; }

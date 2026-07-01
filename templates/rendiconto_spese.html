@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}Rendiconto - Spese{% endblock %}
+
+{% block content %}
+  {% include "_rendiconto_toolbar.html" %}
+  {% set rc_ns = 'rendiconto' %}
+
+  <div class="container py-4">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+      <div>
+        <h3 class="mb-1">{{ tr(rc_ns, 'expenses.title', 'Spese di cassa') }}</h3>
+        <div class="text-muted small">
+          {% if store_code %}
+            {{ tr(rc_ns, 'common.store', 'Store') }}: <strong>{{ store_code }}</strong>{% if store_name %} - {{ store_name }}{% endif %}
+          {% else %}
+            {{ tr(rc_ns, 'expenses.no_store', 'Seleziona uno store per inserire e visualizzare le spese.') }}
+          {% endif %}
+        </div>
+      </div>
+
+      <form method="get" class="d-flex align-items-end gap-2">
+        <div>
+          <label class="form-label mb-1 small">{{ tr(rc_ns, 'common.month', 'Mese') }}</label>
+          <input type="month" class="form-control form-control-sm" name="ym" value="{{ ym }}">
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" type="submit">{{ tr(rc_ns, 'common.go', 'Vai') }}</button>
+      </form>
+    </div>
+
+    {% if store_code %}
+    <div class="card mb-4">
+      <div class="card-header">{{ tr(rc_ns, 'expenses.new', 'Nuova spesa') }}</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('rendiconto.spese') }}" class="row g-3" enctype="multipart/form-data">
+          <input type="hidden" name="ym" value="{{ ym }}">
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'common.date', 'Data') }}</label>
+            <input type="date" class="form-control" name="data" value="{{ today_iso }}" required>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'expenses.operation_type', 'Tipo di operazione') }}</label>
+            <select class="form-select" name="tipo_operazione" required>
+              <option value="" selected disabled>{{ tr(rc_ns, 'common.select', 'Seleziona...') }}</option>
+              <option value="Scontrino">{{ tr(rc_ns, 'expenses.receipt', 'Scontrino') }}</option>
+              <option value="Fattura">{{ tr(rc_ns, 'expenses.invoice', 'Fattura') }}</option>
+              <option value="Nota di credito">{{ tr(rc_ns, 'expenses.credit_note', 'Nota di credito') }}</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'expenses.supplier_expense', 'Fornitore / Spesa') }}</label>
+            <input type="text" class="form-control" name="fornitore_spesa" required>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'expenses.document', 'Scontrino / Fattura') }}</label>
+            <input type="text" class="form-control" name="documento" required>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'common.amount', 'Importo') }} (&euro;)</label>
+            <input type="number" class="form-control" name="importo" step="0.01" required>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">{{ tr(rc_ns, 'expenses.invoice_photo', 'Foto fattura') }}</label>
+            <input type="file" class="form-control" name="foto" accept="image/*">
+          </div>
+
+          <div class="col-12 d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">{{ tr(rc_ns, 'expenses.save', 'Salva spesa') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <span>{{ tr(rc_ns, 'expenses.month_summary', 'Riepilogo mese') }} <strong>{{ ym }}</strong></span>
+        <span class="text-muted">{{ tr(rc_ns, 'common.total', 'Totale') }}: <strong>{{ "%.2f"|format(total) }} &euro;</strong></span>
+      </div>
+
+      <div class="card-body p-0">
+        {% if rows %}
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="white-space:nowrap;">{{ tr(rc_ns, 'common.date', 'Data') }}</th>
+                  <th style="white-space:nowrap;">{{ tr(rc_ns, 'expenses.operation_type', 'Tipo di operazione') }}</th>
+                  <th>{{ tr(rc_ns, 'expenses.supplier_expense', 'Fornitore / Spesa') }}</th>
+                  <th style="white-space:nowrap;">{{ tr(rc_ns, 'expenses.document', 'Scontrino / Fattura') }}</th>
+                  <th class="text-end" style="white-space:nowrap;">{{ tr(rc_ns, 'common.amount', 'Importo') }} (&euro;)</th>
+                  <th class="text-center" style="white-space:nowrap;">{{ tr(rc_ns, 'common.photo', 'Foto') }}</th>
+                  <th class="text-end" style="white-space:nowrap;">{{ tr(rc_ns, 'common.actions', 'Azioni') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in rows %}
+                <tr>
+                  <td style="white-space:nowrap;">{{ r.data }}</td>
+                  <td style="white-space:nowrap;">{{ r.tipo }}</td>
+                  <td>{{ r.fornitore }}</td>
+                  <td style="white-space:nowrap;">{{ r.documento }}</td>
+                  <td class="text-end" style="white-space:nowrap;">{{ "%.2f"|format(r.importo) }}</td>
+                  <td class="text-center" style="white-space:nowrap;">
+                    {% if r.foto_file %}
+                      <button type="button"
+                              class="btn btn-sm btn-outline-secondary photo-btn"
+                              data-bs-toggle="modal"
+                              data-bs-target="#photoSpesaModal"
+                              data-photo-url="{{ url_for('rendiconto.spese_photo_scoped', store_code=store_code, filename=r.foto_file) }}"
+                              aria-label="{{ tr(rc_ns, 'expenses.view_photo', 'Vedi foto') }}">
+                        📷
+                      </button>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end" style="white-space:nowrap;">
+                    {% if store_code %}
+                      <button type="button"
+                              class="btn btn-sm btn-outline-primary"
+                              data-bs-toggle="modal"
+                              data-bs-target="#editSpesaModal"
+                              data-ym="{{ ym|e }}"
+                              data-dataiso="{{ r.data_iso|e }}"
+                              data-tipo="{{ r.tipo_raw|e }}"
+                              data-fornitore="{{ r.fornitore_raw|e }}"
+                              data-documento="{{ r.documento_raw|e }}"
+                              data-importo="{{ r.importo_key|e }}">
+                        {{ tr(rc_ns, 'common.edit', 'Modifica') }}
+                      </button>
+
+                      <form method="post" action="{{ url_for('rendiconto.spese_delete') }}" class="d-inline">
+                        <input type="hidden" name="ym" value="{{ ym|e }}">
+                        <input type="hidden" name="orig_data" value="{{ r.data_iso|e }}">
+                        <input type="hidden" name="orig_tipo" value="{{ r.tipo_raw|e }}">
+                        <input type="hidden" name="orig_fornitore" value="{{ r.fornitore_raw|e }}">
+                        <input type="hidden" name="orig_documento" value="{{ r.documento_raw|e }}">
+                        <input type="hidden" name="orig_importo" value="{{ r.importo_key|e }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm({{ tr(rc_ns, 'expenses.delete_confirm', 'Eliminare questa spesa?')|tojson }});">
+                          {{ tr(rc_ns, 'common.delete', 'Elimina') }}
+                        </button>
+                      </form>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-3 text-muted">{{ tr(rc_ns, 'expenses.empty', 'Nessuna spesa trovata per il mese selezionato.') }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal modifica spesa -->
+  <div class="modal fade" id="editSpesaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ tr(rc_ns, 'expenses.edit', 'Modifica spesa') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr(rc_ns, 'common.close', 'Chiudi') }}"></button>
+        </div>
+
+        <form method="post" action="{{ url_for('rendiconto.spese_update') }}" enctype="multipart/form-data">
+          <div class="modal-body">
+            <input type="hidden" name="ym" id="edit_ym" value="{{ ym|e }}">
+
+            <!-- chiave originale -->
+            <input type="hidden" name="orig_data" id="orig_data">
+            <input type="hidden" name="orig_tipo" id="orig_tipo">
+            <input type="hidden" name="orig_fornitore" id="orig_fornitore">
+            <input type="hidden" name="orig_documento" id="orig_documento">
+            <input type="hidden" name="orig_importo" id="orig_importo">
+
+            <div class="row g-3">
+              <div class="col-12 col-md-3">
+                <label class="form-label">{{ tr(rc_ns, 'common.date', 'Data') }}</label>
+                <input type="date" class="form-control" name="data" id="edit_data" required>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <label class="form-label">{{ tr(rc_ns, 'expenses.operation_type', 'Tipo di operazione') }}</label>
+                <select class="form-select" name="tipo_operazione" id="edit_tipo" required>
+                  <option value="" disabled>{{ tr(rc_ns, 'common.select', 'Seleziona...') }}</option>
+                  <option value="Scontrino">{{ tr(rc_ns, 'expenses.receipt', 'Scontrino') }}</option>
+                  <option value="Fattura">{{ tr(rc_ns, 'expenses.invoice', 'Fattura') }}</option>
+                  <option value="Nota di credito">{{ tr(rc_ns, 'expenses.credit_note', 'Nota di credito') }}</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label">{{ tr(rc_ns, 'expenses.supplier_expense', 'Fornitore / Spesa') }}</label>
+                <input type="text" class="form-control" name="fornitore_spesa" id="edit_fornitore" required>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label">{{ tr(rc_ns, 'expenses.document', 'Scontrino / Fattura') }}</label>
+                <input type="text" class="form-control" name="documento" id="edit_documento" required>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <label class="form-label">{{ tr(rc_ns, 'common.amount', 'Importo') }} (&euro;)</label>
+                <input type="number" class="form-control" name="importo" id="edit_importo" step="0.01" required>
+              </div>
+
+              <div class="col-12 col-md-9">
+                <label class="form-label">{{ tr(rc_ns, 'expenses.replace_photo', 'Sostituisci foto (opzionale)') }}</label>
+                <input type="file" class="form-control" name="foto" accept="image/*">
+                <div class="form-text">{{ tr(rc_ns, 'expenses.replace_photo_help', 'Se carichi un file, sostituisce la foto associata a questa spesa.') }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ tr(rc_ns, 'common.cancel', 'Annulla') }}</button>
+            <button type="submit" class="btn btn-primary">{{ tr(rc_ns, 'expenses.save_changes', 'Salva modifiche') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal foto spesa -->
+  <div class="modal fade" id="photoSpesaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ tr(rc_ns, 'expenses.photo_title', 'Foto spesa') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr(rc_ns, 'common.close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body text-center">
+          <div class="text-muted small mb-2" id="photoSpesaLoading" style="display:none;">{{ tr(rc_ns, 'common.loading', 'Caricamento...') }}</div>
+          <img id="photoSpesaImg" src="" class="img-fluid rounded" alt="{{ tr(rc_ns, 'expenses.photo_title', 'Foto spesa') }}" style="max-height:70vh;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const rendicontoI18n = {
+      loading: {{ tr(rc_ns, 'common.loading', 'Caricamento...')|tojson }},
+      photoLoadError: {{ tr(rc_ns, 'common.photo_load_error', 'Impossibile caricare la foto.')|tojson }}
+    };
+
+    (function() {
+      const modalEl = document.getElementById('editSpesaModal');
+      if (!modalEl) return;
+
+      modalEl.addEventListener('show.bs.modal', function(event) {
+        const btn = event.relatedTarget;
+        if (!btn) return;
+
+        const ym = btn.getAttribute('data-ym') || '';
+        const dataIso = btn.getAttribute('data-dataiso') || '';
+        const tipo = btn.getAttribute('data-tipo') || '';
+        const forn = btn.getAttribute('data-fornitore') || '';
+        const doc = btn.getAttribute('data-documento') || '';
+        const imp = btn.getAttribute('data-importo') || '';
+
+        // campi edit
+        document.getElementById('edit_ym').value = ym;
+        document.getElementById('edit_data').value = dataIso;
+        document.getElementById('edit_tipo').value = tipo;
+        document.getElementById('edit_fornitore').value = forn;
+        document.getElementById('edit_documento').value = doc;
+        document.getElementById('edit_importo').value = (imp || '').replace(',', '.');
+
+        // chiave originale
+        document.getElementById('orig_data').value = dataIso;
+        document.getElementById('orig_tipo').value = tipo;
+        document.getElementById('orig_fornitore').value = forn;
+        document.getElementById('orig_documento').value = doc;
+        document.getElementById('orig_importo').value = imp;
+      });
+    })();
+
+    (function() {
+      const photoModalEl = document.getElementById('photoSpesaModal');
+      if (!photoModalEl) return;
+      const imgEl = document.getElementById('photoSpesaImg');
+      const loadingEl = document.getElementById('photoSpesaLoading');
+
+      photoModalEl.addEventListener('show.bs.modal', function(event) {
+        const btn = event.relatedTarget;
+        const url = btn ? (btn.getAttribute('data-photo-url') || '') : '';
+        if (!url) {
+          imgEl.src = '';
+          loadingEl.style.display = 'none';
+          return;
+        }
+
+        loadingEl.textContent = rendicontoI18n.loading;
+        loadingEl.style.display = '';
+        imgEl.onload = function() { loadingEl.style.display = 'none'; };
+        imgEl.onerror = function() { loadingEl.textContent = rendicontoI18n.photoLoadError; };
+
+        // bust cache
+        const sep = url.includes('?') ? '&' : '?';
+        imgEl.src = url + sep + 'v=' + Date.now();
+      });
+
+      photoModalEl.addEventListener('hidden.bs.modal', function() {
+        imgEl.src = '';
+        loadingEl.style.display = 'none';
+      });
+    })();
+  </script>
+{% endblock %}

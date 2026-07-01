@@ -1,0 +1,545 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ tr('dashboard', 'title', 'Raccolta dati') }}{% endblock %}
+
+{% block content %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse_collect_v1.css') }}?v=20260407a">
+
+  <div class="container py-3">
+    <div class="collect-toolbar mb-2">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm" id="btnPrev" type="button" aria-label="{{ tr('dashboard', 'previous_month', 'Mese precedente') }}">&lsaquo;</button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnToday" type="button">{{ tr('common', 'today', 'Oggi') }}</button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnNext" type="button" aria-label="{{ tr('dashboard', 'next_month', 'Mese successivo') }}">&rsaquo;</button>
+
+        <div class="ms-2">
+          <div class="fw-semibold" id="monthLabel">-</div>
+          <div class="text-muted small">{{ tr('rendiconto', 'common.store', 'Store') }}: <span id="storeLabel">{{ session.get('store_code') or '-' }}</span></div>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+
+        <div id="warehouseFilters" class="d-flex align-items-center gap-2 flex-wrap d-none">
+          <select id="movSelect" class="form-select form-select-sm w-auto" aria-label="Movimentazione">
+            <option value="INV">{{ tr('warehouse', 'warehouse.mov_type.inv', 'Inventario') }}</option>
+            <option value="DELIVERY">{{ tr('cash_statement', 'ui.delivery', 'Delivery') }}</option>
+            <option value="TXIN">{{ tr('warehouse', 'warehouse.mov_type.txin', 'Trasferimenti In') }}</option>
+            <option value="TXOUT">{{ tr('warehouse', 'warehouse.mov_type.txout', 'Trasferimenti Out') }}</option>
+            <option value="WASTE">{{ tr('warehouse', 'warehouse.mov_type.waste_crudo', 'Waste Crudo') }}</option>
+          </select>
+
+          <select id="catSelect" class="form-select form-select-sm w-auto" aria-label="Categoria">
+            <option value="FoodPaper">FoodPaper</option>
+            <option value="Operating">Operating</option>
+          </select>
+        </div>
+		
+		       <select id="dashMode" class="form-select form-select-sm w-auto" aria-label="{{ tr('dashboard', 'mode', 'Seleziona modalita dashboard') }}">
+          <option value="RENDICONTO" selected>{{ tr('dashboard', 'cash_report', 'Rendiconto') }}</option>
+          <option value="MAGAZZINO">{{ tr('dashboard', 'warehouse', 'Magazzino') }}</option>
+        </select>
+		
+		
+      </div>
+    </div>
+
+    
+    
+    <div id="warehouseSummary" class="rendiconto-summary d-none" aria-live="polite">
+      <div class="rc-card">
+        <div class="rc-label">{{ tr('dashboard', 'total_ddt', 'Totale DDT') }}</div>
+        <div class="rc-value" id="whMonthDdt">-</div>
+      </div>
+      <div class="rc-card">
+        <div class="rc-label">{{ tr('dashboard', 'transfers_in', 'Trasferimenti IN') }}</div>
+        <div class="rc-value" id="whMonthTxIn">-</div>
+      </div>
+      <div class="rc-card">
+        <div class="rc-label">{{ tr('dashboard', 'transfers_out', 'Trasferimenti OUT') }}</div>
+        <div class="rc-value" id="whMonthTxOut">-</div>
+      </div>
+      <div class="rc-card">
+        <div class="rc-label">{{ tr('dashboard', 'waste', 'Waste') }}</div>
+        <div class="rc-value" id="whMonthWaste">-</div>
+      </div>
+      <div class="rc-card">
+        <div class="rc-label">Waste %</div>
+        <div class="rc-value" id="whMonthWastePct">-</div>
+      </div>
+    </div>
+
+<div id="rendicontoSummary" class="rendiconto-summary" aria-live="polite">
+  <div class="rc-card">
+    <div class="rc-label">{{ tr('dashboard', 'turnover', 'Giro affari') }}</div>
+    <div class="rc-value" id="rcMonthGiro">-</div>
+  </div>
+  <div class="rc-card">
+    <div class="rc-label">{{ tr('dashboard', 'receipts', 'Scontrini') }}</div>
+    <div class="rc-value" id="rcMonthScontrini">-</div>
+  </div>
+  <div class="rc-card">
+    <div class="rc-label">POS</div>
+    <div class="rc-value" id="rcMonthPos">-</div>
+  </div>
+  <div class="rc-card">
+    <div class="rc-label">{{ tr('dashboard', 'cash_deposits_total', 'Tot distinte') }}</div>
+    <div class="rc-value" id="rcMonthDistinte">-</div>
+  </div>
+  <div class="rc-card">
+    <div class="rc-label">{{ tr('dashboard', 'cancelled', 'Annullati') }}</div>
+    <div class="rc-value" id="rcMonthAnnullati">-</div>
+  </div>
+  <div class="rc-card">
+    <div class="rc-label">{{ tr('dashboard', 'cash_difference', 'Diff. cassa') }}</div>
+    <div class="rc-value" id="rcMonthDiff">-</div>
+  </div>
+      <div class="rc-card">
+    <div class="rc-label">{{ tr('dashboard', 'last_deposit_date', 'Ultima data versata') }}</div>
+    <div class="rc-value" id="rcLastVersDate">-</div>
+  </div>
+  <div class="rc-card">
+    <div class="rc-label">{{ tr('dashboard', 'unpaid_days', 'Giorni non versati') }}</div>
+    <div class="rc-value" id="rcDaysNonVersati">-</div>
+  </div>
+  <div class="rc-card">
+    <div class="rc-label">{{ tr('dashboard', 'amount_to_deposit', 'Totale da versare') }}</div>
+    <div class="rc-value" id="rcDistinteDaVersare">-</div>
+  </div>
+</div>
+
+    <div class="calendar-weekdays mb-1">
+      <div class="weekday">{{ tr('dashboard', 'weekday.mon', 'Lun') }}</div>
+      <div class="weekday">{{ tr('dashboard', 'weekday.tue', 'Mar') }}</div>
+      <div class="weekday">{{ tr('dashboard', 'weekday.wed', 'Mer') }}</div>
+      <div class="weekday">{{ tr('dashboard', 'weekday.thu', 'Gio') }}</div>
+      <div class="weekday">{{ tr('dashboard', 'weekday.fri', 'Ven') }}</div>
+      <div class="weekday">{{ tr('dashboard', 'weekday.sat', 'Sab') }}</div>
+      <div class="weekday">{{ tr('dashboard', 'weekday.sun', 'Dom') }}</div>
+    </div>
+
+    <div id="collectCalendar" class="calendar-grid" aria-live="polite"></div>
+
+    {% set can_validate_period = user and ((user.role|lower) == 'supervisor' or (user.role|lower) == 'admin') %}
+    {% set can_admin_convalide = user and ((user.role|lower) == 'admin') %}
+    {% if can_validate_period %}
+    <div class="card mt-3" id="rendicontoValidationPanel">
+      <div class="card-header fw-semibold">{{ tr('dashboard', 'validate_period', 'Convalida periodo') }}</div>
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr('common', 'from', 'Dal') }}</label>
+            <input type="date" class="form-control" id="rvDal">
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr('common', 'to', 'Al') }}</label>
+            <input type="date" class="form-control" id="rvAl">
+          </div>
+          <div class="col-12 col-md-6 d-flex justify-content-md-end">
+            <button type="button" class="btn btn-primary" id="rvPreviewBtn">{{ tr('dashboard', 'validate_period', 'Convalida periodo') }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if can_admin_convalide %}
+    <div class="card mt-3" id="rendicontoValidatedListPanel">
+      <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <div class="fw-semibold">{{ tr('dashboard', 'validated_periods', 'Periodi convalidati') }}</div>
+        <a class="btn btn-sm btn-outline-success {% if not convalide_store %}disabled{% endif %}" href="{{ url_for('rendiconto.api_dashboard_validate_period_export_excel') }}">{{ tr('common', 'export_excel', 'Estrai Excel') }}</a>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>{{ tr('common', 'from', 'Dal') }}</th>
+                <th>{{ tr('common', 'to', 'Al') }}</th>
+                <th class="text-end">{{ tr('dashboard', 'total_cash_difference', 'Diff. cassa totale') }}</th>
+                <th>{{ tr('dashboard', 'requested_by', 'Richiesto da') }}</th>
+                <th>{{ tr('dashboard', 'role', 'Ruolo') }}</th>
+                <th>{{ tr('dashboard', 'created_at', 'Creato il') }}</th>
+                <th class="text-end">{{ tr('rendiconto', 'common.actions', 'Azioni') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if convalide_store %}
+                {% for row in convalide_store %}
+                  <tr>
+                    <td>{{ row.dal_iso }}</td>
+                    <td>{{ row.al_iso }}</td>
+                    <td class="text-end">{{ '%.2f'|format(row.total_diff or 0) }}</td>
+                    <td>{{ row.created_name or row.created_by or '-' }}</td>
+                    <td>{{ row.created_role or '-' }}</td>
+                    <td>{{ row.created_at[:19].replace('T', ' ') if row.created_at else '-' }}</td>
+                    <td class="text-end">
+                      <form method="post" action="{{ url_for('rendiconto.api_dashboard_validate_period_delete') }}" class="d-inline" onsubmit="return window.confirm({{ tr('dashboard', 'delete_validation_confirm', 'Vuoi eliminare questa convalida? I giorni torneranno modificabili per user e supervisor.')|tojson }});">
+                        <input type="hidden" name="convalida_id" value="{{ row.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">{{ tr('common', 'delete', 'Elimina') }}</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="7" class="text-muted">{{ tr('dashboard', 'no_validated_periods', 'Nessun periodo convalidato per questo store.') }}</td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="d-flex align-items-center justify-content-between mt-2 flex-wrap gap-2">
+      <div class="text-muted small" id="collectStatus">&nbsp;</div>
+    </div>
+  </div>
+
+
+  <!-- Modal breakdown (Magazzino) -->
+  <div class="modal fade" id="collectBreakdownModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="collectModalTitle">{{ tr('dashboard', 'details', 'Dettaglio') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('common', 'close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2 align-items-stretch mb-3">
+            <div class="col-md-4">
+              <div class="p-3 rounded border bg-light h-100">
+                <div class="text-muted small">{{ tr('dashboard', 'filtered_total', 'Totale (filtrato)') }}</div>
+                <div class="h4 mb-0" id="modalFilteredTotal">-</div>
+                <div class="text-muted small mt-1">{{ tr('dashboard', 'filter_label', 'Filtro') }}: <span class="fw-semibold" id="modalFilterLabel">-</span></div>
+              </div>
+            </div>
+            <div class="col-md-8">
+              <div class="p-3 rounded border h-100">
+                <div class="d-flex flex-wrap gap-3">
+                  <div>
+                    <div class="text-muted small">FoodPaper</div>
+                    <div class="fw-semibold" id="modalTotalFood">-</div>
+                  </div>
+                  <div>
+                    <div class="text-muted small">Operating</div>
+                    <div class="fw-semibold" id="modalTotalOper">-</div>
+                  </div>
+                  <div>
+                    <div class="text-muted small">{{ tr('dashboard', 'total_all', 'Totale (tutto)') }}</div>
+                    <div class="fw-semibold" id="modalTotalAll">-</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle" id="modalTable">
+              <thead>
+                <tr>
+                  <th>{{ tr('dashboard', 'supplier', 'Fornitore') }}</th>
+                  <th class="text-end">FoodPaper</th>
+                  <th class="text-end">Operating</th>
+                  <th class="text-end">{{ tr('rendiconto', 'common.total', 'Totale') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="4" class="text-muted">{{ tr('common', 'loading', 'Caricamento...') }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ tr('common', 'close', 'Chiudi') }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal Rendiconto (Dashboard) -->
+  <div class="modal fade" id="rendicontoDayModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="rcModalTitle">{{ tr('dashboard', 'cash_report', 'Rendiconto') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('common', 'close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2 align-items-stretch mb-3">
+            <div class="col-md-6">
+              <div class="p-3 rounded border bg-light h-100">
+                <div class="text-muted small">{{ tr('dashboard', 'turnover', 'Giro affari') }}</div>
+                <div class="h4 mb-0" id="rcGiro">-</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="p-3 rounded border h-100">
+                <div class="text-muted small">{{ tr('dashboard', 'cash_difference_full', 'Differenza di cassa') }}</div>
+                <div class="h4 mb-0" id="rcDiff">-</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle" id="rcMacroTable">
+              <tbody>
+                <tr>
+                  <td>{{ tr('dashboard', 'cash_deposit_sum', 'Somma distinte') }}</td>
+                  <td class="text-end" id="rcDistinte">-</td>
+                </tr>
+                <tr>
+                  <td>{{ tr('dashboard', 'ticket', 'Ticket') }}</td>
+                  <td class="text-end" id="rcTicketSi">-</td>
+                </tr>
+                <tr>
+                  <td>{{ tr('dashboard', 'delivery_online', 'Delivery Online') }}</td>
+                  <td class="text-end" id="rcDeliveryOnline">-</td>
+                </tr>
+                <tr>
+                  <td>{{ tr('dashboard', 'delivery_cash', 'Delivery Contanti') }}</td>
+                  <td class="text-end" id="rcDeliveryContanti">-</td>
+                </tr>
+                <tr>
+                  <td>{{ tr('dashboard', 'coupon', 'Coupon') }}</td>
+                  <td class="text-end" id="rcCouponSi">-</td>
+                </tr>
+                <tr>
+                  <td class="fw-semibold">{{ tr('dashboard', 'expenses_net', 'Totale spese (net)') }}</td>
+                  <td class="text-end fw-semibold" id="rcSpeseNet">-</td>
+                </tr>
+                <tr>
+                  <td class="text-muted small">{{ tr('dashboard', 'expenses_total', 'Spese totali') }}</td>
+                  <td class="text-end text-muted small" id="rcSpeseTotal">-</td>
+                </tr>
+                <tr>
+                  <td class="text-muted small">{{ tr('dashboard', 'credit_notes', 'Note credito') }}</td>
+                  <td class="text-end text-muted small" id="rcNoteCredito">-</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between gap-2 mt-3 mb-1">
+            <div class="fw-semibold">{{ tr('dashboard', 'closing_data', 'Dati chiusura') }}</div>
+            <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="rcPhotoBtn" data-bs-toggle="modal" data-bs-target="#photoDistintaModal">
+              ??
+            </button>
+          </div>
+          <div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle" id="rcChiusuraTable">
+                <thead>
+                  <tr>
+                    <th>{{ tr('cash_statement', 'ui.item', 'Voce') }}</th>
+                    <th class="text-end">{{ tr('cash_statement', 'ui.value', 'Valore') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="2" class="text-muted">{{ tr('common', 'loading', 'Caricamento...') }}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="mt-3 d-none" id="rcCustomSectionsWrap">
+            <div class="fw-semibold mb-1">{{ tr('dashboard', 'custom_cash_sections', 'Personalizzazioni rendiconto') }}</div>
+            <div id="rcCustomSections"></div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ tr('common', 'close', 'Chiudi') }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="modal fade" id="photoDistintaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ tr('rendiconto', 'common.photo', 'Foto') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('common', 'close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center">
+            <div id="photoDistintaLoading" class="text-muted small mb-2" style="display:none;">{{ tr('common', 'loading', 'Caricamento...') }}</div>
+            <img id="photoDistintaImg" src="" alt="{{ tr('cash_statement', 'ui.closing_photo', 'Foto chiusure') }}" style="max-width:100%; height:auto; display:none; border-radius:8px;">
+            <div id="photoDistintaError" class="text-danger small" style="display:none;">{{ tr('cash_statement', 'ui.photo_load_error', 'Impossibile caricare la foto.') }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- Modal Riepilogo giornata (post-login) -->
+<div class="modal fade" id="dailySummaryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ tr('dashboard', 'daily_summary', 'Riepilogo giornata') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('common', 'close', 'Chiudi') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <div class="fw-semibold">{{ tr('dashboard', 'hello', 'Ciao') }} <span id="dsStoreName">-</span>,</div>
+          <div class="text-muted">{{ tr('dashboard', 'daily_summary_intro', 'ecco i dati della giornata:') }}</div>
+        </div>
+
+        <div class="small">
+          <div class="d-flex justify-content-between gap-2">
+            <span class="fw-semibold">{{ tr('dashboard', 'budget', 'BUDGET') }}</span>
+            <span id="dsBudget">-</span>
+          </div>
+          <div class="d-flex justify-content-between gap-2">
+            <span class="fw-semibold">{{ tr('dashboard', 'ly_revenues', 'VENDITE ANNO PRECEDENTE') }}</span>
+            <span id="dsLyRevenues">-</span>
+          </div>
+          <div class="d-flex justify-content-between gap-2">
+            <span class="fw-semibold">{{ tr('dashboard', 'forecast', 'PREVISIONE') }}</span>
+            <span id="dsForecast">-</span>
+          </div>
+        </div>
+
+        <div class="text-muted small mt-2" id="dsLyDateRow" style="display:none;">
+          {{ tr('dashboard', 'ly_date_comparison', 'Confronto su data LY') }}: <span id="dsLyDate">-</span>
+        </div>
+
+        <div class="mt-3 d-none" id="dsCashCustomWrap">
+          <div class="fw-semibold small mb-1">{{ tr('dashboard', 'active_cash_customizations', 'Personalizzazioni rendiconto attive') }}</div>
+          <div class="small" id="dsCashCustomList"></div>
+        </div>
+
+        <div class="mt-3 fw-semibold">{{ tr('dashboard', 'good_work', 'Buon lavoro!') }}</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ok</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Modal Alert Versamenti -->
+  <div class="modal fade" id="rcOverdueModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ tr('dashboard', 'deposits_alert', 'Attenzione versamenti') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('common', 'close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning mb-0" role="alert">
+            <div><span class="fw-semibold">{{ tr('dashboard', 'last_deposit_date', 'Ultima data versata') }}:</span> <span id="rcAlertLastDate">-</span></div>
+            <div><span class="fw-semibold">{{ tr('dashboard', 'amount_to_deposit', 'Totale da versare') }}:</span> <span id="rcAlertTotal">-</span></div>
+            <div><span class="fw-semibold">{{ tr('dashboard', 'unpaid_days', 'Giorni non versati') }}:</span> <span id="rcAlertDays">-</span></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ tr('common', 'close', 'Chiudi') }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if can_validate_period %}
+  <div class="modal fade" id="rendicontoValidateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ tr('dashboard', 'validate_period', 'Convalida periodo') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('common', 'close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            {{ tr('dashboard', 'validate_warning', "Stai per convalidare il periodo selezionato. L'operazione e irreversibile e, dopo la conferma, le distinte di quei giorni non saranno piu modificabili da user e supervisor.") }}
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="small text-muted">{{ tr('dashboard', 'period', 'Periodo') }}</div>
+              <div class="fw-semibold" id="rvModalRange">-</div>
+            </div>
+            <div class="col-md-6 text-md-end">
+              <div class="small text-muted">{{ tr('dashboard', 'cash_differences_sum', 'Somma differenze di cassa') }}</div>
+              <div class="fw-semibold" id="rvModalTotalDiff">-</div>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>{{ tr('dashboard', 'day', 'Giorno') }}</th>
+                  <th class="text-end">{{ tr('dashboard', 'cash_difference_full', 'Differenza di cassa') }}</th>
+                </tr>
+              </thead>
+              <tbody id="rvModalBody">
+                <tr><td colspan="2" class="text-muted">{{ tr('common', 'loading', 'Caricamento...') }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="text-danger small mt-3 d-none" id="rvModalError"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ tr('common', 'cancel', 'Annulla') }}</button>
+          <button type="button" class="btn btn-danger" id="rvConfirmBtn">{{ tr('dashboard', 'confirm_validation', 'Conferma convalida') }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  
+<script>
+  window.__DAILY_SUMMARY__ = {% if daily_summary %}{{ daily_summary|tojson }}{% else %}null{% endif %};
+  window.__RENDICONTO_VALIDATE__ = {
+    canValidate: {{ 'true' if can_validate_period else 'false' }},
+    previewUrl: "{{ url_for('rendiconto.api_dashboard_validate_period_preview') }}",
+    confirmUrl: "{{ url_for('rendiconto.api_dashboard_validate_period_confirm') }}"
+  };
+  window.__DASHBOARD_I18N__ = {
+    locale: {{ current_language|default('it')|tojson }},
+    loading: {{ tr('common', 'loading', 'Caricamento...')|tojson }},
+    error: {{ tr('dashboard', 'error', 'Errore')|tojson }},
+    nonJsonResponse: {{ tr('dashboard', 'non_json_response', 'Risposta non JSON (probabile redirect/login/store).')|tojson }},
+    inventory: {{ tr('warehouse', 'warehouse.mov_type.inv', 'Inventario')|tojson }},
+    delivery: {{ tr('cash_statement', 'ui.delivery', 'Delivery')|tojson }},
+    transfersIn: {{ tr('warehouse', 'warehouse.mov_type.txin', 'Trasferimenti In')|tojson }},
+    transfersOut: {{ tr('warehouse', 'warehouse.mov_type.txout', 'Trasferimenti Out')|tojson }},
+    wasteRaw: {{ tr('warehouse', 'warehouse.mov_type.waste_crudo', 'Waste Crudo')|tojson }},
+    noDaysInPeriod: {{ tr('dashboard', 'no_days_in_period', 'Nessun giorno nel periodo selezionato.')|tojson }},
+    selectValidPeriod: {{ tr('dashboard', 'select_valid_period', 'Seleziona un periodo valido.')|tojson }},
+    previewLoadError: {{ tr('dashboard', 'preview_load_error', 'Errore caricamento anteprima.')|tojson }},
+    previewUnavailable: {{ tr('dashboard', 'preview_unavailable', 'Anteprima non disponibile.')|tojson }},
+    validationError: {{ tr('dashboard', 'validation_error', 'Errore convalida periodo.')|tojson }},
+    noDataForDay: {{ tr('dashboard', 'no_data_for_day', 'Nessun dato per questo giorno.')|tojson }},
+    destination: {{ tr('dashboard', 'destination', 'Destinazione')|tojson }},
+    site2Missing: {{ tr('dashboard', 'site2_missing', 'SITE2 non indicato')|tojson }},
+    cashReport: {{ tr('dashboard', 'cash_report', 'Rendiconto')|tojson }},
+    noClosingData: {{ tr('dashboard', 'no_closing_data', 'Nessun dato chiusura per questo giorno.')|tojson }},
+    customSection: {{ tr('dashboard', 'custom_section', 'Personalizzazione')|tojson }},
+    closingLabels: {
+      "VENDITE LORDE": {{ tr('dashboard', 'closing.gross_sales', 'Vendite lorde')|tojson }},
+      "GIRO AFFARI": {{ tr('dashboard', 'turnover', 'Giro affari')|tojson }},
+      "ANNULLATI": {{ tr('dashboard', 'cancelled', 'Annullati')|tojson }},
+      "SCONTRINI": {{ tr('dashboard', 'receipts', 'Scontrini')|tojson }},
+      "POS": {{ tr('dashboard', 'pos', 'POS')|tojson }},
+      "CONTANTI": {{ tr('dashboard', 'cash', 'Contanti')|tojson }},
+      "TICKET": {{ tr('dashboard', 'ticket', 'Ticket')|tojson }},
+      "FATTURE": {{ tr('dashboard', 'invoices', 'Fatture')|tojson }},
+      "NUMERO FATTURE": {{ tr('dashboard', 'invoice_count', 'Numero fatture')|tojson }},
+      "OMAGGI": {{ tr('dashboard', 'freebies', 'Omaggi')|tojson }},
+      "VENDITE IVA 4%": {{ tr('dashboard', 'sales_vat_4', 'Vendite IVA 4%')|tojson }},
+      "VENDITE IVA 22%": {{ tr('dashboard', 'sales_vat_22', 'Vendite IVA 22%')|tojson }},
+      "SPESE": {{ tr('dashboard', 'expenses', 'Spese')|tojson }},
+      "DIFFERENZA CASSA": {{ tr('dashboard', 'cash_difference_full', 'Differenza di cassa')|tojson }}
+    }
+  };
+</script>
+
+<script src="{{ url_for('static', filename='js/warehouse_collect_v1.js') }}?v=20260407b"></script>
+{% endblock %}
+

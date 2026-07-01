@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="{{ ui_language or 'it' }}" data-app-theme="{{ active_theme_key or 'base' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#4f8fcf" id="metaThemeColor">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="StoreHub">
+  <title>{% block title %}App{% endblock %}</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=20260430pwa1">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/app-icons/favicon-20260429userlogos1.ico') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/app-icons/icon-32x32-20260429userlogos1.png') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/app-icons/icon-16x16-20260429userlogos1.png') }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/app-icons/icon-180x180-20260429userlogos1.png') }}">
+  <link rel="apple-touch-icon" sizes="167x167" href="{{ url_for('static', filename='img/app-icons/icon-167x167-20260429userlogos1.png') }}">
+  <link rel="apple-touch-icon" sizes="152x152" href="{{ url_for('static', filename='img/app-icons/icon-152x152-20260429userlogos1.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=20260429a">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/store_subbar_v1.css') }}?v=20260419a">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile_modal_no_overflow_v1.css') }}?v=1.0.1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/loading_overlay_v1.css') }}?v=1.0.2">
+{% block head_extra %}{% endblock %}
+</head>
+<body class="app-shell">
+  {% set role_l = ((session.get('role') or (user.role if user else ''))|lower) %}
+  {% set is_master_only = user and (user.is_master or role_l == 'master') %}
+  {% if user %}
+  <div class="modal fade" id="themePickerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form method="post" action="{{ url_for('account_set_theme') }}" id="themePickerForm" data-no-overlay="1">
+          <div class="modal-header">
+            <div>
+              <div class="app-ai-kicker">Tema interfaccia</div>
+              <h5 class="modal-title mb-0">Scegli il tuo tema</h5>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <div class="theme-grid">
+              {% for opt in theme_options or [] %}
+              <label class="theme-card">
+                <input class="theme-card__input" type="radio" name="theme_key" value="{{ opt.key }}" {% if (active_theme_key or 'base') == opt.key %}checked{% endif %}>
+                <span class="theme-card__preview theme-card__preview--{{ opt.key }}" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </span>
+                <span class="theme-card__label">{{ opt.label }}</span>
+                <span class="theme-card__desc">{{ opt.description }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="modal-footer justify-content-between">
+            <button type="button" class="btn btn-outline-secondary" id="themeResetBtn" data-theme-key="base">Ripristina tema base</button>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+              <button type="submit" class="btn btn-primary">Salva tema</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% if user and user.ai_enabled %}
+  <script id="globalAiStoresData" type="application/json">{{ (ai_available_stores or [])|tojson }}</script>
+  <button type="button" class="btn btn-primary app-ai-fab app-ai-fab--wiggle" data-bs-toggle="offcanvas" data-bs-target="#globalAiPanel" aria-controls="globalAiPanel" aria-label="Apri assistente AI">
+    <span class="app-ai-fab__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26" focusable="false">
+        <path d="M12 3v3"></path>
+        <rect x="4.5" y="7" width="15" height="11" rx="3"></rect>
+        <path d="M9 12h.01M15 12h.01"></path>
+        <path d="M9 15c1 .8 5 .8 6 0"></path>
+        <path d="M4.5 11H3M21 11h-1.5"></path>
+      </svg>
+    </span>
+  </button>
+  <div class="offcanvas offcanvas-end app-ai-offcanvas" tabindex="-1" id="globalAiPanel" aria-labelledby="globalAiPanelLabel">
+    <div class="offcanvas-header">
+      <div>
+        <div class="app-ai-kicker">Assistente AI</div>
+        <h5 class="offcanvas-title mb-0" id="globalAiPanelLabel">Analisi contestuale</h5>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Chiudi"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column gap-3">
+      <form id="globalAiQuickForm" method="post" action="{{ url_for('api_ai_assistant_query') }}" data-no-overlay="1" class="d-flex flex-column gap-3">
+        <input type="hidden" name="page_context" value="{{ request.endpoint or request.path }}">
+        <div class="small text-muted">Pagina corrente: {{ page_title or request.endpoint or request.path }}</div>
+        <div class="position-relative">
+          <label class="form-label">Domanda</label>
+          <textarea id="globalAiQuestionInput" class="form-control" name="question" rows="4" placeholder="Es. Cerca versamenti con tessera 6375530005456058"></textarea>
+          <div id="globalAiMentionMenu" class="dropdown-menu shadow-sm" style="display:none; position:absolute; left:0; right:0; top:100%;"></div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <button type="submit" class="btn btn-primary" id="globalAiSubmitBtn">
+            <span class="label-default">Analizza</span>
+            <span class="label-loading d-none">Analisi in corso...</span>
+          </button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('ai_assistant', page_context=(request.endpoint or request.path)) }}">Apri pagina completa</a>
+        </div>
+      </form>
+
+      <div id="globalAiPanelLoading" class="app-ai-panel-loading d-none" aria-live="polite">
+        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+        <span>Sto analizzando i dati della pagina...</span>
+      </div>
+
+      <div id="globalAiPanelError" class="alert alert-danger d-none mb-0"></div>
+
+      <div class="card flex-grow-1">
+        <div class="card-body">
+          <div class="text-muted small mb-2">Risposta</div>
+          <div id="globalAiPanelAnswer" class="app-ai-answer-placeholder">Scrivi una domanda e resto su questa pagina: qui comparirà la risposta.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  <div id="pwaInstallBanner" aria-live="polite" aria-hidden="true">
+    <div class="card">
+      <div class="card-body p-3 p-md-4">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <div class="pwa-install-kicker mb-1">Installa app</div>
+            <div class="fw-semibold mb-1">Aggiungi Store Hub 360 alla schermata Home</div>
+            <div class="text-muted small" id="pwaInstallMessage">Installa l'app per aprirla più velocemente e usarla come una vera web app.</div>
+          </div>
+          <button type="button" class="btn-close" id="pwaInstallDismiss" aria-label="Chiudi"></button>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <button type="button" class="btn btn-primary btn-sm" id="pwaInstallAction">Installa</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="pwaInstallLater">Più tardi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="globalLoadingOverlay" aria-hidden="true">
+    <div class="overlay-box">
+      <div class="overlay-spinner" aria-hidden="true">
+        <svg viewBox="0 0 50 50" width="28" height="28" focusable="false" aria-hidden="true">
+          <circle cx="25" cy="25" r="20" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="6"></circle>
+          <path d="M25 5a20 20 0 0 1 20 20" fill="none" stroke="rgba(0,0,0,.72)" stroke-linecap="round" stroke-width="6">
+            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.85s" repeatCount="indefinite"></animateTransform>
+          </path>
+        </svg>
+      </div>
+      <div class="overlay-text">
+        <p class="overlay-title mb-0">{{ tr('common', 'please_wait', 'Attendere') }}</p>
+        <p class="overlay-message mb-0" data-loading-message>{{ tr('common', 'loading', 'Caricamento...') }}</p>
+      </div>
+    </div>
+  </div>
+  {% include "_topbar.html" %}
+  <script>
+    window.StoreHubI18n = Object.assign({}, window.StoreHubI18n || {}, {
+      loading: {{ tr('common', 'loading', 'Caricamento...')|tojson }},
+      saving: {{ tr('common', 'saving', 'Salvataggio in corso...')|tojson }},
+      operationInProgress: {{ tr('common', 'operation_in_progress', 'Operazione in corso...')|tojson }}
+    });
+  </script>
+  <script src="{{ url_for('static', filename='js/loading_overlay_v1.js') }}?v=1.0.2"></script>
+  <script src="{{ url_for('static', filename='js/ai_quick_panel_v1.js') }}?v=20260419b"></script>
+  <script src="{{ url_for('static', filename='js/user_theme_v1.js') }}?v=20260429a"></script>
+  <script src="{{ url_for('static', filename='js/desktop_nav_layout_v1.js') }}?v=20260503a"></script>
+  {% if user and role_l != 'fornitore' and not is_master_only %}
+  <div class="store-subbar">
+    <div class="container-fluid store-subbar-inner">
+      {% set active_code = session.get('store_code') %}
+      {% set active_name = session.get('store_name') %}
+      <div class="store-subbar-left">
+        <span class="store-subbar-label">{{ tr('common', 'active_store', 'Store attivo:') }}</span>
+        <span class="store-subbar-value text-truncate">
+          {% if active_code %}
+            {{ active_code }}{% if active_name %} - {{ active_name }}{% endif %}
+          {% else %}
+            <span class="text-muted">{{ tr('common', 'no_store_selected', 'Nessuno store selezionato') }}</span>
+          {% endif %}
+        </span>
+        <button class="btn btn-sm btn-outline-secondary store-subbar-btn" type="button"
+                data-bs-toggle="modal" data-bs-target="#storeSelectModal">
+          {{ tr('common', 'change_store', 'Cambia store') }}
+        </button>
+      </div>
+      <div class="store-subbar-spacer"></div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Messaggi flash: popup (toast) -->
+  <div class="toast-container position-fixed top-0 end-0 p-3" id="globalFlashToastContainer" style="z-index: 2005;"></div>
+  {% set _flash_toasts = get_flashed_messages(with_categories=true) %}
+  {% if _flash_toasts %}
+  <script>
+  window.__flashToasts = {{ _flash_toasts|tojson }};
+  </script>
+  {% endif %}
+  
+  {% block content %}{% endblock %}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='js/pwa_install_prompt.js') }}?v=20260430pwa1"></script>
+  <script>
+  if('serviceWorker' in navigator && window.isSecureContext){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.getRegistrations()
+        .then(function(registrations){
+          return Promise.all((registrations || []).map(function(reg){
+            var scriptUrl = (((reg.active || reg.waiting || reg.installing) || {}).scriptURL || '');
+            if(scriptUrl.indexOf('/static/service-worker.js') !== -1){
+              return reg.unregister().catch(function(){});
+            }
+            return Promise.resolve();
+          }));
+        })
+        .catch(function(){})
+        .then(function(){
+          return navigator.serviceWorker.register('/service-worker.js?v=20260430pwa1', { scope: '/' });
+        })
+        .catch(function(){});
+    });
+  }
+  </script>
+  <script>
+  (function () {
+  const msgs = window.__flashToasts || [];
+  if (!Array.isArray(msgs) || !msgs.length) return;
+  
+  const container = document.getElementById('globalFlashToastContainer');
+  if (!container) return;
+  
+  const map = {
+  'success': 'success',
+  'info': 'info',
+  'warning': 'warning',
+  'danger': 'danger',
+  'error': 'danger',
+  'primary': 'primary',
+  'secondary': 'secondary',
+  'message': 'secondary',
+  'light': 'light',
+  'dark': 'dark'
+  };
+  
+  msgs.forEach(function (pair) {
+  const category = (pair && pair[0] ? String(pair[0]) : 'secondary').toLowerCase();
+  const message = (pair && pair[1] ? String(pair[1]) : '');
+  const bg = map[category] || 'secondary';
+  
+  const toastEl = document.createElement('div');
+  toastEl.className = 'toast align-items-start text-bg-' + bg + ' border-0';
+  toastEl.setAttribute('role', 'alert');
+  toastEl.setAttribute('aria-live', 'assertive');
+  toastEl.setAttribute('aria-atomic', 'true');
+  
+  toastEl.innerHTML = `
+  <div class="d-flex">
+  <div class="toast-body">${message}</div>
+  <button type="button" class="btn-close btn-close-white me-2 m-auto"
+  data-bs-dismiss="toast" aria-label="Chiudi"></button>
+  </div>
+  `;
+  
+  container.appendChild(toastEl);
+  
+  try {
+  const t = bootstrap.Toast.getOrCreateInstance(toastEl, { autohide: false });
+  t.show();
+  } catch (e) {
+  toastEl.classList.add('show');
+  toastEl.style.display = 'block';
+  }
+  });
+  })();
+  </script>
+
+  {% if user and role_l != 'fornitore' and not is_master_only %}
+  <!-- Store selector modal (obbligatorio quando non è selezionato uno store) -->
+  <div class="modal fade" id="storeSelectModal" tabindex="-1" aria-hidden="true"
+       data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Seleziona lo store</h5>
+          {% if session.get('store_code') %}
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          {% endif %}
+        </div>
+        <div class="modal-body">
+          <p class="text-muted mb-3">Seleziona lo store da utilizzare in questa sessione.</p>
+
+          <div class="row g-2">
+            <div class="col-12">
+              <select class="form-select" id="storeModalSelect" required>
+                <option value="" selected disabled>Caricamento...</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="small text-muted mt-2" id="storeModalLoading">Caricamento store…</div>
+          <div class="alert alert-danger d-none mt-2" id="storeModalError"></div>
+        </div>
+        <div class="modal-footer">
+          <a class="btn btn-outline-danger me-auto" href="{{ url_for('logout') }}">Logout</a>
+          <button type="button" class="btn btn-primary" id="storeModalConfirm" disabled>Conferma</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <form id="storeModalForm" method="post" action="{{ url_for('warehouse.select_store') }}" class="d-none">
+    <input type="hidden" name="store_code" id="storeModalFormCode">
+    <input type="hidden" name="next" id="storeModalFormNext" value="{{ request.full_path.rstrip('?') }}">
+  </form>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const requiresStore = {{ 'true' if (user and not is_master_only and role_l not in ['admin', 'fornitore'] and not session.get('store_code')) else 'false' }};
+    const currentStore = "{{ session.get('store_code') or '' }}";
+    const modalEl = document.getElementById('storeSelectModal');
+    if (!modalEl) return;
+
+    const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+
+    const selectEl = document.getElementById('storeModalSelect');
+    const loadingEl = document.getElementById('storeModalLoading');
+    const errorEl = document.getElementById('storeModalError');
+    const confirmBtn = document.getElementById('storeModalConfirm');
+
+    const form = document.getElementById('storeModalForm');
+    const hiddenCode = document.getElementById('storeModalFormCode');
+    const hiddenNext = document.getElementById('storeModalFormNext');
+
+    let allOptions = [];
+
+    function setError(msg) {
+      if (!errorEl) return;
+      errorEl.textContent = msg || 'Errore.';
+      errorEl.classList.remove('d-none');
+    }
+
+    function clearError() {
+      if (!errorEl) return;
+      errorEl.textContent = '';
+      errorEl.classList.add('d-none');
+    }
+
+    function setLoading(isLoading) {
+      if (!loadingEl) return;
+      loadingEl.style.display = isLoading ? '' : 'none';
+    }
+
+    function populateSelect(stores) {
+      allOptions = (stores || []).map(s => ({
+        code: String(s.code || ''),
+        name: String(s.name || '')
+      })).filter(s => s.code);
+
+      selectEl.innerHTML = '';
+      const opt0 = document.createElement('option');
+      opt0.value = '';
+      opt0.textContent = 'Seleziona uno store...';
+      opt0.disabled = true;
+      opt0.selected = true;
+      selectEl.appendChild(opt0);
+
+      allOptions.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.code;
+        opt.textContent = s.name ? (s.code + ' - ' + s.name) : s.code;
+        opt.dataset.search = (s.code + ' ' + (s.name || '')).toLowerCase();
+        selectEl.appendChild(opt);
+      });
+
+      // preseleziona lo store attuale (quando si apre "Cambia store")
+      if (currentStore) {
+        const match = Array.from(selectEl.options).find(o => o.value === currentStore);
+        if (match) {
+          selectEl.value = currentStore;
+          confirmBtn.disabled = false;
+        } else {
+          confirmBtn.disabled = true;
+        }
+      } else {
+        confirmBtn.disabled = true;
+      }
+
+      // Se l'utente ha un solo store assegnato e lo store non è ancora selezionato, selezionalo automaticamente
+      if (requiresStore && !currentStore && allOptions.length === 1) {
+        selectEl.value = allOptions[0].code;
+        confirmBtn.disabled = false;
+        submitSelected(allOptions[0].code);
+      }
+    }
+
+    async function loadStores() {
+      clearError();
+      setLoading(true);
+      confirmBtn.disabled = true;
+
+      try {
+        const res = await fetch("{{ url_for('warehouse.stores_json') }}", { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        populateSelect(data.stores || []);
+        setLoading(false);
+      } catch (e) {
+        setLoading(false);
+        setError('Errore caricamento elenco store. ' + (e && e.message ? e.message : ''));
+      }
+    }
+
+    selectEl.addEventListener('change', function () {
+      confirmBtn.disabled = !selectEl.value;
+    });
+
+    function submitSelected(code) {
+      if (!code) return;
+      hiddenCode.value = code;
+      form.submit();
+    }
+
+    confirmBtn.addEventListener('click', function () {
+      const code = selectEl.value;
+      submitSelected(code);
+    });
+
+    modalEl.addEventListener('show.bs.modal', function () {
+      if (!allOptions.length) loadStores();
+    });
+
+    if (requiresStore) {
+      modal.show();
+      loadStores();
+    }
+  });
+  </script>
+  {% endif %}
+
+</body>
+</html>

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <h4 class="mb-0">Admin · Estrazioni · Fabbisogno per store</h4>
+      <div class="text-muted small">Associa ogni <b>site</b> a un <b>codice fabbisogno</b> (usato nell'export Scheduling).</div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6 class="mb-2">Inserimento / Modifica</h6>
+          <form method="post" action="{{ url_for('admin_fabbisogno_sites') }}">
+            <input type="hidden" name="action" value="upsert">
+            <div class="row g-2">
+              <div class="col-5">
+                <label class="form-label">Site</label>
+                <input class="form-control" name="site" placeholder="Es. 505031" required>
+              </div>
+              <div class="col-7">
+                <label class="form-label">Codice fabbisogno</label>
+                <input class="form-control" name="codice_fabbisogno" placeholder="Es. 0000505031" required>
+              </div>
+            </div>
+            <div class="mt-3 d-flex gap-2">
+              <button class="btn btn-primary" type="submit">Salva</button>
+            </div>
+          </form>
+
+          <hr>
+          <h6 class="mb-2">Import CSV</h6>
+          <form method="post" action="{{ url_for('admin_fabbisogno_sites') }}" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="import_csv">
+            <input class="form-control" type="file" name="csv_file" accept=".csv,text/csv" required>
+            <div class="form-text">Header attesi (uno dei seguenti): <code>site</code> + <code>codice_fabbisogno</code> (o sinonimi).</div>
+            <div class="mt-3 d-flex gap-2">
+              <button class="btn btn-outline-primary" type="submit">Importa</button>
+            </div>
+          </form>
+
+          {% if import_result %}
+          <hr>
+          <div class="alert alert-info mb-0">
+            <div><b>Import:</b> {{ import_result.ok }} righe OK</div>
+            {% if import_result.warnings and import_result.warnings|length %}
+              <div class="mt-2"><b>Avvisi:</b></div>
+              <ul class="mb-0">
+                {% for w in import_result.warnings %}
+                  <li>{{ w }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6 class="mb-3">Mappature attuali</h6>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th style="width:120px;">Site</th>
+                  <th>Codice fabbisogno</th>
+                  <th style="width:140px;">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in (rows or []) %}
+                  <tr>
+                    <td><code>{{ r.site }}</code></td>
+                    <td><code>{{ r.codice_fabbisogno }}</code></td>
+                    <td>
+                      <form method="post" action="{{ url_for('admin_fabbisogno_sites') }}" onsubmit="return confirm('Eliminare la mappatura per questo site?');" style="display:inline;">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="site" value="{{ r.site }}">
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+                {% if not rows or rows|length == 0 %}
+                  <tr><td colspan="3" class="text-muted">Nessuna mappatura presente.</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accedi</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body{background:#0b1e3a url('{{ url_for('static', filename='img/SFONDO.jpg') }}') no-repeat center/cover; min-height:100vh;}
+    .card{background:rgba(255,255,255,.96);}
+  </style>
+</head>
+<body class="d-flex align-items-center justify-content-center p-3">
+  <div class="card shadow-sm" style="max-width:420px; width:100%;">
+    <div class="card-body p-4">
+      <h1 class="h4 mb-3">Accedi</h1>
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% if msgs %}{% for c,m in msgs %}<div class="alert alert-{{ c }}">{{ m|safe }}</div>{% endfor %}{% endif %}
+      {% endwith %}
+      <form method="post" action="{{ url_for('login_post', next=request.args.get('next')) }}">
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-control" name="email" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-control" name="password" required>
+        </div>
+        <button class="btn btn-primary w-100">Accedi</button>
+      </form>
+      <div class="text-center mt-3">
+        <a href="{{ url_for('forgot_password') }}" class="link-primary text-decoration-underline">Password dimenticata?</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gestione automatica dei link Supabase nell'hash -->
+  <script>
+  (function(){
+    var h = window.location.hash || "";
+    if (!h) return;
+    var params = new URLSearchParams(h.charAt(0)==='#' ? h.substring(1) : h);
+    var hasAccess = !!params.get('access_token');
+    var hasError  = !!(params.get('error') || params.get('error_code'));
+    if (hasAccess || hasError) {
+      // Centralizziamo tutto su /auth/reset: lì gestiamo sia reset che link scaduto
+      window.location.replace('/auth/reset' + h);
+    }
+  })();
+  </script>
+</body>
+</html>

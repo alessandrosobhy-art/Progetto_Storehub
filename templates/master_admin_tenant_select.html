@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Master - Seleziona tenant admin{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Admin tenant</h1>
+      <div class="text-muted small">Seleziona il tenant su cui vuoi operare come admin.</div>
+    </div>
+    {% if active_tenant_key %}
+      <span class="badge text-bg-primary">Contesto attivo: {{ active_tenant_key }}</span>
+    {% endif %}
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      {% if tenants %}
+        <form method="post" class="row g-3 align-items-end">
+          <div class="col-12 col-lg-9">
+            <label class="form-label">Tenant</label>
+            <select class="form-select" name="tenant_key" required>
+              <option value="">Seleziona...</option>
+              {% for t in tenants %}
+                <option value="{{ t.tenant_key }}" {% if active_tenant_key == t.tenant_key %}selected{% endif %}>
+                  {{ t.display_name }} ({{ t.tenant_key }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-lg-3">
+            <button class="btn btn-primary w-100">Entra come admin</button>
+          </div>
+        </form>
+      {% else %}
+        <div class="text-muted">Nessun tenant attivo abilita il Master come admin.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

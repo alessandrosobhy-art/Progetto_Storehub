@@ -1,0 +1,238 @@
+<style>
+  @media (min-width: 992px) {
+    .app-header .navbar-collapse {
+      align-items: flex-start;
+    }
+    .app-header .navbar-nav {
+      flex-wrap: wrap;
+      row-gap: .15rem;
+    }
+    .app-header .navbar-nav .nav-item {
+      flex: 0 0 auto;
+    }
+    .app-header .navbar-nav .nav-link {
+      white-space: nowrap;
+    }
+  }
+</style>
+
+<nav class="navbar navbar-expand-lg bg-light border-bottom app-header">
+  {% set is_master_user = user and (user.is_master or role_l == 'master') %}
+  {% set show_admin_menu = user and (role_l == 'admin' or (is_master_user and master_can_admin_active)) %}
+  <div class="container-fluid nav-wrap">
+    <a class="navbar-brand fw-semibold" href="{{ home_url }}">Store Hub 360</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+            aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+{% if user and user.mod_dashboard %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint == 'dashboard' %} active{% endif %}"
+             href="{{ url_for('dashboard') }}">
+            {{ tr('navigation', 'nav.dashboard', 'Dashboard') }}
+          </a>
+        </li>
+{% endif %}
+
+{% if user and user.mod_cruscotto %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint and request.endpoint.startswith('cruscotto.') %} active{% endif %}"
+             href="{{ url_for('cruscotto.analisi_settimanale') }}">
+            {{ tr('navigation', 'nav.cruscotto', 'Cruscotto') }}
+          </a>
+        </li>
+{% endif %}
+
+{% if user and user.mod_magazzino and user.role != 'fornitore' %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint and request.endpoint.startswith('warehouse.') and request.endpoint not in ['warehouse.fornitori', 'warehouse.listini_anagrafica', 'warehouse.listini_prezzi', 'warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] and request.endpoint != 'warehouse.riepilogo' %} active{% endif %}"
+             href="{{ url_for('warehouse.inventory_new') }}">
+            {{ tr('navigation', 'nav.magazzino', 'Magazzino') }}
+          </a>
+        </li>
+{% endif %}
+
+{% if user and user.mod_supplier_orders %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint in ['warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] %} active{% endif %}"
+             href="{{ url_for('warehouse.supplier_orders_home') }}">
+            {{ tr('navigation', 'nav.supplier_orders', 'Ordini al fornitore') }}
+          </a>
+        </li>
+{% endif %}
+
+{% if user and user.mod_mbo %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint and request.endpoint.startswith('mbo.') %} active{% endif %}"
+             href="{{ url_for('mbo.home') }}">
+            {{ tr('navigation', 'nav.mbo', 'MBO') }}
+          </a>
+        </li>
+{% endif %}
+
+{% if user and user.mod_rendiconto %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint and request.endpoint.startswith('rendiconto.') and request.endpoint != 'rendiconto.riepilogo' %} active{% endif %}"
+             href="{{ url_for('rendiconto.distinta_cassa') }}">
+            {{ tr('navigation', 'nav.rendiconto', 'Rendiconto') }}
+          </a>
+        </li>
+{% endif %}
+
+{% if user and user.mod_orari %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint and request.endpoint.startswith('orari.') %} active{% endif %}"
+             href="{{ url_for('orari.anagrafica') }}">
+            {{ tr('navigation', 'nav.orari', 'Gestione Orari') }}
+          </a>
+        </li>
+{% endif %}
+
+{% if user and user.mod_links %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint and request.endpoint.startswith('links.') %} active{% endif %}"
+             href="{{ url_for('links.home') }}">
+            {{ tr('navigation', 'nav.links', 'Link') }}
+          </a>
+        </li>
+{% endif %}
+
+{% if user and user.mod_controlli %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint and request.endpoint.startswith('controlli.') %} active{% endif %}"
+             href="{{ url_for('controlli.pnl') }}">{{ tr('navigation', 'nav.controlli', 'Controlli di gestione') }}</a>
+        </li>
+{% endif %}
+
+{% if user and user.mod_estrazioni %}
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint and (request.endpoint == 'estrazioni.delivery_weekly' or request.endpoint == 'warehouse.riepilogo') %} active{% endif %}"
+             href="{{ url_for('estrazioni.delivery_weekly') }}">
+            {{ tr('navigation', 'nav.estrazioni', 'Estrazioni') }}
+          </a>
+        </li>
+{% endif %}
+
+{% if user and user.mod_estrazioni_hq %}
+        <li class="nav-item">
+            <a class="nav-link{% if request.endpoint and (request.endpoint == 'estrazioni.scheduling' or request.endpoint == 'estrazioni.verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto_export_xlsx' or request.endpoint == 'estrazioni.finance' or request.endpoint == 'rendiconto.riepilogo' or request.endpoint == 'admin_versamenti_finance_match_test' or request.endpoint == 'admin_versamenti_finance_match_test_save') %} active{% endif %}"
+             href="{{ url_for('estrazioni.scheduling') }}">
+            {{ tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') }}
+          </a>
+        </li>
+{% endif %}
+
+        {% if is_master_user %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="adminMenu" role="button"
+             data-bs-toggle="dropdown" aria-expanded="false">
+            {{ tr('navigation', 'nav.master', 'Master') }}
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="adminMenu">
+            <li><a class="dropdown-item" href="{{ url_for('master_tenant_wizard') }}">{{ tr('navigation', 'master.wizard', 'Wizard nuovo tenant') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('master_tenants') }}">{{ tr('navigation', 'master.tenants', 'Tenant') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('master_tenant_assignments') }}">{{ tr('navigation', 'master.assignments', 'Assegnazioni tenant') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('master_users') }}">{{ tr('navigation', 'master.users', 'Utenti master') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('master_admin_tenant_select') }}">{{ tr('navigation', 'master.admin_tenant', 'Admin tenant') }}{% if master_admin_tenant_key %}: {{ master_admin_tenant_key }}{% endif %}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('master_translations') }}">{{ tr('navigation', 'master.translations', 'Traduzioni') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('master_orari_config') }}">{{ tr('navigation', 'master.orari_config', 'Configurazione orari') }}</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header">{{ tr('navigation', 'nav.rendiconto', 'Rendiconto') }}</h6></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_distinta_cassa_config') }}">{{ tr('navigation', 'master.cash_config', 'Configurazione distinta cassa') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_ipratico_config') }}">{{ tr('navigation', 'master.ipratico_config', 'Configurazione iPratico') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_delivery_providers') }}">{{ tr('navigation', 'master.delivery_config', 'Configurazione delivery') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_historical_daily_sales_import') }}">{{ tr('navigation', 'master.historical_import', 'Import storico giornaliero') }}</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header">{{ tr('navigation', 'master.test_pages', 'Pagine test') }}</h6></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_fabbisogno_sites') }}">Estrazioni: Fabbisogno per store</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_finance_store_map') }}">Finance: mappatura store</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_costo_lavoro_test_page') }}">Costo lavoro (test)</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('master_offer_plan_test') }}">Piano offerta e fogli produzione</a></li>
+          </ul>
+        </li>
+        {% endif %}
+
+        {% if show_admin_menu %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="adminOpsMenu" role="button"
+             data-bs-toggle="dropdown" aria-expanded="false">
+            {{ tr('navigation', 'nav.admin', 'Admin') }}
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="adminOpsMenu">
+            <li><h6 class="dropdown-header">{{ tr('navigation', 'nav.cruscotto', 'Cruscotto') }}</h6></li>
+            <li><a class="dropdown-item" href="{{ url_for('cruscotto.pnl_store_visibility') }}">Visualizzazione P&amp;L store</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header">{{ tr('navigation', 'master.tenants', 'Tenant') }}</h6></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_users') }}">{{ tr('navigation', 'admin.users', 'Utenti') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_users_import_csv') }}">Import CSV utenti</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_access_profiles') }}">Profili accesso</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_links') }}">{{ tr('navigation', 'nav.links', 'Link') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_stores') }}">{{ tr('navigation', 'admin.stores', 'Store') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_area_managers') }}">{{ tr('navigation', 'admin.area_managers', 'Area manager') }}</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header">{{ tr('navigation', 'nav.supplier_orders', 'Ordini al fornitore') }}</h6></li>
+            <li><a class="dropdown-item" href="{{ url_for('warehouse.fornitori') }}">{{ tr('navigation', 'admin.suppliers', 'Fornitori') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('warehouse.listini_anagrafica') }}">{{ tr('navigation', 'admin.price_registry', 'Anagrafica Listini Prezzi') }}</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('warehouse.listini_prezzi') }}">{{ tr('navigation', 'admin.price_lists', 'Listini Prezzi') }}</a></li>
+          </ul>
+        </li>
+        {% endif %}
+      </ul>
+
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        {% if user %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button"
+             data-bs-toggle="dropdown" aria-expanded="false">
+            {{ user.name or user.email or tr('common', 'account', 'Account') }}
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+            <li class="dropdown-item-text text-muted small">{{ user.email }}</li>
+            <li><hr class="dropdown-divider"></li>
+            {% if (supported_languages or [])|length > 1 %}
+            <li class="px-3 py-2">
+              <form method="post" action="{{ url_for('account_set_language') }}" class="d-flex align-items-center gap-2" data-no-overlay="1">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                <label class="small text-muted" for="topbarLanguageSelect">{{ tr('common', 'language', 'Lingua') }}</label>
+                <select class="form-select form-select-sm" id="topbarLanguageSelect" name="ui_language" onchange="this.form.submit()">
+                  {% for lang in supported_languages or [] %}
+                    <option value="{{ lang.code }}" {% if lang.code == ui_language %}selected{% endif %}>{{ lang.label }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            {% endif %}
+            {% if user.ai_enabled %}
+            <li><a class="dropdown-item{% if request.endpoint == 'ai_assistant' %} active{% endif %}" href="{{ url_for('ai_assistant') }}">Assistente AI</a></li>
+            {% endif %}
+            <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#themePickerModal">Tema interfaccia</button></li>
+            <li><button type="button" class="dropdown-item" id="toggleDesktopNavLayout">Layout barra desktop</button></li>
+            <li><button type="button" class="dropdown-item" id="topbar-install-app">Installa app</button></li>
+            <li><a class="dropdown-item" href="{{ url_for('account_change_password') }}">Cambia password</a></li>
+            <li>
+              {% if MS_SCOPES_SHAREPOINT is defined %}
+              <a class="dropdown-item" href="{{ url_for('ms_login', next=request.full_path, scopes=MS_SCOPES_SHAREPOINT) }}">
+                Connetti Microsoft (SharePoint)
+              </a>
+              {% else %}
+              <a class="dropdown-item" href="{{ url_for('ms_login', next=request.full_path) }}">
+                Connetti Microsoft (SharePoint)
+              </a>
+              {% endif %}
+            </li>
+            <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">{{ tr('common', 'logout', 'Logout') }}</a></li>
+          </ul>
+        </li>
+        {% else %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('login') }}">Accedi</a>
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>

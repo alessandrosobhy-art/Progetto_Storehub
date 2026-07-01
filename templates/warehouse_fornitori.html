@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Admin - Fornitori{% endblock %}
+
+{% block content %}
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">Fornitori</h1>
+        <div class="text-muted small">Gestione fornitori del tenant attivo.</div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h2 class="h6 mb-3">{{ 'Modifica fornitore' if edit_row else 'Nuovo fornitore' }}</h2>
+        <form method="post" class="row g-3">
+          <input type="hidden" name="row_uuid" value="{{ edit_row.row_uuid if edit_row else '' }}">
+          <div class="col-md-6">
+            <label class="form-label">Fornitore</label>
+            <input type="text" name="fornitore" class="form-control" value="{{ edit_row.Fornitore if edit_row else '' }}" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Tipo ordine</label>
+            {% set mode = (edit_row.TipoOrdine if edit_row else 'Mail') %}
+            <select name="tipo_ordine" class="form-select">
+              <option value="Mail" {% if mode == 'Mail' %}selected{% endif %}>Mail</option>
+              <option value="Online" {% if mode == 'Online' %}selected{% endif %}>Online</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Referente</label>
+            <input type="text" name="referente" class="form-control" value="{{ edit_row.Referente if edit_row else '' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" value="{{ edit_row.Email if edit_row else '' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Telefono 1</label>
+            <input type="text" name="telefono1" class="form-control" value="{{ edit_row.Telefono1 if edit_row else '' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Telefono 2</label>
+            <input type="text" name="telefono2" class="form-control" value="{{ edit_row.Telefono2 if edit_row else '' }}">
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button class="btn btn-primary">Salva</button>
+            {% if edit_row %}
+              <a href="{{ url_for('warehouse.fornitori') }}" class="btn btn-outline-secondary">Annulla</a>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if edit_row %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+          <div>
+            <h2 class="h6 mb-1">Contatti per store</h2>
+            <div class="text-muted small">Puoi creare cluster diversi di mail/telefono/referente associando uno o più store.</div>
+          </div>
+        </div>
+
+        <form method="post" class="row g-3">
+          <input type="hidden" name="action" value="save_contact">
+          <input type="hidden" name="supplier_row_uuid" value="{{ edit_row.row_uuid }}">
+          <input type="hidden" name="contact_row_uuid" value="{{ edit_contact_row.row_uuid if edit_contact_row else '' }}">
+
+          <div class="col-md-3">
+            <label class="form-label">Tipo ordine</label>
+            {% set cmode = (edit_contact_row.TipoOrdine if edit_contact_row else 'Mail') %}
+            <select name="contact_tipo_ordine" class="form-select">
+              <option value="Mail" {% if cmode == 'Mail' %}selected{% endif %}>Mail</option>
+              <option value="Online" {% if cmode == 'Online' %}selected{% endif %}>Online</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Referente</label>
+            <input type="text" name="contact_referente" class="form-control" value="{{ edit_contact_row.Referente if edit_contact_row else '' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Email</label>
+            <input type="email" name="contact_email" class="form-control" value="{{ edit_contact_row.Email if edit_contact_row else '' }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Ordine</label>
+            <input type="number" name="contact_sort_order" class="form-control" value="{{ edit_contact_row.sort_order if edit_contact_row else 0 }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Telefono 1</label>
+            <input type="text" name="contact_telefono1" class="form-control" value="{{ edit_contact_row.Telefono1 if edit_contact_row else '' }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Telefono 2</label>
+            <input type="text" name="contact_telefono2" class="form-control" value="{{ edit_contact_row.Telefono2 if edit_contact_row else '' }}">
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label mb-0">Store associati</label>
+              <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="contactStoresAll">Tutti</button>
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="contactStoresNone">Nessuno</button>
+              </div>
+            </div>
+            {% set selected_store_codes = edit_contact_row.store_codes if edit_contact_row else [] %}
+            <div class="list-group" style="max-height:220px; overflow:auto;">
+              {% for s in stores or [] %}
+              <label class="list-group-item d-flex gap-2 align-items-start">
+                <input class="form-check-input mt-1 contact-store-check" type="checkbox" name="contact_store_codes" value="{{ s.code }}"
+                       {% if selected_store_codes and (s.code in selected_store_codes) %}checked{% endif %}>
+                <span><span class="fw-semibold">{{ s.code }}</span>{% if s.name %}<span class="text-muted ms-1">{{ s.name }}</span>{% endif %}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <div class="form-text">Se non selezioni store, il contatto resta generale.</div>
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button class="btn btn-primary">Salva cluster</button>
+            {% if edit_contact_row %}
+              <a href="{{ url_for('warehouse.fornitori', edit=edit_row.row_uuid) }}" class="btn btn-outline-secondary">Annulla modifica cluster</a>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Tipo ordine</th>
+              <th>Referente</th>
+              <th>Email</th>
+              <th>Telefono</th>
+              <th>Store associati</th>
+              <th class="text-end">Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in contact_rows or [] %}
+            <tr>
+              <td><span class="badge text-bg-light border">{{ c.TipoOrdine or 'Mail' }}</span></td>
+              <td>{{ c.Referente or '' }}</td>
+              <td>{{ c.Email or '' }}</td>
+              <td>{{ c.Telefono1 or c.Telefono2 or '' }}</td>
+              <td>
+                {% if c.store_codes %}
+                  <div class="small">{{ c.store_codes|join(', ') }}</div>
+                {% else %}
+                  <span class="text-muted small">Generale</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <a href="{{ url_for('warehouse.fornitori', edit=edit_row.row_uuid, edit_contact=c.row_uuid) }}" class="btn btn-sm btn-outline-secondary">Modifica</a>
+                <form method="post" class="d-inline" onsubmit="return confirm('Eliminare questo cluster contatti?');">
+                  <input type="hidden" name="action" value="delete_contact">
+                  <input type="hidden" name="supplier_row_uuid" value="{{ edit_row.row_uuid }}">
+                  <input type="hidden" name="contact_row_uuid" value="{{ c.row_uuid }}">
+                  <button class="btn btn-sm btn-outline-danger ms-1">Elimina</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-4">Nessun cluster contatti configurato.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Fornitore</th>
+              <th>Tipo ordine</th>
+              <th>Referente</th>
+              <th>Email</th>
+              <th>Telefono</th>
+              <th>Cluster</th>
+              <th class="text-end">Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows or [] %}
+            <tr>
+              <td class="fw-semibold">{{ r.Fornitore }}</td>
+              <td><span class="badge text-bg-light border">{{ r.TipoOrdine or 'Mail' }}</span></td>
+              <td>{{ r.Referente or '' }}</td>
+              <td>{{ r.Email or '' }}</td>
+              <td>{{ r.Telefono1 or r.Telefono2 or '' }}</td>
+              <td><span class="badge text-bg-light border">{{ r.ContactCount or 0 }}</span></td>
+              <td class="text-end">
+                <a href="{{ url_for('warehouse.fornitori', edit=r.row_uuid) }}" class="btn btn-sm btn-outline-secondary">Modifica</a>
+                <form method="post" class="d-inline" onsubmit="return confirm('Eliminare il fornitore {{ r.Fornitore|e }}?');">
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="row_uuid" value="{{ r.row_uuid }}">
+                  <button class="btn btn-sm btn-outline-danger ms-1">Elimina</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center text-muted py-4">Nessun fornitore.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    const allBtn = document.getElementById('contactStoresAll');
+    const noneBtn = document.getElementById('contactStoresNone');
+    const checks = Array.from(document.querySelectorAll('.contact-store-check'));
+    if(allBtn){ allBtn.addEventListener('click', () => checks.forEach(c => c.checked = true)); }
+    if(noneBtn){ noneBtn.addEventListener('click', () => checks.forEach(c => c.checked = false)); }
+  })();
+  </script>
+{% endblock %}

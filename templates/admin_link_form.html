@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Admin – {{ 'Modifica' if link else 'Nuovo' }} Link{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/links_v1.css') }}?v=1.0.0">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">{{ 'Modifica' if link else 'Nuovo' }} Link</h1>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin_links') }}">Indietro</a>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data">
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <label class="form-label">Titolo</label>
+            <input class="form-control" name="title" value="{{ link.title if link else '' }}" maxlength="120">
+            <div class="form-text">Opzionale. Se vuoto, nella tessera verrà mostrata la URL.</div>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <label class="form-label">URL *</label>
+            <input class="form-control" name="url" value="{{ link.url if link else '' }}" required>
+          </div>
+
+<div class="col-12 col-lg-6">
+  <label class="form-label">Categoria</label>
+  <select class="form-select" name="category_id">
+    <option value="">— Nessuna —</option>
+    {% for c in categories or [] %}
+      {% set selected = (link and (link.category_id == c.id)) %}
+      <option value="{{ c.id }}" {% if selected %}selected{% endif %}>
+        {{ c.name }}{% if c.is_active is defined and (not c.is_active) %} (disattiva){% endif %}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+
+          <div class="col-6 col-lg-3">
+            <label class="form-label">Ordine</label>
+            <input class="form-control" name="sort_order" type="number" value="{{ link.sort_order if link else 0 }}">
+          </div>
+
+          <div class="col-6 col-lg-3 d-flex align-items-end">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if not link or link.is_active %}checked{% endif %}>
+              <label class="form-check-label" for="is_active">Attivo</label>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <label class="form-label">Immagine (quadrato)</label>
+            <input class="form-control" type="file" name="image" accept="image/*">
+            <div class="form-text">Consigliato: PNG/JPG 512×512 o superiore. Verrà ritagliata in formato quadrato.</div>
+          </div>
+
+          <div class="col-12">
+            {% if link and link.image_url %}
+              <div class="d-flex align-items-center gap-3">
+                <div>
+                  <div class="text-muted small mb-1">Anteprima attuale</div>
+                  <img src="{{ link.image_url }}" class="admin-link-preview" alt="preview">
+                </div>
+                <div class="text-muted small">
+                  Caricando una nuova immagine verrà sovrascritta quella esistente.
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+          <button class="btn btn-primary" type="submit">Salva</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('admin_links') }}">Annulla</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

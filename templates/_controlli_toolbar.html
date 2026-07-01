@@ -1,0 +1,26 @@
+<div class="app-sectionbar">
+  <div class="container app-sectionbar__inner">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="app-sectionbar__label">Controlli</span>
+
+      {% set is_pnl = request.path.startswith('/controlli/pnl') %}
+      {% set is_andamento = request.path.startswith('/controlli/andamento') %}
+      {% set is_kpi = request.path.startswith('/controlli/kpi') %}
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_pnl else 'btn-outline-primary' }}"
+         href="{{ url_for('controlli.pnl') }}">
+        P&amp;L
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_andamento else 'btn-outline-primary' }}"
+         href="{{ url_for('controlli.andamento') }}">
+        Andamento
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_kpi else 'btn-outline-primary' }}"
+         href="{{ url_for('controlli.kpi') }}">
+        KPI
+      </a>
+    </div>
+  </div>
+</div>

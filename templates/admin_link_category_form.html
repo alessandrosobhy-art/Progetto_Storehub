@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-3">
+  <h1 class="page-title mb-3">{{ 'Nuova categoria' if mode=='new' else 'Modifica categoria' }}</h1>
+
+  <form method="post">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Nome</label>
+        <input class="form-control" name="name" required value="{{ category.name if category else '' }}">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Ordine</label>
+        <input type="number" class="form-control" name="sort_order" value="{{ category.sort_order if category else 0 }}">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Attiva</label>
+        <select class="form-select" name="is_active">
+          <option value="1" {% if not category or category.is_active %}selected{% endif %}>Sì</option>
+          <option value="0" {% if category and not category.is_active %}selected{% endif %}>No</option>
+        </select>
+      </div>
+
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-primary" type="submit">Salva</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin_link_categories') }}">Annulla</a>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

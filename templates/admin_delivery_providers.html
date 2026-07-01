@@ -1,0 +1,155 @@
+﻿{% extends "base.html" %}
+{% block title %}{{ tr('master', 'delivery_config.page_title', 'Master - Configurazione delivery') }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 1180px;">
+  <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+    <div>
+      <h1 class="h4 mb-1">{{ tr('master', 'delivery_config.title', 'Configurazione delivery') }}</h1>
+      <div class="text-muted small">{{ tr('master', 'delivery_config.help_statement_link', 'Provider mostrati nella pagina Rendiconto - Gestione delivery. Il provider tecnico si seleziona dalle voci Delivery della distinta cassa.') }}</div>
+      <div class="text-muted small">{{ tr('master', 'delivery_config.help_delete_scope', "L'eliminazione rimuove solo la configurazione provider del tenant selezionato.") }}</div>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('rendiconto.gestione_delivery') }}">{{ tr('master', 'delivery_config.open_delivery_management', 'Apri gestione delivery') }}</a>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-header fw-semibold">{{ tr('master', 'delivery_config.new_provider', 'Nuovo provider') }}</div>
+    <div class="card-body">
+      <form method="post" class="row g-3 align-items-end">
+        <input type="hidden" name="action" value="create">
+        <div class="col-md-3">
+          <label class="form-label">{{ tr('master', 'delivery_config.statement_provider', 'Provider distinta') }}</label>
+          <select class="form-select" name="platform" required>
+            <option value="">{{ tr('common', 'select', 'Seleziona...') }}</option>
+            {% for opt in delivery_options %}
+              <option value="{{ opt.platform }}">{{ opt.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">{{ tr('common', 'name', 'Nome') }}</label>
+          <input class="form-control" name="label" placeholder="Just Eat">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">{{ tr('master', 'delivery_config.logo_file', 'Logo file') }}</label>
+          <input class="form-control" name="logo_filename" placeholder="JustEat.png">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">{{ tr('master', 'delivery_config.rating', 'Rating') }}</label>
+          <select class="form-select" name="rating_unit">
+            <option value="number">{{ tr('master', 'delivery_config.rating_number', 'Numero') }}</option>
+            <option value="percent">{{ tr('master', 'delivery_config.rating_percent', 'Percentuale') }}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">{{ tr('master', 'delivery_config.opening', 'Apertura') }}</label>
+          <select class="form-select" name="opening_mode">
+            <option value="opening">{{ tr('master', 'delivery_config.opening', 'Apertura') }}</option>
+            <option value="closure">{{ tr('master', 'delivery_config.closure', 'Chiusura') }}</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{{ tr('master', 'delivery_config.opening_label', 'Etichetta apertura') }}</label>
+          <input class="form-control" name="opening_label" value="{{ tr('master', 'delivery_config.opening_pct_default', '% Apertura') }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">{{ tr('common', 'sort_order', 'Ordine') }}</label>
+          <input class="form-control" type="number" name="sort_order" value="30">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">{{ tr('common', 'active', 'Attivo') }}</label>
+          <select class="form-select" name="is_active">
+            <option value="1">{{ tr('common', 'yes', 'Si') }}</option>
+            <option value="0">{{ tr('common', 'no', 'No') }}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100" type="submit">{{ tr('common', 'create', 'Crea') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>{{ tr('common', 'name', 'Nome') }}</th>
+            <th>{{ tr('master', 'delivery_config.statement_provider', 'Provider distinta') }}</th>
+            <th>{{ tr('common', 'key', 'Chiave') }}</th>
+            <th>{{ tr('master', 'delivery_config.logo', 'Logo') }}</th>
+            <th>{{ tr('master', 'delivery_config.rating', 'Rating') }}</th>
+            <th>{{ tr('master', 'delivery_config.opening', 'Apertura') }}</th>
+            <th>{{ tr('common', 'sort_order_short', 'Ord.') }}</th>
+            <th>{{ tr('common', 'active', 'Attivo') }}</th>
+            <th class="text-end">{{ tr('common', 'actions', 'Azioni') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in providers %}
+            <tr>
+              <form method="post">
+                <input type="hidden" name="action" value="save">
+                <input type="hidden" name="row_uuid" value="{{ p.row_uuid }}">
+                <input type="hidden" name="provider_key" value="{{ p.provider_key }}">
+                <td><input class="form-control form-control-sm" name="label" value="{{ p.label }}"></td>
+                <td>
+                  <select class="form-select form-select-sm" name="platform" required>
+                    {% for opt in delivery_options %}
+                      <option value="{{ opt.platform }}" {% if opt.platform == p.platform %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                    {% if p.platform and p.platform not in delivery_options|map(attribute='platform')|list %}
+                      <option value="{{ p.platform }}" selected>{{ p.platform }} {{ tr('master', 'delivery_config.not_in_statement', '(non presente in distinta)') }}</option>
+                    {% endif %}
+                  </select>
+                </td>
+                <td><span class="small text-muted">{{ p.provider_key }}</span></td>
+                <td><input class="form-control form-control-sm" name="logo_filename" value="{{ p.logo_filename }}"></td>
+                <td>
+                  <select class="form-select form-select-sm" name="rating_unit">
+                    <option value="number" {% if p.rating_unit == 'number' %}selected{% endif %}>{{ tr('master', 'delivery_config.rating_number', 'Numero') }}</option>
+                    <option value="percent" {% if p.rating_unit == 'percent' %}selected{% endif %}>{{ tr('master', 'delivery_config.rating_percent', 'Percentuale') }}</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <select class="form-select form-select-sm" name="opening_mode">
+                      <option value="opening" {% if p.opening_mode == 'opening' %}selected{% endif %}>{{ tr('master', 'delivery_config.opening', 'Apertura') }}</option>
+                      <option value="closure" {% if p.opening_mode == 'closure' %}selected{% endif %}>{{ tr('master', 'delivery_config.closure', 'Chiusura') }}</option>
+                    </select>
+                    <input class="form-control form-control-sm" name="opening_label" value="{{ p.opening_label }}">
+                  </div>
+                </td>
+                <td style="width:90px;"><input class="form-control form-control-sm" type="number" name="sort_order" value="{{ p.sort_order }}"></td>
+                <td style="width:90px;">
+                  <select class="form-select form-select-sm" name="is_active">
+                    <option value="1" {% if p.is_active %}selected{% endif %}>{{ tr('common', 'yes', 'Si') }}</option>
+                    <option value="0" {% if not p.is_active %}selected{% endif %}>{{ tr('common', 'no', 'No') }}</option>
+                  </select>
+                </td>
+                <td class="text-end">
+                  <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-primary btn-sm" type="submit">{{ tr('common', 'save', 'Salva') }}</button>
+                    <button
+                      class="btn btn-outline-danger btn-sm"
+                      type="submit"
+                      name="action"
+                      value="delete"
+                      formnovalidate
+                      onclick="return confirm({{ tr('master', 'delivery_config.delete_confirm', 'Eliminare questo provider delivery dalla configurazione? I dati settimanali gia salvati non verranno cancellati.')|tojson }});"
+                    >{{ tr('common', 'delete', 'Elimina') }}</button>
+                  </div>
+                </td>
+              </form>
+            </tr>
+          {% else %}
+            <tr><td colspan="9" class="text-center text-muted py-4">{{ tr('master', 'delivery_config.no_provider', 'Nessun provider configurato.') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

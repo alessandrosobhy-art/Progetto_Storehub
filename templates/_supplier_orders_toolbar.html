@@ -1,0 +1,30 @@
+<div class="app-sectionbar">
+  <div class="container app-sectionbar__inner">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="app-sectionbar__label">Ordini al fornitore</span>
+
+      {% set is_invia = request.path.startswith('/magazzino/ordini-fornitore/invia') %}
+      {% set is_inviati = request.path.startswith('/magazzino/ordini-fornitore/inviati') %}
+      {% set is_ricevuti = request.path.startswith('/magazzino/ordini-fornitore/ricevuti') %}
+      {% if user and user.role != 'fornitore' %}
+      <a class="btn btn-sm {{ 'btn-primary' if is_invia else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.supplier_orders_send') }}">
+        Invia Ordine
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_inviati else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.supplier_orders_sent') }}">
+        Ordini inviati
+      </a>
+      {% endif %}
+
+      {% if user and (user.role == 'fornitore' or user.role == 'admin') %}
+      <a class="btn btn-sm {{ 'btn-primary' if is_ricevuti else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.supplier_orders_received') }}">
+        Ordini ricevuti
+      </a>
+      {% endif %}
+
+    </div>
+  </div>
+</div>

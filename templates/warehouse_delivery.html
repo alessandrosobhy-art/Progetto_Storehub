@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "_warehouse_toolbar.html" %}
+<div class="container py-4">
+  <h1 class="h4 mb-3">DDT / Delivery - dati grezzi da Access</h1>
+
+  <p class="mb-2">
+    Tabella Access utilizzata: <code>{{ delivery.table }}</code>
+  </p>
+
+  {% if delivery.error %}
+    <div class="alert alert-danger mt-3">
+      <div class="fw-bold mb-1">Errore durante la lettura dei dati.</div>
+      <div class="small">{{ delivery.error }}</div>
+    </div>
+  {% else %}
+    {% if not delivery.rows %}
+      <div class="alert alert-warning mt-3">
+        Nessuna riga trovata nella tabella <code>{{ delivery.table }}</code> (primi 50 record).
+      </div>
+    {% else %}
+      <div class="table-responsive mt-3">
+        <table class="table table-sm table-striped align-middle">
+          <thead>
+            <tr>
+              {% for col in delivery.columns %}
+                <th scope="col">{{ col }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in delivery.rows %}
+              <tr>
+                {% for col in delivery.columns %}
+                  <td>
+                    {{ row[col] }}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-muted small mt-2">
+        Sono visualizzate al massimo le prime 50 righe della tabella.
+      </p>
+    {% endif %}
+  {% endif %}
+
+  <a href="{{ url_for('warehouse.home') }}" class="btn btn-secondary mt-4">Torna al Magazzino</a>
+</div>
+{% endblock %}

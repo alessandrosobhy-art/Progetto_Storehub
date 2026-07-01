@@ -1,0 +1,58 @@
+/* Global loading overlay (v1.0.0) */
+#globalLoadingOverlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.35);
+  z-index: 2000;
+}
+
+#globalLoadingOverlay.show {
+  display: flex;
+}
+
+#globalLoadingOverlay .overlay-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.25);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(520px, 92vw);
+}
+
+#globalLoadingOverlay .overlay-spinner {
+  width: 28px;
+  height: 28px;
+  display: block;
+  flex: 0 0 28px;
+}
+
+#globalLoadingOverlay .overlay-spinner svg{
+  display:block;
+}
+
+#globalLoadingOverlay .overlay-text {
+  line-height: 1.2;
+}
+
+#globalLoadingOverlay .overlay-title {
+  font-weight: 700;
+  margin: 0;
+  font-size: 1rem;
+}
+
+#globalLoadingOverlay .overlay-message {
+  margin: 2px 0 0 0;
+  opacity: .85;
+  font-size: .95rem;
+  word-break: break-word;
+}
+
+body.loading-overlay-open {
+  overflow: hidden;
+}
+

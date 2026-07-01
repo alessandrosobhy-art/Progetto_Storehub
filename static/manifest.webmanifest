@@ -1,0 +1,32 @@
+{
+  "name": "Store Hub 360",
+  "short_name": "StoreHub",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "display": "standalone",
+  "background_color": "#eef5fb",
+  "theme_color": "#4f8fcf",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/static/img/app-icons/icon-192x192-20260429userlogos1.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/app-icons/icon-512x512-20260429userlogos1.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/app-icons/icon-maskable-512x512-20260429userlogos1.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+.warehouse-riepilogo .table-riepilogo {
+  min-width: 1150px;
+}
+
+.warehouse-riepilogo .table-riepilogo th,
+.warehouse-riepilogo .table-riepilogo td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Più ordinato: font più piccolo in tabella e intestazioni */
+.warehouse-riepilogo .table-riepilogo thead th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.warehouse-riepilogo .table-riepilogo tbody td {
+  font-size: 0.80rem;
+}
+
+/* Intestazioni numeriche centrate (valori restano a destra) */
+.warehouse-riepilogo .table-riepilogo thead th.th-num {
+  text-align: center;
+}
+
+/* Spaziatura leggermente più compatta */
+.warehouse-riepilogo .table-riepilogo th,
+.warehouse-riepilogo .table-riepilogo td {
+  padding-top: 0.40rem;
+  padding-bottom: 0.40rem;
+}
+
+.warehouse-riepilogo .table-riepilogo td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.warehouse-riepilogo .table-riepilogo td.store {
+  white-space: normal;
+}
+
+.warehouse-riepilogo .muted {
+  color: #6c757d;
+}
+
+@media (max-width: 991.98px) {
+  .warehouse-riepilogo .table-riepilogo {
+    min-width: 1250px;
+  }
+}

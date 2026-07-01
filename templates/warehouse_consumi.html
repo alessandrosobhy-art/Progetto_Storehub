@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tr('warehouse', 'consumi.title', 'Consumi') }}{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse_consumi_v1.css') }}">
+{% endblock %}
+
+{% block content %}
+  {% include "_warehouse_toolbar.html" %}
+
+  <div class="container py-4 warehouse-consumi">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">{{ tr('warehouse', 'consumi.title', 'Consumi') }}</h1>
+        <div class="text-muted small">{{ tr('warehouse', 'consumi.subtitle', 'Consumo in pezzi per prodotto') }}</div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-3">
+            <label class="form-label">{{ tr('warehouse', 'analysis.period_type', 'Tipo periodo') }}</label>
+            <select class="form-select" id="conMode">
+              <option value="week">{{ tr('warehouse', 'consumi.week_option', 'Settimana (lun - dom)') }}</option>
+              <option value="month" selected>{{ tr('warehouse', 'analysis.month_option', 'Mese') }}</option>
+              <option value="period">{{ tr('warehouse', 'analysis.period_option', 'Periodo') }}</option>
+            </select>
+          </div>
+
+          <div class="col-lg-9">
+            <div id="conModeWeek" class="con-mode-box d-none">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label">{{ tr('warehouse', 'analysis.select_date', 'Seleziona una data') }}</label>
+                  <input type="date" class="form-control" id="conWeekAnchor">
+                </div>
+                <div class="col-md-4">
+                  <div class="small text-muted">{{ tr('warehouse', 'analysis.range', 'Intervallo') }}</div>
+                  <div class="fw-semibold" id="conWeekRangeLabel">-</div>
+                </div>
+                <div class="col-md-4 d-flex gap-2 justify-content-md-end">
+                  <button class="btn btn-outline-secondary" type="button" id="conWeekPrev">&lt;</button>
+                  <button class="btn btn-outline-secondary" type="button" id="conWeekNext">&gt;</button>
+                  <button class="btn btn-primary" type="button" id="conApplyWeek">{{ tr('warehouse', 'analysis.apply', 'Applica') }}</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="conModeMonth" class="con-mode-box">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label">{{ tr('warehouse', 'analysis.select_month', 'Seleziona mese') }}</label>
+                  <input type="month" class="form-control" id="conMonthPicker">
+                </div>
+                <div class="col-md-4">
+                  <div class="small text-muted">{{ tr('warehouse', 'analysis.range', 'Intervallo') }}</div>
+                  <div class="fw-semibold" id="conMonthRangeLabel">-</div>
+                </div>
+                <div class="col-md-4 d-flex gap-2 justify-content-md-end">
+                  <button class="btn btn-outline-secondary" type="button" id="conMonthPrev">&lt;</button>
+                  <button class="btn btn-outline-secondary" type="button" id="conMonthNext">&gt;</button>
+                  <button class="btn btn-primary" type="button" id="conApplyMonth">{{ tr('warehouse', 'analysis.apply', 'Applica') }}</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="conModePeriod" class="con-mode-box d-none">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label">{{ tr('common', 'from', 'Dal') }}</label>
+                  <input type="date" class="form-control" id="conPeriodStart">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">{{ tr('common', 'to', 'Al') }}</label>
+                  <input type="date" class="form-control" id="conPeriodEnd">
+                </div>
+                <div class="col-md-4 d-flex gap-2 justify-content-md-end">
+                  <button class="btn btn-primary" type="button" id="conApplyPeriod">{{ tr('warehouse', 'analysis.apply', 'Applica') }}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-4">
+            <label class="form-label" for="conSupplier">{{ tr('warehouse', 'analysis.supplier', 'Fornitore') }}</label>
+            <select class="form-select" id="conSupplier">
+              <option value="">{{ tr('warehouse', 'analysis.select_supplier', 'Seleziona...') }}</option>
+              {% for f in suppliers or [] %}
+                <option value="{{ f.code }}">{{ f.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-lg-3">
+            <label class="form-label" for="conListino">{{ tr('warehouse', 'common.price_list', 'Listino') }}</label>
+            <select class="form-select" id="conListino">
+              <option value="FoodPaper">FoodPaper</option>
+              <option value="Operating">Operating</option>
+            </select>
+          </div>
+          <div class="col-lg-5 d-flex justify-content-lg-end">
+            <div class="text-end">
+              <div class="small text-muted">{{ tr('warehouse', 'consumi.period_revenues_net', 'Revenues (net) periodo') }}</div>
+              <div class="fw-semibold" id="conRevenues">-</div>
+            </div>
+          </div>
+        </div>
+
+        {% if suppliers_error %}
+          <div class="alert alert-warning mt-3 mb-0">{{ suppliers_error }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-white">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <div class="fw-semibold">{{ tr('warehouse', 'consumi.product_detail', 'Dettaglio prodotti') }}</div>
+            <div class="small text-muted" id="conPeriodLabel">-</div>
+            <div class="small text-muted d-lg-none" id="conMobileHint">{{ tr('warehouse', 'consumi.mobile_hint', 'Tocca un prodotto per vedere i dettagli.') }}</div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <div class="small text-muted" id="conMeta">-</div>
+            <button class="btn btn-sm btn-outline-secondary d-none d-lg-inline-flex" type="button" id="conToggleDetails">{{ tr('warehouse', 'consumi.show_details', 'Mostra dettagli') }}</button>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-danger d-none" id="conError"></div>
+        <div class="alert alert-secondary d-none" id="conWarnings"></div>
+        <div id="conTableWrap" class="table-responsive"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="conDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="w-100">
+            <div class="fw-semibold" id="conModalTitle">-</div>
+            <div class="small text-muted" id="conModalSubtitle">-</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('rendiconto', 'common.close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body">
+          <div id="conModalBody"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ tr('rendiconto', 'common.close', 'Chiudi') }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.WH_CONSUMI = {
+      apiUrl: "{{ url_for('warehouse.api_consumi_table') }}",
+      suppliers: {{ (suppliers or []) | tojson }},
+      i18n: {
+        loading: {{ tr('common', 'loading', 'Caricamento...')|tojson }},
+        error: {{ tr('warehouse', 'analysis.error', 'Errore')|tojson }},
+        showDetails: {{ tr('warehouse', 'consumi.show_details', 'Mostra dettagli')|tojson }},
+        hideDetails: {{ tr('warehouse', 'consumi.hide_details', 'Nascondi dettagli')|tojson }},
+        description: {{ tr('warehouse', 'consumi.description', 'Descrizione')|tojson }},
+        total: {{ tr('warehouse', 'analysis.total', 'Totale')|tojson }},
+        consumption: {{ tr('warehouse', 'analysis.consumption', 'Consumo')|tojson }},
+        noData: {{ tr('warehouse', 'consumi.no_data', 'Nessun dato per i filtri selezionati.')|tojson }},
+        supplierPrompt: {{ tr('warehouse', 'consumi.supplier_prompt', 'Seleziona un fornitore e premi "Applica".')|tojson }},
+        selectPrompt: {{ tr('warehouse', 'consumi.select_prompt', 'Seleziona un periodo, un fornitore e premi "Applica".')|tojson }},
+        detail: {{ tr('warehouse', 'search.details', 'Dettagli')|tojson }},
+        initialInventory: {{ tr('warehouse', 'analysis.initial_inventory', 'Inventario iniziale')|tojson }},
+        delivery: {{ tr('warehouse', 'analysis.delivery', 'Delivery')|tojson }},
+        transfersIn: {{ tr('warehouse', 'analysis.transfers_in', 'Trasferimenti In')|tojson }},
+        transfersOut: {{ tr('warehouse', 'analysis.transfers_out', 'Trasferimenti Out')|tojson }},
+        finalInventory: {{ tr('warehouse', 'analysis.final_inventory', 'Inventario finale')|tojson }}
+      }
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/warehouse_consumi_v1.js') }}?v=2"></script>
+{% endblock %}

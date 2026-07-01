@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h1 class="h4 mb-4">Seleziona lo store per il magazzino</h1>
+
+  {% if not stores %}
+    <div class="alert alert-warning">
+      Nessuno store configurato in Supabase. Aggiungi almeno uno store nella tabella
+      <code>warehouse_stores</code> per poter procedere.
+    </div>
+  {% else %}
+    <form method="post">
+      <div class="mb-3">
+        <label for="store_code" class="form-label">Store</label>
+        <select id="store_code" name="store_code" class="form-select" required>
+          <option value="" disabled selected>Seleziona uno store...</option>
+          {% for s in stores %}
+            <option value="{{ s.code }}">{{ s.code }} - {{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <input type="hidden" name="next" value="{{ next or '' }}">
+      <button type="submit" class="btn btn-primary">Conferma</button>
+    </form>
+  {% endif %}
+
+  <p class="mt-3 text-muted small">
+    L'elenco degli store è letto dinamicamente dalla tabella <code>warehouse_stores</code> su Supabase.
+  </p>
+</div>
+{% endblock %}

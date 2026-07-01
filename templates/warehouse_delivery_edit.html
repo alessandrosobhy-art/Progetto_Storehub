@@ -1,0 +1,986 @@
+﻿{% extends "base.html" %}
+{% block content %}
+{% include "_warehouse_toolbar.html" %}
+<div class="container py-4">
+  <h1 class="h4 mb-3">{{ tr('warehouse', 'delivery_edit.title', 'Modifica DDT') }}</h1>
+
+  <form method="post" class="mb-3" id="editForm">
+    <input type="hidden" name="submit_action" id="submit_action" value="load">
+
+<div class="row g-3 align-items-end">
+  <div class="col-md-3">
+    <label for="data_doc" class="form-label">{{ tr('warehouse', 'delivery.document_date', 'Data documento') }}</label>
+    <input type="date" id="data_doc" name="data_doc" class="form-control" value="{{ header.data_doc or '' }}" required>
+  </div>
+
+  <div class="col-md-3">
+    <label for="data_rif" class="form-label">{{ tr('warehouse', 'delivery.delivery_date', 'Data consegna') }}</label>
+    <input type="date" id="data_rif" name="data_rif" class="form-control" value="{{ header.data_rif or '' }}" required>
+  </div>
+
+  <div class="col-md-4">
+    <label for="supplier_code" class="form-label">{{ tr('warehouse', 'analysis.supplier', 'Fornitore') }}</label>
+    <select id="supplier_code" name="supplier_code" class="form-select" required>
+      <option value="">-- {{ tr('warehouse', 'analysis.select_supplier', 'Seleziona...') }} --</option>
+      {# Se il fornitore arriva da Ricerca ma non è presente in anagrafica, lo aggiungiamo come opzione #}
+      {% set ns = namespace(found=false) %}
+      {% for s in suppliers %}
+        {% set name = s.get('name') if s is mapping else s %}
+        {% if name and header.supplier_code and header.supplier_code == name %}
+          {% set ns.found = true %}
+        {% endif %}
+      {% endfor %}
+      {% if header.supplier_code and not ns.found %}
+        <option value="{{ header.supplier_code }}" selected>{{ header.supplier_code }}</option>
+      {% endif %}
+      {% for s in suppliers %}
+        {% set name = s.get('name') if s is mapping else s %}
+        {% if name %}
+          <option value="{{ name }}" {% if header.supplier_code == name %}selected{% endif %}>{{ name }}</option>
+        {% endif %}
+      {% endfor %}
+    </select>
+    {% if suppliers_error %}
+      <div class="text-danger small mt-1">{{ suppliers_error }}</div>
+    {% endif %}
+  </div>
+
+  <div class="col-md-2">
+    <button class="btn btn-primary w-100" type="submit" onclick="document.getElementById('submit_action').value='load'">
+      {{ tr('warehouse', 'search.search', 'Cerca') }}
+    </button>
+  </div>
+</div>
+
+
+    {% if doc and doc.rows %}
+      <hr class="my-4">
+
+
+      {% set cols = doc.columns or [] %}
+      {% set price_col = doc.price_column %}
+      {% set unit_col = doc.unit_column %}
+      {% set code_col = doc.code_column %}
+      {% set desc_col = doc.desc_column %}
+
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3 mb-2">
+        <div class="flex-grow-1" style="max-width: 420px;">
+          <input type="text" class="form-control form-control-sm" id="dlvSearchInput" placeholder="{{ tr('warehouse', 'delivery.search_product_placeholder', 'Cerca prodotto (descrizione)...') }}">
+          <div class="text-muted small mt-1">{{ tr('warehouse', 'delivery.rows_found', 'Righe trovate') }}: <strong>{{ doc.rows|length }}</strong></div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+          <button class="btn btn-success" type="submit" onclick="document.getElementById('submit_action').value='save'">{{ tr('warehouse', 'common.save', 'Salva') }}</button>
+          <button class="btn btn-outline-secondary d-none d-md-inline-block" type="button" id="dlvToggleDetailsBtn">{{ tr('warehouse', 'consumi.show_details', 'Mostra dettagli') }}</button>
+        </div>
+      </div>
+      <div class="card border-0 shadow-sm mb-3 w-100" id="dlvTotalsCard">
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="small text-muted">{{ tr('warehouse', 'delivery_edit.partial_total', 'Totale parziale DDT') }}</div>
+            <div class="small">
+              <span class="text-muted">{{ tr('warehouse', 'analysis.supplier', 'Fornitore') }}:</span>
+              <strong id="dlvTotalsSupplier">-</strong>
+              <span class="ms-3 text-muted">Tot €:</span>
+              <strong id="dlvTotalsGrand">0,00</strong>
+            </div>
+          </div>
+          <div class="table-responsive mt-2">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr class="text-muted small">
+                  <th>{{ tr('warehouse', 'delivery.group', 'Gruppo') }}</th>
+                  <th class="text-end">Tot €</th>
+                </tr>
+              </thead>
+              <tbody id="dlvTotalsByGroup">
+                <tr><td class="text-muted" colspan="2">{{ tr('warehouse', 'delivery.no_amount_entered', 'Nessun importo inserito') }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- MOBILE: lista prodotti (solo descrizione) -->
+      <div class="d-md-none mb-3" id="dlvEditMobileListWrap">
+        <div class="list-group shadow-sm" id="dlvEditMobileList">
+          {% for row in doc.rows %}
+            {% set row_index = loop.index0 %}
+            {% set d = (row[desc_col] if desc_col else '') %}
+            <button type="button"
+                    class="list-group-item list-group-item-action mobile-product-item"
+                    data-row-index="{{ row_index }}">
+              {{ d if d else tr('warehouse', 'delivery.without_description', '(Senza descrizione)') }}
+            </button>
+          {% endfor %}
+        </div>
+        <div class="small text-muted mt-2 d-none" id="dlvEditMobileEmpty">{{ tr('warehouse', 'delivery.no_product_found', 'Nessun prodotto trovato') }}</div>
+      </div>
+
+
+      {# Hidden mapping per salvataggio server-side #}
+      <input type="hidden" name="unit_column" value="{{ unit_col or '' }}">
+      <input type="hidden" name="code_column" value="{{ code_col or '' }}">
+      <input type="hidden" name="cols_count" value="{{ cols|length }}">
+      {% for col in cols %}
+        <input type="hidden" name="col-{{ loop.index0 }}-name" value="{{ col }}">
+      {% endfor %}
+      <input type="hidden" name="rows_count" value="{{ doc.rows|length }}">
+
+      <div class="table-responsive d-none d-md-block" style="overflow-x:auto;">
+        <table class="table table-sm table-striped table-bordered align-middle mb-0 dlv-table" style="--dlv-desc-left: 52px;">
+          <thead class="table-light">
+            <tr>
+              <th style="width:52px" class="dlv-sticky dlv-sticky-x">X</th>
+              {% for col in cols %}
+                {% set col_lower = col|lower %}
+                {% set base_cols = ['descrizione','gruppo'] %}
+                {% set detail_cols = ['prezzo','unita','unità','qta car','qta int','qta_car','qta_int','qtacar','qtaint'] %}
+                {% set is_tipolistino = 'tipolistino' in col_lower %}
+                {% set is_base = col_lower in base_cols %}
+                {% set is_detail = col_lower in detail_cols %}
+                {% set hidden = ((not is_base) and (not is_detail)) or is_tipolistino %}
+                {% set col_label = col %}
+                {% if col_lower == 'descrizione' %}
+                  {% set col_label = tr('warehouse', 'delivery.col_description', 'Descrizione') %}
+                {% elif col_lower == 'gruppo' %}
+                  {% set col_label = tr('warehouse', 'delivery.group', 'Gruppo') %}
+                {% elif col_lower == 'prezzo' %}
+                  {% set col_label = tr('warehouse', 'delivery.col_price', 'Prezzo') %}
+                {% elif col_lower in ('unita','unità','unitã ') %}
+                  {% set col_label = tr('warehouse', 'delivery.unit', 'Unità') %}
+                {% elif col_lower in ('qtacar','qta car','qta_car') %}
+                  {% set col_label = tr('warehouse', 'delivery.col_pack_qty', 'Qta car') %}
+                {% elif col_lower in ('qtaint','qta int','qta_int') %}
+                  {% set col_label = tr('warehouse', 'delivery.col_inner_qty', 'Qta int') %}
+                {% endif %}
+                <th class="{% if col_lower == 'descrizione' %}dlv-col-desc dlv-sticky dlv-sticky-desc{% endif %}{% if is_detail %} wh-detail-col d-none{% endif %}{% if hidden %}dlv-col-hidden{% endif %}">
+                  {{ col_label }}
+                </th>
+              {% endfor %}
+              <th style="width:110px">{{ tr('warehouse', 'delivery.packages', 'Colli') }}</th>
+              <th style="width:110px">{{ tr('warehouse', 'delivery.pieces', 'Pezzi') }}</th>
+              <th style="width:140px">{{ tr('warehouse', 'delivery.ddt_price', 'Prezzo DDT') }}</th>
+              <th style="width:110px">{{ tr('warehouse', 'delivery.discount_pct', 'Sconto %') }}</th>
+              <th style="width:130px">{{ tr('warehouse', 'delivery.total_qty', 'Q.tà totale') }}</th>
+              <th style="width:140px">{{ tr('warehouse', 'delivery.value', 'Valore') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in doc.rows %}
+              {% set row_index = loop.index0 %}
+              <tr class="dlv-row" data-row-index="{{ row_index }}" data-desc="{{ row[desc_col] if desc_col else '' }}">
+                <td class="text-center dlv-sticky dlv-sticky-x">
+                  <button type="button" class="btn btn-sm btn-outline-danger dlv-delete-row" title="Elimina riga">✕</button>
+                  <input type="hidden" name="row-{{ row_index }}-deleted" value="0" class="row-deleted-flag">
+                </td>
+
+                {% for col in cols %}
+                  {% set col_lower = col|lower %}
+                  {% set base_cols = ['descrizione','gruppo'] %}
+                  {% set detail_cols = ['prezzo','unita','unità','qta car','qta int','qta_car','qta_int','qtacar','qtaint'] %}
+                  {% set is_tipolistino = 'tipolistino' in col_lower %}
+                  {% set is_base = col_lower in base_cols %}
+                  {% set is_detail = col_lower in detail_cols %}
+                  {% set hidden = ((not is_base) and (not is_detail)) or is_tipolistino %}
+                  {% set cell = row[col] if col in row else '' %}
+                  <td class="{% if col_lower == 'descrizione' %}dlv-col-desc dlv-sticky dlv-sticky-desc{% elif col_lower == 'gruppo' %}dlv-col-group{% elif col_lower == 'prezzo' %}dlv-col-price{% elif col_lower in ('qtacar','qta car','qta_car') %}dlv-col-unit{% elif col_lower in ('qtaint','qta int','qta_int') %}dlv-col-qtaint{% endif %}{% if is_detail %} wh-detail-col d-none{% endif %}{% if hidden %} dlv-col-hidden{% endif %}"
+                      {% if col == price_col %}data-price-default="{{ cell }}"{% endif %}
+                      {% if col == unit_col %}data-unit-factor="{{ cell }}"{% endif %}
+                  >
+                    {% if col_lower == 'prezzo' and cell is not none and cell != '' %}
+                      {% set s = cell|string %}
+                      {% if ',' in s %}
+                        {{ s }}
+                      {% elif '.' in s %}
+                        {% set parts = s.split('.') %}
+                        {% if parts|length == 2 and parts[1]|length >= 2 %}
+                          {{ parts[0] ~ ',' ~ parts[1][:2] }}
+                        {% else %}
+                          {{ s }}
+                        {% endif %}
+                      {% else %}
+                        {{ s }}
+                      {% endif %}
+                    {% else %}
+                      {{ cell }}
+                    {% endif %}
+                    <input type="hidden" name="row-{{ row_index }}-col-{{ loop.index0 }}" value="{{ cell }}">
+                  </td>
+                {% endfor %}
+
+                <td>
+                  <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm dlv-colli-input"
+                         name="row-{{ row_index }}-colli"
+                         value="{{ row._prefill_colli }}">
+                  <input type="hidden" name="row-{{ row_index }}-orig-colli" value="{{ row._orig_colli }}">
+                </td>
+
+                <td>
+                  <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm dlv-pezzi-input"
+                         name="row-{{ row_index }}-pezzi"
+                         value="{{ row._prefill_pezzi }}">
+                  <input type="hidden" name="row-{{ row_index }}-orig-pezzi" value="{{ row._orig_pezzi }}">
+                </td>
+
+                <td>
+                  <div class="input-group input-group-sm dlv-price-group">
+                    <input type="text"
+                           class="form-control dlv-prezzo-input"
+                           name="row-{{ row_index }}-prezzo_ddt"
+                           value="{{ row._prefill_prezzo_ddt if row._prefill_prezzo_ddt is defined else '' }}"
+                           data-default-price="{{ row._orig_prezzo_ddt if row._orig_prezzo_ddt is defined else '' }}"
+                           placeholder="(opzionale)">
+                    <button class="btn btn-outline-secondary dlv-reset-price dlv-reset-btn" type="button" title="Ripristina">↺</button>
+                  </div>
+                  <input type="hidden" name="row-{{ row_index }}-orig-prezzo_ddt" value="{{ row._orig_prezzo_ddt if row._orig_prezzo_ddt is defined else '' }}">
+                </td>
+
+                <td>
+                  <input type="number" step="0.01" min="0" max="100"
+                         class="form-control form-control-sm dlv-sconto-input"
+                         name="row-{{ row_index }}-sconto"
+                         value="">
+                </td>
+
+                <td>
+                  <input type="text" readonly
+                         class="form-control form-control-sm dlv-qta-tot"
+                         name="row-{{ row_index }}-qta_tot"
+                         value="{{ row._qta_tot }}">
+                </td>
+
+                <td>
+                  <input type="text" readonly
+                         class="form-control form-control-sm dlv-valore"
+                         name="row-{{ row_index }}-valore"
+                         value="{{ row._valore }}">
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert alert-info small mt-3 mb-0">
+        {{ tr('warehouse', 'delivery_edit.help', 'Modifica colli/pezzi e premi Salva modifiche. Le righe eliminate con la X vengono cancellate subito.') }}
+      </div>
+
+      <hr class="my-4">
+
+      <h2 class="h6 mb-2">{{ tr('warehouse', 'delivery_edit.change_dates_title', 'Cambio date per tutto il DDT') }}</h2>
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label for="new_data_doc" class="form-label">{{ tr('warehouse', 'delivery_edit.new_document_date', 'Nuova data documento (Fattura)') }}</label>
+          <input type="date" id="new_data_doc" name="new_data_doc" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label for="new_data_rif" class="form-label">{{ tr('warehouse', 'delivery_edit.new_delivery_date', 'Nuova data consegna (Data)') }}</label>
+          <input type="date" id="new_data_rif" name="new_data_rif" class="form-control">
+        </div>
+        <div class="col-md-3 d-grid">
+          <button class="btn btn-warning" type="submit" onclick="document.getElementById('submit_action').value='change_dates'">
+            {{ tr('warehouse', 'delivery_edit.apply_date_change', 'Applica cambio date') }}
+          </button>
+        </div>
+      </div>
+    {% elif doc and not doc.error %}
+      <div class="alert alert-warning mt-3 mb-0">{{ tr('warehouse', 'delivery_edit.no_rows', 'Nessuna riga trovata per i parametri inseriti.') }}</div>
+    {% endif %}
+  </form>
+
+</div>
+
+<style>
+  .dlv-col-hidden { display: none; }
+  .wh-detail-col.d-none { display: none !important; }
+
+  /* Tabelle DDT: compatte e leggibili */
+  .dlv-table { font-size: 0.80rem; }
+  .dlv-table th, .dlv-table td { padding: .25rem .35rem; vertical-align: middle; }
+  .dlv-table thead th { white-space: normal; }
+  .dlv-table td { white-space: nowrap; }
+
+  /* Colonna descrizione: non enorme e sempre visibile quando scrolli */
+  .dlv-col-desc { min-width: 240px; max-width: 340px; white-space: normal; }
+  .dlv-col-group { min-width: 70px; }
+  .dlv-col-price { min-width: 90px; white-space: nowrap; }
+  .dlv-col-unita { min-width: 70px; }
+  .dlv-col-qtacar { min-width: 70px; }
+  .dlv-col-qtaint { min-width: 70px; }
+  .dlv-col-unit { min-width: 70px; }
+
+  /* Sticky columns */
+  .dlv-sticky { position: sticky; background: #fff; }
+  .dlv-sticky-x { left: 0; z-index: 6; }
+  .dlv-sticky-desc { left: var(--dlv-desc-left, 0px); z-index: 5; box-shadow: 2px 0 0 rgba(0,0,0,.06); }
+  .dlv-table thead .dlv-sticky-x,
+  .dlv-table thead .dlv-sticky-desc { background: #f8f9fa; }
+
+  /* Input sizes */
+  .dlv-table .form-control,
+  .dlv-table .input-group-sm > .form-control,
+  .dlv-table .input-group-sm > .btn { font-size: 0.80rem; }
+  .dlv-table .form-control,
+  .dlv-table .input-group-sm > .form-control { padding: .20rem .30rem; }
+
+  .dlv-table .dlv-colli-input,
+  .dlv-table .dlv-pezzi-input { width: 78px; }
+
+  .dlv-table .dlv-prezzo-input { width: 105px; }
+  .dlv-table .dlv-sconto-input { width: 78px; }
+  .dlv-table .dlv-qta-tot,
+  .dlv-table .dlv-valore,
+  .dlv-table .dlv-qta-input,
+  .dlv-table .dlv-valore-input { width: 95px; }
+
+  .dlv-price-group { flex-wrap: nowrap; }
+  .dlv-reset-btn { width: 34px; padding: .20rem; line-height: 1; white-space: nowrap; }
+
+  /* dlv-sticky-bg-fix: sticky celle devono seguire lo striped di Bootstrap */
+  .dlv-table tbody .dlv-sticky-desc,
+  .dlv-table tbody .dlv-sticky-x {
+    background-color: var(--bs-table-bg-type, var(--bs-table-bg));
+  }
+  .dlv-table.table-striped > tbody > tr:nth-of-type(odd) > .dlv-sticky-desc,
+  .dlv-table.table-striped > tbody > tr:nth-of-type(odd) > .dlv-sticky-x {
+    background-color: var(--bs-table-striped-bg);
+  }
+  .dlv-table.table-striped > tbody > tr:nth-of-type(even) > .dlv-sticky-desc,
+  .dlv-table.table-striped > tbody > tr:nth-of-type(even) > .dlv-sticky-x {
+    background-color: var(--bs-table-bg);
+  }
+  .dlv-table thead .dlv-sticky-desc,
+  .dlv-table thead .dlv-sticky-x {
+    background-color: #f8f9fa;
+  }
+
+  @media (max-width: 768px) {
+    /* evita zoom/layout shift su iOS quando si clicca negli input del modal */
+    #dlvEditMobileModal .form-control { font-size: 16px; }
+    body.modal-open { padding-right: 0 !important; }
+  }
+</style>
+
+
+  <!-- Mobile: popup prodotto -->
+  <div class="modal fade" id="dlvEditMobileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="dlvEditMobileModalTitle">{{ tr('warehouse', 'delivery.product', 'Prodotto') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('rendiconto', 'common.close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body">
+          <div class="small text-muted mb-2" id="dlvEditMobileModalMeta"></div>
+
+          <div class="mb-3">
+            <label class="form-label mb-1">{{ tr('warehouse', 'delivery.packages', 'Colli') }}</label>
+            <input type="text" inputmode="decimal" class="form-control" id="dlvEColli">
+          </div>
+          <div class="mb-3">
+            <label class="form-label mb-1">{{ tr('warehouse', 'delivery.pieces', 'Pezzi') }}</label>
+            <input type="text" inputmode="decimal" class="form-control" id="dlvEPezzi">
+          </div>
+          <div class="mb-3">
+            <label class="form-label mb-1">{{ tr('warehouse', 'delivery.ddt_price', 'Prezzo DDT') }}</label>
+            <input type="text" inputmode="decimal" class="form-control" id="dlvEPrezzo">
+          </div>
+          <div class="mb-3">
+            <label class="form-label mb-1">{{ tr('warehouse', 'delivery.discount', 'Sconto') }}</label>
+            <input type="text" inputmode="decimal" class="form-control" id="dlvESconto">
+          </div>
+
+          <div class="border rounded p-2">
+            <div class="d-flex justify-content-between">
+              <div class="small text-muted">{{ tr('warehouse', 'delivery.calculated_qty', 'Qta (calcolata)') }}</div>
+              <div class="fw-semibold" id="dlvEQta">0</div>
+            </div>
+            <div class="d-flex justify-content-between">
+              <div class="small text-muted">Tot €</div>
+              <div class="fw-semibold" id="dlvETotEuro">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-danger me-auto" id="dlvEDelete">{{ tr('rendiconto', 'common.delete', 'Elimina') }}</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ tr('rendiconto', 'common.close', 'Chiudi') }}</button>
+          <button type="button" class="btn btn-primary" id="dlvESave">{{ tr('warehouse', 'common.save', 'Salva') }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function() {
+  var I18N = {
+    noAmount: {{ tr('warehouse', 'delivery.no_amount_entered', 'Nessun importo inserito')|tojson }},
+    noGroup: {{ tr('warehouse', 'delivery.no_group', '(Senza gruppo)')|tojson }},
+    missingDeleteData: {{ tr('warehouse', 'delivery_edit.missing_delete_data', 'Dati mancanti per eliminare la riga.')|tojson }},
+    confirmDeleteRowPrefix: {{ tr('warehouse', 'delivery_edit.confirm_delete_row_prefix', 'Confermi eliminazione della riga')|tojson }},
+    deleteRowError: {{ tr('warehouse', 'delivery_edit.delete_row_error', 'Errore eliminazione riga.')|tojson }},
+    deleteNetworkError: {{ tr('warehouse', 'delivery_edit.delete_network_error', 'Errore rete durante eliminazione:')|tojson }},
+    requiredHeader: {{ tr('warehouse', 'delivery_edit.required_header', 'Compila fornitore e date prima di salvare.')|tojson }},
+    invalidPackagesPrefix: {{ tr('warehouse', 'delivery.invalid_packages_prefix', 'Valore "Colli" non valido nella riga:')|tojson }},
+    invalidPiecesPrefix: {{ tr('warehouse', 'delivery.invalid_pieces_prefix', 'Valore "Pezzi" non valido nella riga:')|tojson }},
+    invalidNumberHelp: {{ tr('warehouse', 'delivery.invalid_number_help', 'Usa solo numeri (decimali con , o .).')|tojson }},
+    row: {{ tr('warehouse', 'delivery.row', 'Riga')|tojson }},
+    saveChangesIntro: {{ tr('warehouse', 'delivery_edit.save_changes_intro', 'Stai per salvare le modifiche del DDT:')|tojson }},
+    supplier: {{ tr('warehouse', 'analysis.supplier', 'Fornitore')|tojson }},
+    documentDate: {{ tr('warehouse', 'delivery.document_date', 'Data documento')|tojson }},
+    deliveryDate: {{ tr('warehouse', 'delivery.delivery_date', 'Data consegna')|tojson }},
+    changedRows: {{ tr('warehouse', 'delivery_edit.changed_rows', 'Righe modificate')|tojson }},
+    noChangedRows: {{ tr('warehouse', 'delivery_edit.no_changed_rows', 'Nessuna riga modificata. Vuoi procedere comunque?')|tojson }},
+    confirm: {{ tr('warehouse', 'delivery.confirm', 'Confermi?')|tojson }},
+    totalQty: {{ tr('warehouse', 'delivery.total_qty', 'Q.tà totale')|tojson }},
+    value: {{ tr('warehouse', 'delivery.value', 'Valore')|tojson }},
+    requiredNewDates: {{ tr('warehouse', 'delivery_edit.required_new_dates', 'Compila le nuove date prima di applicare.')|tojson }},
+    confirmChangeDates: {{ tr('warehouse', 'delivery_edit.confirm_change_dates', 'Confermi cambio date su tutte le righe del DDT?')|tojson }},
+    showDetails: {{ tr('warehouse', 'consumi.show_details', 'Mostra dettagli')|tojson }},
+    hideDetails: {{ tr('warehouse', 'consumi.hide_details', 'Nascondi dettagli')|tojson }},
+    product: {{ tr('warehouse', 'delivery.product', 'Prodotto')|tojson }},
+    group: {{ tr('warehouse', 'delivery.group', 'Gruppo')|tojson }},
+    withoutDescription: {{ tr('warehouse', 'delivery.without_description', '(Senza descrizione)')|tojson }}
+  };
+  window.__WH_DELIVERY_EDIT_I18N = I18N;
+  function parseNumber(value) {
+    if (value === null || value === undefined) return 0;
+    value = String(value).trim();
+    if (!value) return 0;
+    value = value.replace(/\\s/g, '');
+    var hasComma = value.indexOf(',') !== -1;
+    var hasDot = value.indexOf('.') !== -1;
+    if (hasComma) {
+      value = value.replace(/\\./g, '');
+      value = value.replace(',', '.');
+      var n = parseFloat(value);
+      return isNaN(n) ? 0 : n;
+    }
+    if (hasDot) {
+      var parts = value.split('.');
+      if (parts.length > 2) {
+        var dec = parts.pop();
+        value = parts.join('') + '.' + dec;
+      }
+      var n2 = parseFloat(value);
+      return isNaN(n2) ? 0 : n2;
+    }
+    var n3 = parseFloat(value);
+    return isNaN(n3) ? 0 : n3;
+  }
+
+  function formatNumber(n) {
+    if (n === null || n === undefined) return '';
+    var x = parseFloat(n);
+    if (isNaN(x)) return '';
+    return x.toFixed(2).replace('.', ',');
+  }
+
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+    });
+  }
+
+  var _totalsScheduled = false;
+  function scheduleTotals() {
+    if (_totalsScheduled) return;
+    _totalsScheduled = true;
+    window.requestAnimationFrame(function() {
+      _totalsScheduled = false;
+      updateTotals();
+    });
+  }
+
+  function updateTotals() {
+    var supplierEl = document.getElementById('supplier_code');
+    var supplierName = '-';
+    if (supplierEl) {
+      if (supplierEl.selectedIndex >= 0) supplierName = supplierEl.options[supplierEl.selectedIndex].text || supplierEl.value || '-';
+      else supplierName = supplierEl.value || '-';
+    }
+
+    var lbl = document.getElementById('dlvTotalsSupplier');
+    if (lbl) lbl.textContent = supplierName || '-';
+
+    var groupMap = {};
+    var grand = 0;
+
+    document.querySelectorAll('.dlv-row').forEach(function(row) {
+      var valEl = row.querySelector('.dlv-valore');
+      var val = parseNumber(valEl && valEl.value);
+      if (!val) return;
+
+      var grpCell = row.querySelector('.dlv-col-group, .dlv-col-gruppo');
+      var grp = grpCell ? (grpCell.textContent || '').trim() : '';
+      if (!grp) grp = I18N.noGroup;
+
+      groupMap[grp] = (groupMap[grp] || 0) + val;
+      grand += val;
+    });
+
+    var grandEl = document.getElementById('dlvTotalsGrand');
+    if (grandEl) grandEl.textContent = formatNumber(grand);
+
+    var body = document.getElementById('dlvTotalsByGroup');
+    if (!body) return;
+
+    body.innerHTML = '';
+    var keys = Object.keys(groupMap);
+    if (keys.length === 0) {
+      body.innerHTML = '<tr><td class="text-muted" colspan="2">' + escapeHtml(I18N.noAmount) + '</td></tr>';
+      return;
+    }
+
+    var rows = keys.map(function(k){ return [k, groupMap[k]]; });
+    rows.sort(function(a,b){ return b[1] - a[1]; });
+
+    rows.forEach(function(item) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + escapeHtml(item[0]) + '</td>' +
+                     '<td class="text-end fw-semibold">' + formatNumber(item[1]) + '</td>';
+      body.appendChild(tr);
+    });
+  }
+
+  // init totali (al cambio fornitore e al primo render)
+  var supplierTotalsEl = document.getElementById('supplier_code');
+  if (supplierTotalsEl) supplierTotalsEl.addEventListener('change', scheduleTotals);
+  scheduleTotals();
+
+
+        function isValidEuNumberString(raw) {
+          raw = (raw === null || raw === undefined) ? '' : String(raw);
+          raw = raw.trim();
+          if (!raw) return true;
+          raw = raw.replace(/\s/g, '');
+          // Only digits, dot, comma
+          if (!/^[0-9.,]+$/.test(raw)) return false;
+          // Max one comma; if no comma, max one dot
+          var commaCount = (raw.match(/,/g) || []).length;
+          if (commaCount > 1) return false;
+          if (commaCount === 0) {
+            var dotCount = (raw.match(/\./g) || []).length;
+            if (dotCount > 1) return false;
+          }
+          return true;
+        }
+function recalcRow(row) {
+    var collInput = row.querySelector('.dlv-colli-input');
+    var pezziInput = row.querySelector('.dlv-pezzi-input');
+    var prezzoInput = row.querySelector('.dlv-prezzo-input');
+    var scontoInput = row.querySelector('.dlv-sconto-input');
+
+    var qtaInput = row.querySelector('.dlv-qta-tot');
+    var valoreInput = row.querySelector('.dlv-valore');
+
+    var unitCell = row.querySelector('[data-unit-factor]');
+          var priceDefaultCell = row.querySelector('[data-price-default]');
+          var coll = parseNumber(collInput && collInput.value);
+    var pezzi = parseNumber(pezziInput && pezziInput.value);
+    var unitFactor = unitCell ? parseNumber(unitCell.getAttribute('data-unit-factor')) : 1;
+    if (!unitFactor) unitFactor = 1;
+
+    var prezzo = parseNumber(prezzoInput && prezzoInput.value);
+    if (!prezzo && priceDefaultCell) {
+      prezzo = parseNumber(priceDefaultCell.getAttribute('data-price-default'));
+    }
+
+    var scontoPerc = parseNumber(scontoInput && scontoInput.value);
+    var sconto = (100 - scontoPerc) / 100.0;
+
+    var qtaTot = coll + (pezzi / unitFactor);
+    var valore = qtaTot * prezzo * sconto;
+
+    if (qtaInput) qtaInput.value = formatNumber(qtaTot);
+    if (valoreInput) valoreInput.value = formatNumber(valore);
+      scheduleTotals();
+  }
+
+  function bindRow(row) {
+    var inputs = row.querySelectorAll('.dlv-colli-input, .dlv-pezzi-input, .dlv-prezzo-input, .dlv-sconto-input');
+    inputs.forEach(function(inp) {
+      inp.addEventListener('input', function() { recalcRow(row); });
+    });
+  }
+
+  document.querySelectorAll('.dlv-row').forEach(function(row) {
+    bindRow(row);
+    recalcRow(row);
+  });
+
+  // reset prezzo ddt
+  document.querySelectorAll('.dlv-reset-price').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var row = btn.closest('.dlv-row');
+      if (!row) return;
+      var prezzoInput = row.querySelector('.dlv-prezzo-input');
+      if (!prezzoInput) return;
+      prezzoInput.value = '';
+      recalcRow(row);
+    });
+  });
+
+  // delete row realtime
+  document.querySelectorAll('.dlv-delete-row').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var row = btn.closest('.dlv-row');
+      if (!row) return;
+
+      var supplier = document.getElementById('supplier_code').value;
+      var dataDoc = document.getElementById('data_doc').value;
+      var dataRif = document.getElementById('data_rif').value;
+      var descr = row.getAttribute('data-desc') || '';
+
+      if (!supplier || !dataDoc || !dataRif || !descr) {
+        alert(I18N.missingDeleteData);
+        return;
+      }
+
+      if (!confirm(I18N.confirmDeleteRowPrefix + ' "' + descr + '"?')) return;
+
+      fetch('{{ url_for("warehouse.delivery_delete_row") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplier_code: supplier,
+          data_doc: dataDoc,
+          data_rif: dataRif,
+          descrizione: descr
+        })
+      }).then(function(r) { return r.json(); })
+        .then(function(resp) {
+          if (!resp.success) {
+            alert(resp.error || I18N.deleteRowError);
+            return;
+          }
+          // segna come eliminata e rimuovi dal DOM
+          var flag = row.querySelector('.row-deleted-flag');
+          if (flag) flag.value = '1';
+          row.remove();
+          scheduleTotals();
+          if (typeof window.__dlvEditRebuildMobileList === 'function') {
+            window.__dlvEditRebuildMobileList();
+          }
+        }).catch(function(err) {
+          alert(I18N.deleteNetworkError + ' ' + err);
+        });
+    });
+  });
+
+  // ricerca (desktop): filtra righe per descrizione
+  function applyTableSearchFilter() {
+    var s = document.getElementById('dlvSearchInput');
+    var q = s ? (s.value || '').toLowerCase().trim() : '';
+    document.querySelectorAll('tr.dlv-row').forEach(function(tr) {
+      var d = tr.querySelector('.dlv-col-desc');
+      var txt = d ? (d.textContent || '').toLowerCase() : '';
+      tr.style.display = (!q || txt.indexOf(q) !== -1) ? '' : 'none';
+    });
+  }
+  var _dlvSearchEl = document.getElementById('dlvSearchInput');
+  if (_dlvSearchEl) {
+    _dlvSearchEl.addEventListener('input', applyTableSearchFilter);
+    applyTableSearchFilter();
+  }
+
+  // conferma salvataggio modifiche: solo righe cambiate
+  var saveBtn = document.querySelector('button.btn-success');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function(ev) {
+      var dataDoc = document.getElementById('data_doc').value;
+      var dataRif = document.getElementById('data_rif').value;
+      var supplierSelect = document.getElementById('supplier_code');
+      var supplierText = supplierSelect ? supplierSelect.value : '';
+
+      if (!dataDoc || !dataRif || !supplierText) {
+        alert(I18N.requiredHeader);
+        ev.preventDefault();
+        return;
+      }
+
+      
+      // Validazione Colli/Pezzi: accetta decimali con , o .
+      var rowsArrV = Array.from(document.querySelectorAll('.dlv-row'));
+      var invalidMsgV = '';
+      for (var r = 0; r < rowsArrV.length; r++) {
+        var rowV = rowsArrV[r];
+        var idxV = rowV.getAttribute('data-row-index');
+        var colliV = (rowV.querySelector('.dlv-colli-input') || {}).value || '';
+        var pezziV = (rowV.querySelector('.dlv-pezzi-input') || {}).value || '';
+        var descCellV = rowV.querySelector('.dlv-col-desc');
+        var descV = descCellV ? (descCellV.textContent || '').trim() : (I18N.row + ' ' + (r + 1));
+
+        if (!isValidEuNumberString(colliV) || parseNumber(colliV) < 0) {
+          invalidMsgV = I18N.invalidPackagesPrefix + ' ' + descV;
+          break;
+        }
+        if (!isValidEuNumberString(pezziV) || parseNumber(pezziV) < 0) {
+          invalidMsgV = I18N.invalidPiecesPrefix + ' ' + descV;
+          break;
+        }
+      }
+      if (invalidMsgV) {
+        alert(invalidMsgV + '\n' + I18N.invalidNumberHelp);
+        ev.preventDefault();
+        return;
+      }
+
+      var summaryLines = [];
+      document.querySelectorAll('.dlv-row').forEach(function(row) {
+        var idx = row.getAttribute('data-row-index');
+        var colli = (row.querySelector('.dlv-colli-input') || {}).value || '';
+        var pezzi = (row.querySelector('.dlv-pezzi-input') || {}).value || '';
+        var prezzo = (row.querySelector('.dlv-prezzo-input') || {}).value || '';
+        var origColli = (row.querySelector('input[name="row-' + idx + '-orig-colli"]') || {}).value || '';
+        var origPezzi = (row.querySelector('input[name="row-' + idx + '-orig-pezzi"]') || {}).value || '';
+
+        if (colli !== origColli || pezzi !== origPezzi || (prezzo && prezzo.trim() !== '')) {
+          var descCell = row.querySelector('.dlv-col-desc');
+          var desc = descCell ? (descCell.textContent || '').trim() : '';
+          var qtaStr = (row.querySelector('.dlv-qta-tot') || {}).value || '';
+          var valStr = (row.querySelector('.dlv-valore') || {}).value || '';
+          summaryLines.push('- ' + desc + ' | ' + I18N.totalQty + ': ' + qtaStr + ' | ' + I18N.value + ': ' + valStr);
+        }
+      });
+
+      var msg = I18N.saveChangesIntro + '\n\n' +
+                I18N.supplier + ': ' + supplierText + '\n' +
+                I18N.documentDate + ': ' + dataDoc + '\n' +
+                I18N.deliveryDate + ': ' + dataRif + '\n\n';
+
+      if (summaryLines.length === 0) {
+        msg += I18N.noChangedRows;
+      } else {
+        msg += I18N.changedRows + ':\n' + summaryLines.join('\n') + '\n\n' + I18N.confirm;
+      }
+
+      if (!confirm(msg)) {
+        ev.preventDefault();
+      }
+    });
+  }
+
+  // conferma cambio date
+  var changeBtn = document.querySelector('button.btn-warning');
+  if (changeBtn) {
+    changeBtn.addEventListener('click', function(ev) {
+      var ndoc = document.getElementById('new_data_doc').value;
+      var nrif = document.getElementById('new_data_rif').value;
+      if (!ndoc || !nrif) {
+        alert(I18N.requiredNewDates);
+        ev.preventDefault();
+        return;
+      }
+      if (!confirm(I18N.confirmChangeDates)) {
+        ev.preventDefault();
+        return;
+      }
+    });
+  }
+
+  /* ============================
+     Mobile (telefono): elenco + popup prodotto (MODIFICA DDT)
+     ============================ */
+  document.addEventListener('DOMContentLoaded', function() {
+    const listEl = document.getElementById('dlvEditMobileList');
+    const emptyEl = document.getElementById('dlvEditMobileEmpty');
+    const modalEl = document.getElementById('dlvEditMobileModal');
+    if (!listEl || !modalEl) return;
+    if (!(window.bootstrap && bootstrap.Modal)) return;
+
+    const modal = new bootstrap.Modal(modalEl);
+    const titleEl = document.getElementById('dlvEditMobileModalTitle');
+    const metaEl  = document.getElementById('dlvEditMobileModalMeta');
+    const inpColli = document.getElementById('dlvEColli');
+    const inpPezzi = document.getElementById('dlvEPezzi');
+    const inpPrezzo = document.getElementById('dlvEPrezzo');
+    const inpSconto = document.getElementById('dlvESconto');
+    const outQta = document.getElementById('dlvEQta');
+    const outTotEuro = document.getElementById('dlvETotEuro');
+    const btnSave = document.getElementById('dlvESave');
+    const btnDelete = document.getElementById('dlvEDelete');
+
+    let activeTr = null;
+
+    function getDesc(tr) {
+      const d = tr.querySelector('.dlv-col-desc');
+      return d ? (d.textContent || '').trim() : (tr.dataset.desc || '');
+    }
+    function getGroup(tr) {
+      const g = tr.querySelector('.dlv-col-group, .dlv-col-gruppo');
+      return g ? (g.textContent || '').trim() : '';
+    }
+    function getInp(tr, sel) { return tr ? tr.querySelector(sel) : null; }
+
+    function applyMobileFilter() {
+      const searchInput = document.getElementById('dlvSearchInput');
+      const q = searchInput ? (searchInput.value || '').toLowerCase().trim() : '';
+      let visible = 0;
+      const items = listEl.querySelectorAll('.mobile-product-item');
+      items.forEach((it) => {
+        const t = (it.textContent || '').toLowerCase();
+        const ok = (!q || t.includes(q));
+        it.style.display = ok ? '' : 'none';
+        if (ok) visible += 1;
+      });
+      if (emptyEl) {
+        if (visible === 0) emptyEl.classList.remove('d-none');
+        else emptyEl.classList.add('d-none');
+      }
+    }
+
+    function ensureRowIndexes() {
+      const trs = Array.from(document.querySelectorAll('tr.dlv-row'));
+      trs.forEach((tr, i) => { if (!tr.dataset.rowIndex) tr.dataset.rowIndex = String(i); });
+    }
+
+    function rebuildList() {
+      ensureRowIndexes();
+      listEl.innerHTML = '';
+      const trs = Array.from(document.querySelectorAll('tr.dlv-row'));
+      trs.forEach((tr) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'list-group-item list-group-item-action mobile-product-item';
+        btn.dataset.rowIndex = tr.dataset.rowIndex;
+        btn.textContent = getDesc(tr) || I18N.withoutDescription;
+        listEl.appendChild(btn);
+      });
+
+      // espone per eventuali delete su desktop
+      window.__dlvEditRebuildMobileList = rebuildList;
+      applyMobileFilter();
+    }
+
+    function openModalFor(tr) {
+      activeTr = tr;
+      const desc = getDesc(tr);
+      const grp = getGroup(tr);
+      if (titleEl) titleEl.textContent = desc || I18N.product;
+      if (metaEl) metaEl.textContent = grp ? (I18N.group + ': ' + grp) : '';
+
+      const elColli = getInp(tr, 'input.dlv-colli-input');
+      const elPezzi = getInp(tr, 'input.dlv-pezzi-input');
+      const elPrezzo = getInp(tr, 'input.dlv-prezzo-input');
+      const elSconto = getInp(tr, 'input.dlv-sconto-input');
+      const elQta = getInp(tr, 'input.dlv-qta-tot');
+      const elVal = getInp(tr, 'input.dlv-valore');
+
+      inpColli.value = elColli ? (elColli.value || '') : '';
+      inpPezzi.value = elPezzi ? (elPezzi.value || '') : '';
+      inpPrezzo.value = elPrezzo ? (elPrezzo.value || '') : '';
+      inpSconto.value = elSconto ? (elSconto.value || '') : '';
+
+      outQta.textContent = elQta ? (elQta.value || '0') : '0';
+      outTotEuro.textContent = elVal ? (elVal.value || '0') : '0';
+
+      modal.show();
+    }
+
+    listEl.addEventListener('click', function(ev) {
+      const btn = ev.target.closest('.mobile-product-item');
+      if (!btn) return;
+      const idx = btn.dataset.rowIndex;
+      const tr = document.querySelector('tr.dlv-row[data-row-index="' + idx + '"]');
+      if (tr) openModalFor(tr);
+    });
+
+    btnSave.addEventListener('click', function() {
+      if (!activeTr) return;
+
+      const elColli = getInp(activeTr, 'input.dlv-colli-input');
+      const elPezzi = getInp(activeTr, 'input.dlv-pezzi-input');
+      const elPrezzo = getInp(activeTr, 'input.dlv-prezzo-input');
+      const elSconto = getInp(activeTr, 'input.dlv-sconto-input');
+
+      if (elColli) elColli.value = inpColli.value || '';
+      if (elPezzi) elPezzi.value = inpPezzi.value || '';
+      if (elPrezzo) elPrezzo.value = inpPrezzo.value || '';
+      if (elSconto) elSconto.value = inpSconto.value || '';
+
+      // ricalcolo (solo pagina)
+      try { recalcRow(activeTr); } catch(e) {}
+      try { scheduleTotals(); } catch(e) {}
+
+      const elQta = getInp(activeTr, 'input.dlv-qta-tot');
+      const elVal = getInp(activeTr, 'input.dlv-valore');
+      outQta.textContent = elQta ? (elQta.value || '0') : '0';
+      outTotEuro.textContent = elVal ? (elVal.value || '0') : '0';
+
+      modal.hide();
+    });
+
+    if (btnDelete) {
+      btnDelete.addEventListener('click', function() {
+        if (!activeTr) return;
+        const supplier = (document.getElementById('supplier_code') || {}).value || '';
+        const dataDoc = (document.getElementById('data_doc') || {}).value || '';
+        const dataRif = (document.getElementById('data_rif') || {}).value || '';
+        const descr = activeTr.getAttribute('data-desc') || '';
+        if (!supplier || !dataDoc || !dataRif || !descr) {
+          alert(I18N.missingDeleteData);
+          return;
+        }
+        if (!confirm(I18N.confirmDeleteRowPrefix + ' "' + descr + '"?')) return;
+
+        fetch('{{ url_for("warehouse.delivery_delete_row") }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            supplier_code: supplier,
+            data_doc: dataDoc,
+            data_rif: dataRif,
+            descrizione: descr
+          })
+        }).then(function(r) { return r.json(); })
+          .then(function(resp) {
+            if (!resp.success) {
+              alert(resp.error || I18N.deleteRowError);
+              return;
+            }
+            activeTr.remove();
+            activeTr = null;
+            try { scheduleTotals(); } catch(e) {}
+            rebuildList();
+            modal.hide();
+          }).catch(function(err) {
+            alert(I18N.deleteNetworkError + ' ' + err);
+          });
+      });
+    }
+
+    rebuildList();
+
+    // filtro ricerca
+    const searchInput = document.getElementById('dlvSearchInput');
+    if (searchInput) searchInput.addEventListener('input', applyMobileFilter);
+
+  });
+
+})();
+</script>
+
+<script>
+  (function() {
+    var I18N = window.__WH_DELIVERY_EDIT_I18N || {};
+    var detailsShown = false;
+    var btn = document.getElementById('dlvToggleDetailsBtn');
+    function setShown(v) {
+      detailsShown = !!v;
+      document.querySelectorAll('.wh-detail-col').forEach(function(el) {
+        if (detailsShown) el.classList.remove('d-none');
+        else el.classList.add('d-none');
+      });
+      if (btn) btn.textContent = detailsShown ? (I18N.hideDetails || 'Nascondi dettagli') : (I18N.showDetails || 'Mostra dettagli');
+    }
+    if (btn) {
+      btn.addEventListener('click', function() { setShown(!detailsShown); });
+    }
+    document.addEventListener('DOMContentLoaded', function() { setShown(false); });
+  })();
+</script>
+
+{% endblock %}
+

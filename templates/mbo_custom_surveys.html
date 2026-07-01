@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+{% block title %}MBO - Survey{% endblock %}
+{% block head_extra %}
+<style>
+  .mbo-survey-admin { max-width: 1680px; }
+  .mbo-survey-band { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: .75rem; padding: 1rem; }
+  .mbo-survey-kpis { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap: .75rem; }
+  .mbo-survey-kpi { border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: .625rem .75rem; }
+  .mbo-survey-kpi span { display:block; color: var(--bs-secondary-color); font-size:.8rem; }
+  .mbo-survey-kpi strong { display:block; font-size:1.35rem; line-height:1.15; }
+  .mbo-question-row { border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: .75rem; background: var(--bs-tertiary-bg); }
+  .mbo-survey-pill { display:inline-flex; border-radius:999px; padding:.15rem .5rem; font-size:.72rem; font-weight:700; background:var(--bs-tertiary-bg); }
+  .mbo-survey-pill-on { background:rgba(25,135,84,.14); color:var(--bs-success); }
+  .mbo-survey-pill-off { background:rgba(108,117,125,.14); color:var(--bs-secondary-color); }
+  .mbo-link-cell { max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mbo-survey-overview-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:.75rem; }
+  .mbo-survey-result-card { border:1px solid var(--bs-border-color); border-radius:.75rem; padding:.9rem; background:var(--bs-body-bg); }
+  .mbo-survey-donut { width:74px; height:74px; border-radius:50%; background:conic-gradient(var(--bs-primary) calc(var(--pct) * 1%), var(--bs-tertiary-bg) 0); display:grid; place-items:center; }
+  .mbo-survey-donut span { width:52px; height:52px; border-radius:50%; background:var(--bs-body-bg); display:grid; place-items:center; font-weight:800; font-size:.85rem; }
+  .mbo-survey-mini-list { margin:0; padding-left:1rem; font-size:.84rem; }
+  .mbo-survey-comment-btn { white-space:nowrap; }
+  .mbo-survey-comment-list { max-height:58vh; overflow:auto; }
+  @media (max-width: 991.98px) { .mbo-survey-kpis { grid-template-columns:1fr; } }
+  @media (max-width: 1199.98px) { .mbo-survey-overview-grid { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+{% include "_mbo_toolbar.html" %}
+
+<div class="container-fluid mbo-survey-admin py-4">
+  <div class="mbo-survey-band d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+      <h1 class="mb-1">Survey</h1>
+      <div class="text-muted">Survey personalizzate con link pubblici per Store Manager o Area Manager.</div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label mb-1">Survey</label>
+        <select name="survey_uuid" class="form-select">
+          {% for s in survey.surveys %}
+          <option value="{{ s.survey_uuid }}" {% if s.survey_uuid == survey.selected_survey_uuid %}selected{% endif %}>{{ s.survey_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline-primary">Carica</button>
+    </form>
+  </div>
+
+  <div class="mbo-survey-kpis mb-3">
+    <div class="mbo-survey-kpi"><span>Compilazioni</span><strong>{{ survey.submission_count or 0 }}</strong></div>
+    <div class="mbo-survey-kpi"><span>Media %</span><strong>{% if survey.avg_pct is not none %}{{ "%.1f"|format(survey.avg_pct) }}%{% else %}-{% endif %}</strong></div>
+    <div class="mbo-survey-kpi"><span>Link generati</span><strong>{{ (survey.links or [])|length }}</strong></div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-xl-4">
+      <section class="mbo-survey-band mb-3">
+        <h2 class="h5 mb-3">Crea survey</h2>
+        <form method="post" id="surveyCreateForm" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="create_survey">
+          <label class="form-label">Nome survey interno</label>
+          <input class="form-control mb-2" name="survey_name" placeholder="Es. Survey leadership Q1" required>
+          <label class="form-label">Titolo per la compilazione</label>
+          <input class="form-control mb-2" name="display_name" placeholder="Es. Ascolto del team - Primo trimestre">
+          <div class="row g-2 mb-2">
+            <div class="col-md-6">
+              <label class="form-label">Da</label>
+              <input class="form-control" type="month" name="start_year_month" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">A</label>
+              <input class="form-control" type="month" name="end_year_month" required>
+            </div>
+          </div>
+          <label class="form-label">Associa a</label>
+          <select class="form-select mb-2" name="target_type" required>
+            <option value="store_manager">Store Manager</option>
+            <option value="area_manager">Area Manager</option>
+          </select>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="surveyActive" checked>
+            <label class="form-check-label" for="surveyActive">Survey attiva</label>
+          </div>
+
+          <label class="form-label">File domande</label>
+          <input class="form-control mb-2" type="file" name="questions_file" accept=".xlsx,.csv,text/csv" required>
+          <div class="form-text mb-3">
+            Colonne richieste: <strong>domanda</strong>. Colonne opzionali: <strong>tipo</strong>, <strong>categoria</strong>,
+            <strong>punteggio massimo</strong>, <strong>opzioni</strong>. Tipi: punteggio, scelta, numero, testo.
+            Per scelta usa opzioni tipo <code>Insufficiente=0 | Buono=3 | Ottimo=4</code>.
+          </div>
+          <button class="btn btn-primary w-100 mt-3">Crea e genera link</button>
+        </form>
+      </section>
+
+      <section class="mbo-survey-band">
+        <h2 class="h5 mb-3">Elenco survey</h2>
+        <div class="list-group">
+          {% for s in survey.surveys %}
+          <a class="list-group-item list-group-item-action {% if s.survey_uuid == survey.selected_survey_uuid %}active{% endif %}" href="{{ url_for('mbo.custom_surveys', survey_uuid=s.survey_uuid) }}">
+            <div class="d-flex justify-content-between gap-2">
+              <strong>{{ s.survey_name }}</strong>
+              <span class="mbo-survey-pill {% if s.is_active %}mbo-survey-pill-on{% else %}mbo-survey-pill-off{% endif %}">{{ 'Attiva' if s.is_active else 'Inattiva' }}</span>
+            </div>
+            {% if s.display_name and s.display_name != s.survey_name %}
+            <div class="small text-muted">{{ s.display_name }}</div>
+            {% endif %}
+            <div class="small">{{ s.start_year_month }} / {{ s.end_year_month }} · {{ 'Area Manager' if s.target_type == 'area_manager' else 'Store Manager' }}</div>
+          </a>
+          {% else %}
+          <div class="text-muted">Nessuna survey creata.</div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+
+    <div class="col-xl-8">
+      {% set selected = survey.selected_survey or {} %}
+      {% if selected %}
+      <section class="mbo-survey-band mb-3">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+          <div>
+            <h2 class="h5 mb-1">{{ selected.survey_name }}</h2>
+            {% if selected.display_name and selected.display_name != selected.survey_name %}
+            <div class="fw-semibold">{{ selected.display_name }}</div>
+            {% endif %}
+            <div class="text-muted">{{ selected.start_year_month }} / {{ selected.end_year_month }} · {{ 'Area Manager' if selected.target_type == 'area_manager' else 'Store Manager' }}</div>
+          </div>
+          <div class="d-flex gap-2 flex-wrap">
+            {% if selected.target_type == 'area_manager' %}
+              {% set survey_am_options = survey.overview.area_manager_results or [] %}
+            {% else %}
+              {% set survey_am_options = survey.overview.store_manager_by_area_manager or [] %}
+            {% endif %}
+            <form method="get" action="{{ url_for('mbo.custom_survey_export_xlsx', survey_uuid=selected.survey_uuid) }}" class="d-flex gap-2 flex-wrap align-items-end" data-no-overlay="1">
+              <div>
+                <label class="form-label small mb-1">Area Manager</label>
+                <select class="form-select form-select-sm" name="area_manager_uuid">
+                  <option value="">Tutti</option>
+                  {% for row in survey_am_options %}
+                  <option value="{{ row.target_code if selected.target_type == 'area_manager' else row.area_manager_uuid }}">
+                    {{ row.target_name if selected.target_type == 'area_manager' else row.area_manager_name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <button class="btn btn-sm btn-outline-success">Scarica Excel risultati</button>
+            </form>
+            <form method="get" action="{{ url_for('mbo.custom_survey_links_xlsx', survey_uuid=selected.survey_uuid) }}" class="d-flex gap-2 flex-wrap align-items-end" data-no-overlay="1">
+              <div>
+                <label class="form-label small mb-1">Area Manager</label>
+                <select class="form-select form-select-sm" name="area_manager_uuid">
+                  <option value="">Tutti</option>
+                  {% for row in survey_am_options %}
+                  <option value="{{ row.target_code if selected.target_type == 'area_manager' else row.area_manager_uuid }}">
+                    {{ row.target_name if selected.target_type == 'area_manager' else row.area_manager_name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <button class="btn btn-sm btn-outline-success">Scarica Excel link</button>
+            </form>
+            <form method="post" class="d-flex gap-2 align-items-center">
+              <input type="hidden" name="action" value="toggle_survey">
+              <input type="hidden" name="survey_uuid" value="{{ selected.survey_uuid }}">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_active" id="toggleActive" {% if selected.is_active %}checked{% endif %}>
+                <label class="form-check-label" for="toggleActive">Attiva</label>
+              </div>
+              <button class="btn btn-sm btn-outline-primary">Salva stato</button>
+            </form>
+          </div>
+        </div>
+
+        <form method="post" class="border rounded p-3 mb-3">
+          <input type="hidden" name="action" value="update_survey_names">
+          <input type="hidden" name="survey_uuid" value="{{ selected.survey_uuid }}">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+              <label class="form-label">Nome survey interno</label>
+              <input class="form-control" name="survey_name" value="{{ selected.survey_name }}" required>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label">Titolo per la compilazione</label>
+              <input class="form-control" name="display_name" value="{{ selected.display_name if selected.display_name != selected.survey_name else '' }}" placeholder="Lascia vuoto per usare il nome interno">
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-outline-primary w-100">Salva nomi</button>
+            </div>
+          </div>
+        </form>
+
+        <h3 class="h6">Panoramica risultati</h3>
+        {% set ov = survey.overview or {} %}
+        <div class="mbo-survey-overview-grid mb-3">
+          <div class="mbo-survey-result-card">
+            <div class="d-flex align-items-center gap-3">
+              <div class="mbo-survey-donut" style="--pct: {{ ov.overall.avg_pct or 0 }};"><span>{% if ov.overall.avg_pct is not none %}{{ "%.0f"|format(ov.overall.avg_pct) }}%{% else %}-{% endif %}</span></div>
+              <div>
+                <div class="fw-semibold">Risultato survey</div>
+                <div class="text-muted small">{{ survey.submission_count or 0 }} compilazioni</div>
+                {% if ov.overall.text_answers %}
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2 js-survey-answers" data-title="Commenti survey" data-answers='{{ ov.overall.text_answers|tojson|e }}'>Vedi commenti</button>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="mbo-survey-result-card">
+            <div class="fw-semibold mb-2">Punti di forza</div>
+            <ul class="mbo-survey-mini-list">
+              {% for item in ov.overall.strengths or [] %}
+              <li>{{ item.category }}: {{ "%.1f"|format(item.avg_pct or 0) }}%</li>
+              {% else %}
+              <li class="text-muted">Nessun dato sufficiente.</li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="mbo-survey-result-card">
+            <div class="fw-semibold mb-2">Aree di miglioramento</div>
+            <ul class="mbo-survey-mini-list">
+              {% for item in ov.overall.improvements or [] %}
+              <li>{{ item.category }}: {{ "%.1f"|format(item.avg_pct or 0) }}%</li>
+              {% else %}
+              <li class="text-muted">Nessun dato sufficiente.</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+
+        {% if selected.target_type == 'area_manager' %}
+        <h3 class="h6">Risultati Area Manager</h3>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Area Manager</th><th class="text-end">Compilazioni</th><th class="text-end">Media</th><th>Punti di forza</th><th>Aree di miglioramento</th><th class="text-end">Commenti</th></tr></thead>
+            <tbody>
+              {% for row in ov.area_manager_results or [] %}
+              <tr>
+                <td class="fw-semibold">{{ row.target_name }}</td>
+                <td class="text-end">{{ row.count }}</td>
+                <td class="text-end fw-semibold">{% if row.avg_pct is not none %}{{ "%.1f"|format(row.avg_pct) }}%{% else %}-{% endif %}</td>
+                <td class="small">{% for x in row.strengths[:2] %}<div>{{ x.category }} {{ "%.0f"|format(x.avg_pct or 0) }}%</div>{% endfor %}</td>
+                <td class="small">{% for x in row.improvements[:2] %}<div>{{ x.category }} {{ "%.0f"|format(x.avg_pct or 0) }}%</div>{% endfor %}</td>
+                <td class="text-end">
+                  {% if row.text_answer_count %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary js-survey-answers" data-title="Commenti - {{ row.target_name|e }}" data-answers='{{ row.text_answers|tojson|e }}'>{{ row.text_answer_count }}</button>
+                  {% else %}-{% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="6" class="text-center text-muted py-3">Nessun risultato Area Manager.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <h3 class="h6">Store Manager aggregati per Area Manager</h3>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Area Manager</th><th class="text-end">Store</th><th class="text-end">Media</th><th>Punti di forza</th><th>Aree di miglioramento</th><th class="text-end">Commenti</th></tr></thead>
+            <tbody>
+              {% for row in ov.store_manager_by_area_manager or [] %}
+              <tr>
+                <td class="fw-semibold">
+                  <details>
+                    <summary>{{ row.area_manager_name }}</summary>
+                    <div class="small text-muted mt-2">
+                      {% for store in row.stores %}
+                      <div>{{ store.target_name }}: {% if store.avg_pct is not none %}{{ "%.1f"|format(store.avg_pct) }}%{% else %}-{% endif %}</div>
+                      {% endfor %}
+                    </div>
+                  </details>
+                </td>
+                <td class="text-end">{{ row.count }}</td>
+                <td class="text-end fw-semibold">{% if row.avg_pct is not none %}{{ "%.1f"|format(row.avg_pct) }}%{% else %}-{% endif %}</td>
+                <td class="small">{% for x in row.strengths[:2] %}<div>{{ x.category }} {{ "%.0f"|format(x.avg_pct or 0) }}%</div>{% endfor %}</td>
+                <td class="small">{% for x in row.improvements[:2] %}<div>{{ x.category }} {{ "%.0f"|format(x.avg_pct or 0) }}%</div>{% endfor %}</td>
+                <td class="text-end">
+                  {% if row.text_answers %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary js-survey-answers" data-title="Commenti - {{ row.area_manager_name|e }}" data-answers='{{ row.text_answers|tojson|e }}'>{{ row.text_answers|length }}</button>
+                  {% else %}-{% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="6" class="text-center text-muted py-3">Nessun aggregato per Area Manager.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="h6">Risultati Store Manager</h3>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Store</th><th class="text-end">Compilazioni</th><th class="text-end">Media</th><th>Punti di forza</th><th>Aree di miglioramento</th><th class="text-end">Commenti</th></tr></thead>
+            <tbody>
+              {% for row in ov.store_manager_results or [] %}
+              <tr>
+                <td class="fw-semibold">{{ row.target_name }}</td>
+                <td class="text-end">{{ row.count }}</td>
+                <td class="text-end fw-semibold">{% if row.avg_pct is not none %}{{ "%.1f"|format(row.avg_pct) }}%{% else %}-{% endif %}</td>
+                <td class="small">{% for x in row.strengths[:2] %}<div>{{ x.category }} {{ "%.0f"|format(x.avg_pct or 0) }}%</div>{% endfor %}</td>
+                <td class="small">{% for x in row.improvements[:2] %}<div>{{ x.category }} {{ "%.0f"|format(x.avg_pct or 0) }}%</div>{% endfor %}</td>
+                <td class="text-end">
+                  {% if row.text_answer_count %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary js-survey-answers" data-title="Commenti - {{ row.target_name|e }}" data-answers='{{ row.text_answers|tojson|e }}'>{{ row.text_answer_count }}</button>
+                  {% else %}-{% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="6" class="text-center text-muted py-3">Nessun risultato Store Manager.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+        <h3 class="h6">Risultati aggregati</h3>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Target</th><th class="text-end">Compilazioni</th><th class="text-end">Media</th></tr></thead>
+            <tbody>
+              {% for row in survey.aggregates %}
+              <tr>
+                <td>
+                  <details>
+                    <summary class="fw-semibold">{{ row.target_name }}</summary>
+                    <div class="table-responsive mt-2">
+                      <table class="table table-sm mb-0">
+                        <thead><tr><th>Data</th><th>Compilatore</th><th class="text-end">Score</th><th></th></tr></thead>
+                        <tbody>
+                          {% for sub in row.submissions %}
+                          <tr>
+                            <td>{{ sub.created_at }}</td>
+                            <td>{{ sub.respondent_name or '-' }}</td>
+                            <td class="text-end">{% if sub.score_pct is not none %}{{ "%.1f"|format(sub.score_pct) }}%{% else %}-{% endif %}</td>
+                            <td class="text-end">
+                              {% if sub.answer_rows %}
+                              <button type="button" class="btn btn-sm btn-outline-secondary js-survey-answers me-1" data-title="Risposte - {{ row.target_name|e }}" data-answers='{{ sub.answer_rows|tojson|e }}'>Risposte</button>
+                              {% endif %}
+                              <form method="post" class="d-inline">
+                                <input type="hidden" name="action" value="delete_submission">
+                                <input type="hidden" name="survey_uuid" value="{{ selected.survey_uuid }}">
+                                <input type="hidden" name="submission_uuid" value="{{ sub.submission_uuid }}">
+                                <button class="btn btn-sm btn-outline-danger">Elimina</button>
+                              </form>
+                            </td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </td>
+                <td class="text-end">{{ row.count }}</td>
+                <td class="text-end fw-semibold">{% if row.avg_pct is not none %}{{ "%.1f"|format(row.avg_pct) }}%{% else %}-{% endif %}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="3" class="text-center text-muted py-4">Nessun risultato.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="h6">Statistiche per categoria</h3>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm">
+            <thead><tr><th>Categoria</th><th class="text-end">Risposte</th><th class="text-end">Media</th></tr></thead>
+            <tbody>
+              {% for c in survey.category_rows %}
+              <tr><td>{{ c.category }}</td><td class="text-end">{{ c.count }}</td><td class="text-end">{% if c.avg_pct is not none %}{{ "%.1f"|format(c.avg_pct) }}%{% else %}-{% endif %}</td></tr>
+              {% else %}
+              <tr><td colspan="3" class="text-center text-muted">Nessuna categoria calcolata.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <details class="border rounded p-3">
+          <summary class="fw-semibold">Link generati ({{ (survey.links or [])|length }})</summary>
+          <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle mb-0">
+              <thead><tr><th>{{ 'Area manager' if selected.target_type == 'area_manager' else 'Store' }}</th><th>Link</th></tr></thead>
+              <tbody>
+                {% for link in survey.links %}
+                <tr>
+                  <td>{{ link.target_name }}</td>
+                  <td class="mbo-link-cell">{{ url_for('mbo.custom_survey_fill', token=link.token, _external=True, _scheme='https') }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" class="text-muted text-center py-3">Nessun link generato.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="surveyAnswersModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="surveyAnswersTitle">Risposte</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div id="surveyAnswersBody" class="mbo-survey-comment-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const modalEl = document.getElementById('surveyAnswersModal');
+  const titleEl = document.getElementById('surveyAnswersTitle');
+  const bodyEl = document.getElementById('surveyAnswersBody');
+  const modal = modalEl && window.bootstrap ? new bootstrap.Modal(modalEl) : null;
+  const esc = (s) => String(s || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+  document.querySelectorAll('.js-survey-answers').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      let rows = [];
+      try { rows = JSON.parse(btn.getAttribute('data-answers') || '[]'); } catch (e) { rows = []; }
+      if (titleEl) titleEl.textContent = btn.getAttribute('data-title') || 'Risposte';
+      if (bodyEl) {
+        if (!rows.length) {
+          bodyEl.innerHTML = '<div class="text-muted">Nessuna risposta testuale.</div>';
+        } else {
+          bodyEl.innerHTML = rows.map(function (r) {
+            return '<div class="border rounded p-2 mb-2">'
+              + '<div class="small text-muted">' + esc(r.category || '') + '</div>'
+              + '<div class="fw-semibold mb-1">' + esc(r.question || '') + '</div>'
+              + '<div style="white-space:pre-wrap;">' + esc(r.answer || '') + '</div>'
+              + '</div>';
+          }).join('');
+        }
+      }
+      if (modal) modal.show();
+    });
+  });
+});
+</script>
+
+{% endblock %}

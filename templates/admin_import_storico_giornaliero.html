@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Admin - Import storico giornaliero{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Import storico giornaliero</h1>
+      <div class="text-muted small">Carica un CSV e associa le colonne ai campi report del tenant.</div>
+    </div>
+    <span class="badge text-bg-light border">{{ tenant.display_name }} ({{ selected_tenant_key }})</span>
+  </div>
+
+  {% if step == 'upload' %}
+    <div class="row g-3">
+      <div class="col-12 col-xl-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white fw-semibold">Tenant</div>
+          <div class="card-body">
+            <form method="get" class="vstack gap-2">
+              <label class="form-label">Seleziona tenant</label>
+              <select class="form-select" name="tenant_key" onchange="this.form.submit()">
+                {% for t in tenants %}
+                  <option value="{{ t.tenant_key }}" {% if selected_tenant_key == t.tenant_key %}selected{% endif %}>{{ t.display_name }} ({{ t.tenant_key }})</option>
+                {% endfor %}
+              </select>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-xl-8">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white fw-semibold">CSV storico</div>
+          <div class="card-body">
+            <form method="post" enctype="multipart/form-data" class="vstack gap-3">
+              <input type="hidden" name="action" value="upload_csv">
+              <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+              <div>
+                <label class="form-label">File CSV</label>
+                <input class="form-control" type="file" name="csv_file" accept=".csv,text/csv" required>
+              </div>
+              <div class="small text-muted">
+                Nel passaggio successivo mapperai almeno <code>Store</code> e <code>Data</code>. Le righe importate aggiornano eventuali dati gia presenti per stesso tenant/store/data.
+              </div>
+              <button class="btn btn-primary" type="submit">Carica e mappa colonne</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% elif step == 'map' %}
+    <form method="post" class="vstack gap-3">
+      <input type="hidden" name="action" value="confirm_import">
+      <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+      <input type="hidden" name="import_id" value="{{ import_id }}">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between gap-2">
+          <div class="fw-semibold">Mappatura colonne</div>
+          <div class="small text-muted">{{ filename }} · {{ row_count }} righe</div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Colonna CSV</th>
+                  <th>Campo StoreHub</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for h in headers %}
+                  <tr>
+                    <td class="fw-semibold">{{ h }}</td>
+                    <td>
+                      <select class="form-select form-select-sm" name="map__{{ h }}">
+                        <option value="">Ignora</option>
+                        {% for target in targets %}
+                          <option value="{{ target.key }}" {% if guesses.get(h) == target.key %}selected{% endif %}>{{ target.label }} ({{ target.key }})</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold">Anteprima</div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle">
+              <thead class="table-light">
+                <tr>
+                  {% for h in headers %}
+                    <th>{{ h }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview %}
+                  <tr>
+                    {% for h in headers %}
+                      <td>{{ row.get(h, '') }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-primary" type="submit" onclick="return window.confirm('Confermi import storico? Le righe con stesso tenant/store/data verranno aggiornate.');">Importa storico</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin_historical_daily_sales_import', tenant_key=selected_tenant_key) }}">Annulla</a>
+      </div>
+    </form>
+  {% elif step == 'result' %}
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">Esito import</div>
+      <div class="card-body">
+        <div class="fs-5 mb-2">{{ result.ok }} / {{ result.total }} righe scritte</div>
+        {% if result.errors %}
+          <div class="alert alert-warning">
+            <div class="fw-semibold mb-2">Errori sulle prime righe non importate</div>
+            <ul class="mb-0">
+              {% for err in result.errors %}
+                <li>{{ err }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        <a class="btn btn-primary" href="{{ url_for('admin_historical_daily_sales_import', tenant_key=selected_tenant_key) }}">Nuovo import</a>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

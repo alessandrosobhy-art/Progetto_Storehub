@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tr('cruscotto', 'kpi_weekly.title', 'Cruscotto - Analisi KPI Settimanale') }}{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/cruscotto_kpi_weekly_v1.css') }}?v=1.2.0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+{% endblock %}
+
+{% block content %}
+  {% include "_cruscotto_toolbar.html" %}
+
+  <div class="container py-4 cruscotto-kpi-weekly">
+    <div class="cr-header">
+      <div class="cr-header__left">
+        <h1 class="cr-title">{{ tr('cruscotto', 'kpi_weekly.heading', 'Analisi KPI Settimanale') }}</h1>
+        <div class="cr-subtitle">
+          <span id="weekRangeLabel">&mdash;</span>
+          <span class="cr-sep">&bull;</span>
+          <span class="text-muted">{{ tr('cruscotto', 'kpi_weekly.store', 'Store:') }}</span>
+          <span class="fw-semibold">{{ session.get('store_code') or '-' }}</span>
+        </div>
+      </div>
+      <div class="cr-header__right">
+        <div class="cr-week-picker">
+          <select class="form-select form-select-sm" id="yearSelect" aria-label="{{ tr('cruscotto', 'kpi_weekly.select_year', 'Seleziona anno') }}"></select>
+          <select class="form-select form-select-sm" id="weekNumSelect" aria-label="{{ tr('cruscotto', 'kpi_weekly.select_week', 'Seleziona settimana') }}"></select>
+          <div class="btn-group btn-group-sm" role="group" aria-label="{{ tr('cruscotto', 'kpi_weekly.week', 'Settimana') }}">
+            <button type="button" class="btn btn-outline-secondary" id="btnPrevWeek">&lsaquo;</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnThisWeek">{{ tr('cruscotto', 'kpi_weekly.today', 'Oggi') }}</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnNextWeek">&rsaquo;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-danger d-none" id="kpiWeeklyError"></div>
+
+    <section class="cr-section">
+      <div class="cr-section__head">
+        <h2 class="cr-section__title">{{ tr('cruscotto', 'revenues', 'Revenues') }}</h2>
+      </div>
+      <div class="row g-3">
+        <div class="col-12">
+          <div class="cr-card h-100">
+            <div class="cr-card__body">
+              <div id="revHero"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="cr-card h-100">
+            <div class="cr-card__head">
+              <div class="fw-semibold">{{ tr('cruscotto', 'kpi_weekly.revenue_compare', 'Confronto revenues') }}</div>
+              <div class="small text-muted">{{ tr('cruscotto', 'kpi_weekly.revenue_compare_help', 'Week / Week-1 / MTD (con scontrini)') }}</div>
+            </div>
+            <div class="cr-card__body">
+              <div class="chart-box" style="height:220px"><canvas id="chartRevCompare"></canvas></div>
+              <div class="small text-muted mt-2" id="revProjectionHint"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cr-section">
+      <div class="cr-section__head">
+        <h2 class="cr-section__title">Delivery</h2>
+      </div>
+
+      <div class="cr-kpi-grid" id="deliveryKpis"></div>
+      <div class="cr-kpi-grid mt-2" id="providerKpis"></div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-12">
+          <div class="cr-card h-100">
+            <div class="cr-card__head">
+              <div class="fw-semibold">{{ tr('cruscotto', 'kpi_weekly.refunds_aggregate', 'Rimborsi (aggregato)') }}</div>
+              <div class="small text-muted">{{ tr('cruscotto', 'kpi_weekly.refunds_help', 'Valore rimborsi vs annullati') }}</div>
+            </div>
+            <div class="cr-card__body">
+              <div class="chart-box" style="height:240px"><canvas id="chartRefunds"></canvas></div>
+              <div class="small text-muted mt-2" id="refundsHint"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cr-section">
+      <div class="cr-section__head">
+        <h2 class="cr-section__title">{{ tr('cruscotto', 'kpi_weekly.labor_cost', 'Costo del lavoro') }}</h2>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-12">
+          <div class="cr-card h-100">
+            <div class="cr-card__body">
+              <div id="laborHero"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="cr-card h-100">
+            <div class="cr-card__head">
+              <div class="fw-semibold">{{ tr('cruscotto', 'kpi_weekly.labor_cost', 'Costo del lavoro') }}</div>
+              <div class="small text-muted">{{ tr('cruscotto', 'kpi_weekly.labor_help', 'Week - Week -1 - Progressivo mese') }}</div>
+            </div>
+            <div class="cr-card__body">
+              <div class="chart-box" style="height:220px"><canvas id="chartLabor"></canvas></div>
+              <div class="small text-muted mt-2" id="laborHint"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cr-section">
+      <div class="cr-section__head">
+        <h2 class="cr-section__title">{{ tr('cruscotto', 'kpi_weekly.weekly_report', 'Relazione settimanale') }}</h2>
+      </div>
+
+      <div class="cr-card">
+        <div class="cr-card__head d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div>
+            <div class="fw-semibold">{{ tr('cruscotto', 'kpi_weekly.comments_notes', 'Commenti e note') }}</div>
+            <div class="small text-muted">{{ tr('cruscotto', 'kpi_weekly.note_help', 'Digita @ per inserire i KPI della pagina nella relazione.') }}</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" type="button" id="btnReloadNote">{{ tr('cruscotto', 'kpi_weekly.reload', 'Ricarica') }}</button>
+            <button class="btn btn-primary btn-sm" type="button" id="btnSaveNote">{{ tr('cruscotto', 'kpi_weekly.save', 'Salva') }}</button>
+          </div>
+        </div>
+        <div class="cr-card__body position-relative">
+          <textarea class="form-control" id="noteText" rows="7" placeholder="{{ tr('cruscotto', 'kpi_weekly.note_placeholder', 'Scrivi qui la relazione della settimana...') }}"></textarea>
+          <div class="tag-suggest d-none" id="tagSuggest"></div>
+          <div class="small text-muted mt-2" id="noteStatus"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    window.CRUSCOTTO_KPI_WEEKLY = {
+      apiUrl: "{{ url_for('cruscotto.api_kpi_weekly') }}",
+      noteGetUrl: "{{ url_for('cruscotto.api_kpi_note_get') }}",
+      noteSaveUrl: "{{ url_for('cruscotto.api_kpi_note_save') }}",
+      storeCode: {{ (session.get('store_code') or '') | tojson }},
+      locale: {{ current_language|default('it')|tojson }},
+      i18n: {
+        error: {{ tr('dashboard', 'error', 'Errore')|tojson }},
+        loading: {{ tr('common', 'loading', 'Caricamento...')|tojson }},
+        save: {{ tr('common', 'save', 'Salva')|tojson }},
+        revenues: {{ tr('cruscotto', 'revenues', 'Revenues')|tojson }},
+        budget: {{ tr('dashboard', 'budget', 'Budget')|tojson }},
+        receipts: {{ tr('dashboard', 'receipts', 'Scontrini')|tojson }},
+        laborCost: {{ tr('cruscotto', 'kpi_weekly.labor_cost', 'Costo del lavoro')|tojson }},
+        actual: {{ tr('cruscotto', 'actual', 'Actual')|tojson }},
+        lastYear: {{ tr('cruscotto', 'last_year', 'Last Year')|tojson }},
+        forecast: {{ tr('cruscotto', 'forecast', 'Previsione')|tojson }},
+        previous: {{ tr('cruscotto', 'previous_short', 'Prev')|tojson }},
+        week: {{ tr('cruscotto', 'kpi_weekly.week_short', 'Week')|tojson }},
+        weekMinus1: {{ tr('cruscotto', 'kpi_weekly.week_minus_1', 'Week -1')|tojson }},
+        mtd: {{ tr('cruscotto', 'kpi_weekly.mtd', 'MTD')|tojson }},
+        dataWeek: {{ tr('cruscotto', 'kpi_weekly.data_week', 'Dati week')|tojson }},
+        variancesWeek: {{ tr('cruscotto', 'kpi_weekly.variances_week', 'Scostamenti week')|tojson }},
+        variancesWeekMinus1: {{ tr('cruscotto', 'kpi_weekly.variances_week_minus_1', 'Scostamenti week -1')|tojson }},
+        monthToDate: {{ tr('cruscotto', 'kpi_weekly.month_to_date', 'Progressivo mese')|tojson }},
+        variances: {{ tr('cruscotto', 'kpi_weekly.variances', 'Scostamenti')|tojson }},
+        vsBudget: {{ tr('cruscotto', 'kpi_weekly.vs_budget', 'vs Budget')|tojson }},
+        vsLastYear: {{ tr('cruscotto', 'kpi_weekly.vs_last_year', 'vs Last Year')|tojson }},
+        coverageDataWeek: {{ tr('cruscotto', 'kpi_weekly.coverage_data_week', 'Copertura dati settimana')|tojson }},
+        missing: {{ tr('cruscotto', 'kpi_weekly.missing', 'Mancanti')|tojson }},
+        days: {{ tr('cruscotto', 'kpi_weekly.days_short', 'gg')|tojson }},
+        deliveryTotal: {{ tr('cruscotto', 'kpi_weekly.delivery_total', 'Totale delivery')|tojson }},
+        deliveryIncidence: {{ tr('cruscotto', 'kpi_weekly.delivery_incidence', 'Incidenza delivery')|tojson }},
+        deliveryOrders: {{ tr('cruscotto', 'kpi_weekly.delivery_orders', 'Ordini delivery')|tojson }},
+        cancelledOrders: {{ tr('cruscotto', 'kpi_weekly.cancelled_orders', 'Ordini cancellati')|tojson }},
+        estimatedOpeningPct: {{ tr('cruscotto', 'kpi_weekly.estimated_opening_pct', '% Apertura delivery stimata')|tojson }},
+        estimatedLostSales: {{ tr('cruscotto', 'kpi_weekly.estimated_lost_sales', 'Vendite perse stimate')|tojson }},
+        refundsPctOrders: {{ tr('cruscotto', 'kpi_weekly.refunds_pct_orders', '% Rimborsi su ordini')|tojson }},
+        refundsNetValue: {{ tr('cruscotto', 'kpi_weekly.refunds_net_value', 'Valore rimborsi netto contestazioni accettate')|tojson }},
+        deliveryOrdersReceipts: {{ tr('cruscotto', 'kpi_weekly.delivery_orders_receipts', 'Ordini delivery su scontrini')|tojson }},
+        online: {{ tr('dashboard', 'online', 'Online')|tojson }},
+        cash: {{ tr('dashboard', 'cash', 'Contanti')|tojson }},
+        avgReceipt: {{ tr('cruscotto', 'kpi_weekly.avg_receipt', 'Scontrino medio')|tojson }},
+        calculationCoverage: {{ tr('cruscotto', 'kpi_weekly.calculation_coverage', 'Copertura calcolo')|tojson }},
+        estimatedPotential: {{ tr('cruscotto', 'kpi_weekly.estimated_potential', 'Potenziale stimato')|tojson }},
+        openingProviderConfig: {{ tr('cruscotto', 'kpi_weekly.opening_provider_config', 'Apertura/chiusura da configurazione provider')|tojson }},
+        netDisputes: {{ tr('cruscotto', 'kpi_weekly.net_disputes', 'Netto contestazioni')|tojson }},
+        cancelled: {{ tr('cruscotto', 'kpi_weekly.cancelled', 'Annullati')|tojson }},
+        incidence: {{ tr('cruscotto', 'kpi_weekly.incidence', 'Incidenza')|tojson }},
+        orders: {{ tr('rendiconto', 'delivery.orders', 'Ordini')|tojson }},
+        rating: {{ tr('rendiconto', 'delivery.rating', 'Rating')|tojson }},
+        cancelledShort: {{ tr('cruscotto', 'kpi_weekly.cancelled_short', 'Cancellati')|tojson }},
+        opening: {{ tr('cruscotto', 'kpi_weekly.opening', 'Apertura')|tojson }},
+        reversedClosure: {{ tr('cruscotto', 'kpi_weekly.reversed_closure', 'Chiusura ribaltata')|tojson }},
+        lostEstimatedShort: {{ tr('cruscotto', 'kpi_weekly.lost_estimated_short', 'Perse stimate')|tojson }},
+        potential: {{ tr('cruscotto', 'kpi_weekly.potential', 'Potenziale')|tojson }},
+        receiptShort: {{ tr('cruscotto', 'kpi_weekly.receipt_short', 'Scontrino')|tojson }},
+        refundsValue: {{ tr('cruscotto', 'kpi_weekly.refunds_value', 'Valore rimborsi')|tojson }},
+        refunds: {{ tr('rendiconto', 'delivery.refunds', 'Rimborsi')|tojson }},
+        cancelledRefunds: {{ tr('cruscotto', 'kpi_weekly.cancelled_refunds', 'Rimborsi annullati')|tojson }},
+        netRefunds: {{ tr('cruscotto', 'kpi_weekly.net_refunds', 'Rimborsi netti')|tojson }},
+        refundsValueIncidence: {{ tr('cruscotto', 'kpi_weekly.refunds_value_incidence', 'Incidenza valore rimborsi su totale delivery')|tojson }},
+        estimatedOpeningPctShort: {{ tr('cruscotto', 'kpi_weekly.estimated_opening_pct_short', '% apertura stimata')|tojson }},
+        coverage: {{ tr('cruscotto', 'kpi_weekly.coverage', 'copertura')|tojson }},
+        laborCostShort: {{ tr('cruscotto', 'labor_cost', 'Costo lavoro')|tojson }},
+        pctOnRevenues: {{ tr('cruscotto', 'kpi_weekly.pct_on_revenues', '% su revenues')|tojson }},
+        hours: {{ tr('cruscotto', 'hours', 'Ore')|tojson }},
+        untilWeekMinus1: {{ tr('cruscotto', 'kpi_weekly.until_week_minus_1', 'MTD fino a week -1')|tojson }},
+        loading: {{ tr('common', 'loading', 'Caricamento...')|tojson }},
+        lastSave: {{ tr('cruscotto', 'kpi_weekly.last_save', 'Ultimo salvataggio')|tojson }},
+        noWeeklyReport: {{ tr('cruscotto', 'kpi_weekly.no_weekly_report', 'Nessuna relazione salvata per questa settimana.')|tojson }},
+        reportLoadError: {{ tr('cruscotto', 'kpi_weekly.report_load_error', 'Errore caricamento relazione')|tojson }},
+        saving: {{ tr('common', 'saving', 'Salvataggio...')|tojson }},
+        reportSaved: {{ tr('cruscotto', 'kpi_weekly.report_saved', 'Relazione salvata.')|tojson }},
+        saveError: {{ tr('common', 'save_error', 'Errore salvataggio.')|tojson }},
+      },
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/cruscotto_kpi_weekly_v1.js') }}?v=1.2.7"></script>
+{% endblock %}

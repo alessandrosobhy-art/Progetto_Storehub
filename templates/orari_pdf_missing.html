@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h4>Export PDF non disponibile</h4>
+  <div class="alert alert-warning mt-3">
+    Il modulo <b>reportlab</b> non è installato nell'ambiente Python, quindi l'export PDF non può essere generato dal server.
+  </div>
+
+  <p class="mb-2">Per abilitarlo installa il pacchetto:</p>
+  <pre class="bg-light p-2 rounded">python -m pip install reportlab</pre>
+
+  <p class="mb-3">Se usi la virtualenv del progetto, esegui il comando dopo averla attivata.</p>
+
+  <a class="btn btn-primary" href="{{ url_for('orari.orari_page') }}">Torna agli Orari</a>
+</div>
+{% endblock %}

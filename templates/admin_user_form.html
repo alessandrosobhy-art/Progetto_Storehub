@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Modifica utente{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width: 900px;">
+  <div class="d-flex justify-content-between align-items-start gap-3 mb-3 flex-wrap">
+    <div>
+      <h1 class="h4 mb-1">Modifica utente</h1>
+      <div class="small text-muted">Versione interfaccia: <span class="badge text-bg-light border">{{ admin_users_ui_version }}</span></div>
+    </div>
+  </div>
+
+  <form method="post">
+    <div class="card mb-3" id="storeAssignCard" style="{% if user_edit.role == 'fornitore' %}display:none;{% endif %}">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" value="{{ user_edit.email or '' }}" disabled>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Nome</label>
+            <input name="name" type="text" class="form-control" value="{{ user_edit.name or '' }}" placeholder="Nome e cognome">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Ruolo operativo</label>
+            <select name="role" class="form-select">
+              <option value="user" {% if user_edit.role == 'user' %}selected{% endif %}>User</option>
+              <option value="supervisor" {% if user_edit.role == 'supervisor' %}selected{% endif %}>Supervisor</option>
+              <option value="fornitore" {% if user_edit.role == 'fornitore' %}selected{% endif %}>Fornitore</option>
+              <option value="admin" {% if user_edit.role == 'admin' %}selected{% endif %}>Admin</option>
+            </select>
+          </div>
+
+          <div class="col-md-8">
+            <label class="form-label">Profilo di visualizzazione</label>
+            <select name="access_profile_id" class="form-select">
+              <option value="" {% if not user_edit.access_profile_id %}selected{% endif %}>(nessun profilo – accesso completo)</option>
+              {% for p in access_profiles or [] %}
+                <option value="{{ p.id }}" {% if user_edit.access_profile_id == p.id %}selected{% endif %}>
+                  {{ p.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Controlla quali moduli sono visibili e accessibili per l'utente.</div>
+          </div>
+
+          <div class="col-12" id="supplierAssignBlock" style="{% if user_edit.role != 'fornitore' %}display:none;{% endif %}">
+            <label class="form-label">Fornitori associati</label>
+            <select name="supplier_row_uuids" class="form-select" multiple size="8">
+              {% for s in supplier_options or [] %}
+                <option value="{{ s.row_uuid }}" {% if assigned_supplier_ids and s.row_uuid in assigned_supplier_ids %}selected{% endif %}>{{ s.Fornitore }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Per i profili fornitore, gli ordini ricevuti sono limitati ai fornitori qui associati.</div>
+          </div>
+
+          <div class="col-12">
+            {% if false %}
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" role="switch" id="masterSwitch" name="is_master"
+                     {% if user_edit.is_master or user_edit.role == 'master' %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="masterSwitch">Master</label>
+              <div class="form-text">
+                Abilita le configurazioni tenant. Se l'utente non è anche Admin, vedrà solo l'area Master.
+              </div>
+            </div>
+            {% endif %}
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="aiEnabledSwitch" name="ai_enabled"
+                     {% if user_edit.ai_enabled and tenant_ai_enabled %}checked{% endif %}
+                     {% if not tenant_ai_enabled %}disabled{% endif %}>
+              <label class="form-check-label fw-semibold" for="aiEnabledSwitch">Abilita AI</label>
+            </div>
+            <div class="form-text">
+              {% if tenant_ai_enabled %}
+                Abilitazione per singolo utente.
+              {% else %}
+                AI non abilitata per questo tenant dal Master.
+              {% endif %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Cambio password (opzionale)</h2>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Nuova password</label>
+            <input type="password" name="new_password" class="form-control" autocomplete="new-password">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Conferma nuova password</label>
+            <input type="password" name="new_password_confirm" class="form-control" autocomplete="new-password">
+          </div>
+          <div class="form-text">Compila entrambi i campi per aggiornare la password.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+          <div>
+            <h2 class="h6 mb-0">Store assegnati (Magazzino)</h2>
+            <div class="form-text">Seleziona gli store che l'utente può vedere nel modulo Magazzino.</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnStoreAll">Tutti</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnStoreNone">Nessuno</button>
+          </div>
+        </div>
+
+        <input id="storeSearch" type="text" class="form-control mb-2" placeholder="Cerca store per codice o nome…">
+
+        <div class="list-group" id="storeList" style="max-height: 360px; overflow:auto;">
+          {% for s in stores or [] %}
+            <label class="list-group-item d-flex gap-2 align-items-start store-row" data-code="{{ (s.code or '')|lower }}" data-name="{{ (s.name or '')|lower }}">
+              <input class="form-check-input mt-1 store-check" type="checkbox" name="store_codes" value="{{ s.code }}"
+                     {% if assigned_store_codes and (s.code in assigned_store_codes) %}checked{% endif %}>
+              <span>
+                <span class="fw-semibold">{{ s.code }}</span>
+                {% if s.name %}<span class="text-muted ms-1">{{ s.name }}</span>{% endif %}
+              </span>
+            </label>
+          {% else %}
+            <div class="text-muted small">Nessuno store disponibile (verifica tabella warehouse_stores in Supabase).</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary">Annulla</a>
+      <button class="btn btn-primary">Salva modifiche</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function(){
+  const search = document.getElementById('storeSearch');
+  const rows = Array.from(document.querySelectorAll('#storeList .store-row'));
+  const checks = Array.from(document.querySelectorAll('#storeList .store-check'));
+  const btnAll = document.getElementById('btnStoreAll');
+  const btnNone = document.getElementById('btnStoreNone');
+  const roleSelect = document.querySelector('select[name="role"]');
+  const aiSwitch = document.getElementById('aiEnabledSwitch');
+  const supplierBlock = document.getElementById('supplierAssignBlock');
+  const storeAssignCard = document.getElementById('storeAssignCard');
+  const masterSwitch = document.getElementById('masterSwitch');
+
+  function applyFilter(){
+    const q = (search.value || '').trim().toLowerCase();
+    rows.forEach(r => {
+      if(!q){ r.hidden = false; return; }
+      const code = (r.getAttribute('data-code') || '').toLowerCase();
+      const name = (r.getAttribute('data-name') || '').toLowerCase();
+      const text = (r.textContent || '').toLowerCase();
+      r.hidden = !(code.includes(q) || name.includes(q) || text.includes(q));
+    });
+  }
+
+  if(search){ search.addEventListener('input', applyFilter); }
+  if(btnAll){
+    btnAll.addEventListener('click', () => { checks.forEach(c => c.checked = true); });
+  }
+  if(btnNone){
+    btnNone.addEventListener('click', () => { checks.forEach(c => c.checked = false); });
+  }
+
+  function syncAiToggle(){
+    if(!roleSelect || !aiSwitch) return;
+    if(supplierBlock){
+      supplierBlock.style.display = ((roleSelect.value || '').toLowerCase() === 'fornitore') ? '' : 'none';
+    }
+    if(storeAssignCard){
+      storeAssignCard.style.display = ((roleSelect.value || '').toLowerCase() === 'fornitore') ? 'none' : '';
+    }
+  }
+
+  if(roleSelect && aiSwitch){
+    roleSelect.addEventListener('change', syncAiToggle);
+    syncAiToggle();
+  }
+  function syncMasterRole(){
+    if(!roleSelect || !masterSwitch) return;
+    if(masterSwitch.checked && (roleSelect.value || '').toLowerCase() === 'admin'){
+      roleSelect.value = 'master';
+      syncAiToggle();
+    }
+  }
+  if(masterSwitch){
+    masterSwitch.addEventListener('change', syncMasterRole);
+    syncMasterRole();
+  }
+})();
+</script>
+{% endblock %}

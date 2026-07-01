@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Invita utente{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width: 720px;">
+  <h1 class="h4 mb-3">Invita un nuovo utente</h1>
+
+  <form method="post" class="row g-3">
+    <div class="col-12">
+      <label class="form-label">Email</label>
+      <input name="email" type="email" class="form-control" required>
+    </div>
+    <div class="col-md-7">
+      <label class="form-label">Nome</label>
+      <input name="name" type="text" class="form-control" placeholder="Nome e cognome">
+    </div>
+    <div class="col-md-5">
+      <label class="form-label">Ruolo operativo</label>
+      <select name="role" class="form-select">
+        <option value="user" selected>User</option>
+        <option value="admin">Admin</option>
+        <option value="supervisor">Supervisor</option>
+        <option value="fornitore">Fornitore</option>
+      </select>
+    </div>
+    <div class="col-12" id="supplierAssignBlock" style="display:none;">
+      <label class="form-label">Fornitori associati</label>
+      <select name="supplier_row_uuids" class="form-select" multiple size="8">
+        {% for s in supplier_options or [] %}
+          <option value="{{ s.row_uuid }}" {% if assigned_supplier_ids and s.row_uuid in assigned_supplier_ids %}selected{% endif %}>{{ s.Fornitore }}</option>
+        {% endfor %}
+      </select>
+      <div class="form-text">Obbligatorio per i profili fornitore. Puoi associare uno o piu fornitori.</div>
+    </div>
+    <div class="col-12 d-flex gap-2 pt-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin_users') }}">Annulla</a>
+      <button class="btn btn-primary">Invia invito</button>
+    </div>
+  </form>
+</div>
+<script>
+(function(){
+  const roleSelect = document.querySelector('select[name="role"]');
+  const supplierBlock = document.getElementById('supplierAssignBlock');
+  function syncSupplierBlock(){
+    if(!roleSelect || !supplierBlock) return;
+    supplierBlock.style.display = (String(roleSelect.value || '').toLowerCase() === 'fornitore') ? '' : 'none';
+  }
+  if(roleSelect){
+    roleSelect.addEventListener('change', syncSupplierBlock);
+    syncSupplierBlock();
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block title %}Admin - Configurazione iPratico{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Configurazione iPratico</h1>
+      <div class="text-muted small">Integrazione tenant, in futuro spostabile nel livello Master.</div>
+    </div>
+    {% if config.enabled %}
+      <span class="badge text-bg-success">attiva</span>
+    {% else %}
+      <span class="badge text-bg-secondary">disattiva</span>
+    {% endif %}
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold">Tenant</div>
+        <div class="card-body">
+          <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-6 col-xl-4">
+              <label class="form-label">Seleziona tenant</label>
+              <select class="form-select" name="tenant_key" onchange="this.form.submit()">
+                {% for t in tenants %}
+                  <option value="{{ t.tenant_key }}" {% if selected_tenant_key == t.tenant_key %}selected{% endif %}>
+                    {{ t.display_name }} ({{ t.tenant_key }})
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-auto">
+              <button class="btn btn-outline-primary" type="submit">Carica</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold">Integrazione</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3">
+            <input type="hidden" name="action" value="save_config">
+            <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+            <div>
+              <label class="form-label">Nome tenant</label>
+              <input type="text" class="form-control" name="tenant_display_name" value="{{ tenant.display_name or '' }}" placeholder="Nome tenant">
+              <div class="form-text">Chiave tecnica: {{ tenant.tenant_key }} · Database: {{ tenant.database_name }}</div>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="ipraticoEnabled" name="enabled" value="1" {% if config.enabled %}checked{% endif %}>
+              <label class="form-check-label" for="ipraticoEnabled">Import iPratico attivo</label>
+            </div>
+            <div>
+              <label class="form-label">Giorni default per test</label>
+              <input type="number" class="form-control" name="test_days" min="1" max="14" value="{{ config.test_days or 4 }}">
+            </div>
+            <button class="btn btn-primary" type="submit">Salva</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold">Test metodi pagamento</div>
+        <div class="card-body">
+          {% if not config.enabled %}
+            <div class="alert alert-secondary mb-0">Integrazione iPratico disattivata per il tenant selezionato.</div>
+          {% else %}
+          <form method="post" class="row g-2 align-items-end">
+            <input type="hidden" name="action" value="test_profile">
+            <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+            <div class="col-12 col-md-3">
+              <label class="form-label">Store</label>
+              <input type="text" class="form-control" name="store_code" value="{{ form_state.store_code }}" placeholder="es. 4004">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label">Da</label>
+              <input type="date" class="form-control" name="start" value="{{ form_state.start }}">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label">A</label>
+              <input type="date" class="form-control" name="end" value="{{ form_state.end }}">
+            </div>
+            <div class="col-12 col-md-3">
+              <button class="btn btn-outline-primary w-100" type="submit">Esegui test</button>
+            </div>
+          </form>
+          {% if profile_error %}
+            <div class="alert alert-danger mt-3 mb-0">{{ profile_error }}</div>
+          {% endif %}
+          <form method="post" class="mt-3">
+            <input type="hidden" name="action" value="seed_standard_mappings">
+            <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+            <input type="hidden" name="store_code" value="{{ form_state.store_code }}">
+            <input type="hidden" name="start" value="{{ form_state.start }}">
+            <input type="hidden" name="end" value="{{ form_state.end }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Completa mappature standard</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if profile and config.enabled %}
+      <div class="col-12">
+        <div class="card shadow-sm">
+          <form method="post">
+            <input type="hidden" name="action" value="save_mappings">
+            <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+            <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold">Metodi trovati</div>
+                <div class="text-muted small">Store {{ profile.site }} · {{ profile.start }} / {{ profile.end }}</div>
+              </div>
+              <div class="d-flex flex-wrap gap-1">
+                <span class="badge text-bg-light border">{{ profile.raw_sessions }} sessioni</span>
+                <span class="badge text-bg-light border">{{ profile.sessions_with_payments }} con pagamenti</span>
+                <span class="badge text-bg-light border">{{ profile.methods|length }} metodi</span>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Metodo</th>
+                    <th>Classificazione attuale</th>
+                    <th class="text-end">Righe</th>
+                    <th class="text-end">Importo</th>
+                    <th>Destinazione distinta</th>
+                    <th style="width: 110px;">Tipo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in profile.methods %}
+                    {% set saved = mapping_by_method.get(row.method_key) %}
+                    {% set saved_target = (saved.target_section_key ~ '|' ~ saved.target_field_key ~ '|' ~ saved.target_label) if saved and saved.target_section_key and saved.target_field_key else '' %}
+                    <tr>
+                      <td>
+                        <input type="hidden" name="method_key" value="{{ row.method_key }}">
+                        <input type="hidden" name="method_label_{{ row.method_key }}" value="{{ row.method_label }}">
+                        <div class="fw-semibold">{{ row.method_label }}</div>
+                        <div class="text-muted small">{{ row.method_key }}</div>
+                        {% if row.raw_payment_label %}
+                          <div class="text-muted small">Metodo grezzo: {{ row.raw_payment_label }}</div>
+                        {% endif %}
+                        {% if row.delivery_count %}
+                          <div class="text-muted small">Delivery: {{ row.delivery_count }} · {{ '%.2f'|format(row.delivery_amount or 0)|replace('.', ',') }}</div>
+                        {% endif %}
+                        {% if row.delivery_source_app or row.delivery_source_type %}
+                          <div class="text-muted small">Source: {{ row.delivery_source_app or '-' }} / {{ row.delivery_source_type or '-' }}</div>
+                        {% endif %}
+                        {% if row.delivery_payment_context and row.delivery_payment_context != row.raw_payment_label %}
+                          <div class="text-muted small">Contesto pagamento: {{ row.delivery_payment_context }}</div>
+                        {% endif %}
+                      </td>
+                      <td><span class="badge text-bg-light border">{{ row.classified_as }}</span></td>
+                      <td class="text-end">{{ row.count }}</td>
+                      <td class="text-end">{{ '%.2f'|format(row.amount or 0)|replace('.', ',') }}</td>
+                      <td>
+                        <select class="form-select form-select-sm" name="target_{{ row.method_key }}">
+                          <option value="">Non mappato</option>
+                          {% for opt in target_options %}
+                            <option value="{{ opt.value }}" data-default-tipo="{{ opt.default_tipo or '' }}" {% if saved_target == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+                          {% endfor %}
+                        </select>
+                      </td>
+                      <td>
+                        <select class="form-select form-select-sm" name="target_tipo_{{ row.method_key }}">
+                          <option value="" {% if not saved or not saved.target_tipo %}selected{% endif %}>-</option>
+                          <option value="SI" {% if saved and saved.target_tipo == 'SI' %}selected{% endif %}>SI</option>
+                          <option value="NO" {% if saved and saved.target_tipo == 'NO' %}selected{% endif %}>NO</option>
+                        </select>
+                      </td>
+                    </tr>
+                  {% else %}
+                    <tr><td colspan="6" class="text-muted">Nessun metodo pagamento trovato nel periodo.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% if profile.methods %}
+              <div class="card-footer bg-white d-flex justify-content-end">
+                <button class="btn btn-primary" type="submit">Salva associazioni</button>
+              </div>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold">Mappature salvate</div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Metodo</th>
+                <th>Destinazione</th>
+                <th>Tipo</th>
+                <th>Stato</th>
+                <th class="text-end">Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in mappings %}
+                <tr>
+                  <td>{{ row.method_label }}</td>
+                  <td>{{ row.target_label or row.target_field_key or '-' }}</td>
+                  <td>{{ row.target_tipo or '-' }}</td>
+                  <td>{% if row.is_active %}<span class="badge text-bg-success">attiva</span>{% else %}<span class="badge text-bg-secondary">disattiva</span>{% endif %}</td>
+                  <td class="text-end">
+                    {% if config.enabled %}
+                    <div class="d-inline-flex gap-1">
+                      <form method="post">
+                        <input type="hidden" name="action" value="toggle_mapping">
+                        <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                        <input type="hidden" name="store_code" value="{{ form_state.store_code }}">
+                        <input type="hidden" name="start" value="{{ form_state.start }}">
+                        <input type="hidden" name="end" value="{{ form_state.end }}">
+                        <input type="hidden" name="method_key" value="{{ row.method_key }}">
+                        <input type="hidden" name="active" value="{{ 0 if row.is_active else 1 }}">
+                        <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Disattiva' if row.is_active else 'Riattiva' }}</button>
+                      </form>
+                      <form method="post" onsubmit="return window.confirm('Eliminare questa mappatura?');">
+                        <input type="hidden" name="action" value="delete_mapping">
+                        <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                        <input type="hidden" name="store_code" value="{{ form_state.store_code }}">
+                        <input type="hidden" name="start" value="{{ form_state.start }}">
+                        <input type="hidden" name="end" value="{{ form_state.end }}">
+                        <input type="hidden" name="method_key" value="{{ row.method_key }}">
+                        <button class="btn btn-outline-danger btn-sm" type="submit">Elimina</button>
+                      </form>
+                    </div>
+                    {% else %}
+                      <span class="text-muted small">-</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="5" class="text-muted">Nessuna mappatura salvata. Nel prossimo step useremo i metodi trovati dal test per associarli ai campi della distinta.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.querySelectorAll('select[name^="target_"]').forEach((select) => {
+    select.addEventListener('change', () => {
+      const suffix = select.name.slice('target_'.length);
+      const tipo = document.querySelector(`select[name="target_tipo_${suffix}"]`);
+      if (!tipo) return;
+      const selected = select.options[select.selectedIndex];
+      const defaultTipo = selected ? (selected.dataset.defaultTipo || '') : '';
+      tipo.value = defaultTipo;
+    });
+  });
+</script>
+{% endblock %}

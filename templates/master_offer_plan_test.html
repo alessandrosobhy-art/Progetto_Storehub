@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+{% block title %}Master - Piano offerta test{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Piano offerta e fogli produzione</h1>
+      <div class="text-muted small">Pagina test Master: ricette, piano offerta, foglio decongelazione e foglio spesa.</div>
+    </div>
+    <span class="badge text-bg-light border">Listino: {{ materials.price_list_name }} - {{ materials.count }} materie prime</span>
+  </div>
+
+  {% if materials.error %}
+    <div class="alert alert-warning">Errore caricamento Listino DOS: {{ materials.error }}</div>
+  {% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <div class="fw-semibold">Ricette</div>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('master_offer_plan_test') }}">Nuova</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Piatto</th>
+                <th>Famiglia</th>
+                <th>Zona</th>
+                <th>Stato</th>
+                <th class="text-end">Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for recipe in recipes %}
+                <tr>
+                  <td class="fw-semibold">{{ recipe.recipe_name }}</td>
+                  <td>{{ recipe.family or '-' }}</td>
+                  <td>{{ recipe.production_area or '-' }}</td>
+                  <td>
+                    {% if recipe.is_active %}
+                      <span class="badge text-bg-success">Attiva</span>
+                    {% else %}
+                      <span class="badge text-bg-secondary">Spenta</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('master_offer_plan_test', edit_recipe=recipe.row_uuid) }}">Modifica</a>
+                    <form method="post" class="d-inline">
+                      <input type="hidden" name="action" value="toggle_recipe">
+                      <input type="hidden" name="toggle_recipe_uuid" value="{{ recipe.row_uuid }}">
+                      <input type="hidden" name="toggle_active" value="{{ 0 if recipe.is_active else 1 }}">
+                      <button class="btn btn-sm btn-outline-secondary">{{ 'Disattiva' if recipe.is_active else 'Riattiva' }}</button>
+                    </form>
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="5" class="text-muted p-3">Nessuna ricetta creata.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-8">
+      <form method="post" class="card shadow-sm h-100">
+        <input type="hidden" name="action" value="save_recipe">
+        <input type="hidden" name="recipe_uuid" value="{{ recipe_form.row_uuid }}">
+        <div class="card-header bg-white">
+          <div class="fw-semibold">{{ 'Modifica ricetta' if recipe_form.row_uuid else 'Nuova ricetta' }}</div>
+          <div class="text-muted small">Crea il piatto e associa ingredienti, fornitore, cella e tempi di decongelazione.</div>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-lg-4">
+              <label class="form-label">Nome piatto</label>
+              <input class="form-control" name="recipe_name" value="{{ recipe_form.recipe_name }}" required>
+            </div>
+            <div class="col-12 col-lg-3">
+              <label class="form-label">Famiglia</label>
+              <input class="form-control" name="recipe_family" list="familyList" value="{{ recipe_form.family }}" placeholder="Primi, Secondi...">
+            </div>
+            <div class="col-12 col-lg-3">
+              <label class="form-label">Zona produzione</label>
+              <input class="form-control" name="recipe_production_area" list="areaList" value="{{ recipe_form.production_area }}" placeholder="Caldo primi...">
+            </div>
+            <div class="col-12 col-lg-2">
+              <label class="form-label">Stato</label>
+              <select class="form-select" name="recipe_is_active">
+                <option value="1" {% if recipe_form.is_active %}selected{% endif %}>Attiva</option>
+                <option value="0" {% if not recipe_form.is_active %}selected{% endif %}>Disattiva</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="min-width: 190px;">Fornitore</th>
+                  <th style="min-width: 260px;">Materia prima</th>
+                  <th style="width: 90px;">Unita</th>
+                  <th style="width: 130px;">Cella</th>
+                  <th style="width: 120px;" class="text-end">Q.ta/porz.</th>
+                  <th style="width: 110px;">Decong.</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in recipe_ingredients %}
+                  {% set i = loop.index %}
+                  <tr>
+                    <td>
+                      <select class="form-select form-select-sm supplier-select" name="ingredient_{{ i }}_supplier" data-row="{{ i }}">
+                        <option value="">-</option>
+                        {% for supplier in suppliers %}
+                          <option value="{{ supplier }}" {% if row.supplier == supplier %}selected{% endif %}>{{ supplier }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td>
+                      <select class="form-select form-select-sm material-select" name="ingredient_{{ i }}_material" data-row="{{ i }}" data-selected="{{ row.material }}">
+                        <option value="">{{ row.material or 'Seleziona fornitore...' }}</option>
+                      </select>
+                    </td>
+                    <td><input class="form-control form-control-sm" name="ingredient_{{ i }}_unit" id="ingredient_{{ i }}_unit" value="{{ row.unit }}" placeholder="KG"></td>
+                    <td>
+                      <select class="form-select form-select-sm" name="ingredient_{{ i }}_cell">
+                        {% for c in ['', 'Positivo', 'Negativo', 'Ortofrutta', 'Secco', 'Frigo', 'Generale'] %}
+                          <option value="{{ c }}" {% if row.cell == c %}selected{% endif %}>{{ c or '-' }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td><input class="form-control form-control-sm text-end" name="ingredient_{{ i }}_qty_per_portion" value="{{ row.qty_per_portion }}" placeholder="0,000"></td>
+                    <td>
+                      <select class="form-select form-select-sm" name="ingredient_{{ i }}_thaw_hours">
+                        {% for h in ['0', '24', '48', '72'] %}
+                          <option value="{{ h }}" {% if row.thaw_hours == h %}selected{% endif %}>{{ h }}h</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td><input class="form-control form-control-sm" name="ingredient_{{ i }}_note" value="{{ row.note }}"></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-end">
+          <button class="btn btn-primary">Salva ricetta</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <form method="post">
+    <input type="hidden" name="action" value="generate_preview">
+    <div class="card shadow-sm mb-3">
+      <div class="card-header bg-white fw-semibold">Contesto test</div>
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-md-3">
+            <label class="form-label">Settimana piano offerta</label>
+            <input class="form-control" name="week_code" value="{{ form_state.week_code }}" placeholder="es. S23">
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">Data esecuzione fogli</label>
+            <input class="form-control" type="date" name="test_date" value="{{ form_state.test_date }}">
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="alert alert-info small mb-0">
+              Il foglio spesa prende i prodotti senza decongelazione per la data selezionata; il foglio decongelazione prende i prodotti con 24/48 ore per i giorni successivi.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">Piano offerta</div>
+        <div class="text-muted small">Il piatto arriva dalle ricette attive.</div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 145px;">Data produzione</th>
+              <th style="width: 120px;">Servizio</th>
+              <th>Famiglia</th>
+              <th>Zona produzione</th>
+              <th>Piatto</th>
+              <th style="width: 120px;" class="text-end">Porzioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in offer_rows %}
+              {% set i = loop.index %}
+              <tr>
+                <td><input class="form-control form-control-sm" type="date" name="offer_{{ i }}_production_date" value="{{ row.production_date }}"></td>
+                <td>
+                  <select class="form-select form-select-sm" name="offer_{{ i }}_service">
+                    {% for s in ['', 'Pranzo', 'Cena'] %}
+                      <option value="{{ s }}" {% if row.service == s %}selected{% endif %}>{{ s or '-' }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <select class="form-select form-select-sm offer-family" name="offer_{{ i }}_family" data-row="{{ i }}">
+                    <option value="">-</option>
+                    {% for family in families %}
+                      <option value="{{ family }}" {% if row.family == family %}selected{% endif %}>{{ family }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <select class="form-select form-select-sm offer-area" name="offer_{{ i }}_area" data-row="{{ i }}">
+                    <option value="">-</option>
+                    {% for area in production_areas %}
+                      <option value="{{ area }}" {% if row.area == area %}selected{% endif %}>{{ area }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <select class="form-select form-select-sm offer-recipe" name="offer_{{ i }}_recipe_uuid" data-row="{{ i }}">
+                    <option value="">Seleziona...</option>
+                    {% for recipe in active_recipes %}
+                      <option value="{{ recipe.row_uuid }}" {% if row.recipe_uuid == recipe.row_uuid %}selected{% endif %}>{{ recipe.recipe_name }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td><input class="form-control form-control-sm text-end" name="offer_{{ i }}_portions" value="{{ row.portions }}" placeholder="0"></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer bg-white d-flex justify-content-end">
+        <button class="btn btn-primary">Genera anteprima fogli</button>
+      </div>
+    </div>
+  </form>
+
+  {% if preview %}
+    <div class="row g-3">
+      <div class="col-12 col-xl-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white">
+            <div class="fw-semibold">Foglio decongelazione</div>
+            <div class="text-muted small">Da preparare il {{ preview.test_date.strftime('%d/%m/%Y') }} per i giorni successivi.</div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Pronto per</th>
+                  <th>Ore</th>
+                  <th>Cella</th>
+                  <th>Materia prima</th>
+                  <th class="text-end">Q.ta</th>
+                  <th>Unita</th>
+                  <th>Piatti</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview.thaw_rows %}
+                  <tr>
+                    <td>{{ row.required_date.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ row.thaw_hours }}</td>
+                    <td>{{ row.cell }}</td>
+                    <td>
+                      <div class="fw-semibold">{{ row.material }}</div>
+                      {% if row.supplier %}<div class="text-muted small">{{ row.supplier }}</div>{% endif %}
+                    </td>
+                    <td class="text-end">{{ row.qty_label }}</td>
+                    <td>{{ row.unit }}</td>
+                    <td class="small">{{ row.dishes }}</td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="7" class="text-muted p-3">Nessuna decongelazione prevista con i dati inseriti.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-xl-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white">
+            <div class="fw-semibold">Foglio della spesa</div>
+            <div class="text-muted small">Materie prime da prendere il {{ preview.test_date.strftime('%d/%m/%Y') }} per produrre i piatti della giornata.</div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Zona</th>
+                  <th>Cella</th>
+                  <th>Materia prima</th>
+                  <th class="text-end">Q.ta</th>
+                  <th>Unita</th>
+                  <th>Piatti</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview.shopping_rows %}
+                  <tr>
+                    <td>{{ row.area }}</td>
+                    <td>{{ row.cell }}</td>
+                    <td>
+                      <div class="fw-semibold">{{ row.material }}</div>
+                      {% if row.supplier %}<div class="text-muted small">{{ row.supplier }}</div>{% endif %}
+                    </td>
+                    <td class="text-end">{{ row.qty_label }}</td>
+                    <td>{{ row.unit }}</td>
+                    <td class="small">{{ row.dishes }}</td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="6" class="text-muted p-3">Nessuna materia prima immediata prevista con i dati inseriti.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {% if preview.missing_recipes %}
+        <div class="col-12">
+          <div class="alert alert-warning">
+            <div class="fw-semibold">Piatti senza distinta base</div>
+            <ul class="mb-0">
+              {% for row in preview.missing_recipes %}
+                <li>{{ row.dish }} del {{ row.production_date.strftime('%d/%m/%Y') }} - {{ row.portions }} porzioni</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <datalist id="familyList">
+    {% for family in families %}<option value="{{ family }}">{% endfor %}
+  </datalist>
+  <datalist id="areaList">
+    {% for area in production_areas %}<option value="{{ area }}">{% endfor %}
+  </datalist>
+</div>
+
+<script>
+  const productsBySupplier = {{ materials.by_supplier|tojson }};
+  const recipeMeta = {{ active_recipes|tojson }};
+  const metaByRecipe = new Map(recipeMeta.map((recipe) => [recipe.row_uuid, recipe]));
+
+  function fillMaterialSelect(select, supplier, selected) {
+    const items = productsBySupplier[supplier] || [];
+    select.innerHTML = '<option value="">Seleziona...</option>';
+    items.forEach((item) => {
+      const opt = document.createElement('option');
+      opt.value = item.descrizione || '';
+      opt.textContent = item.descrizione || '';
+      opt.dataset.unit = item.unita || '';
+      if ((selected || '') === opt.value) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
+  document.querySelectorAll('.supplier-select').forEach((select) => {
+    const row = select.dataset.row;
+    const material = document.querySelector(`.material-select[data-row="${row}"]`);
+    if (material) fillMaterialSelect(material, select.value || '', material.dataset.selected || '');
+    select.addEventListener('change', () => {
+      const materialSelect = document.querySelector(`.material-select[data-row="${row}"]`);
+      const unitInput = document.getElementById(`ingredient_${row}_unit`);
+      if (!materialSelect) return;
+      fillMaterialSelect(materialSelect, select.value || '', '');
+      if (unitInput) unitInput.value = '';
+    });
+  });
+
+  document.querySelectorAll('.material-select').forEach((select) => {
+    select.addEventListener('change', () => {
+      const row = select.dataset.row;
+      const selected = select.options[select.selectedIndex];
+      const unitInput = document.getElementById(`ingredient_${row}_unit`);
+      if (unitInput) unitInput.value = selected ? (selected.dataset.unit || '') : '';
+    });
+  });
+
+  document.querySelectorAll('.offer-recipe').forEach((select) => {
+    select.addEventListener('change', () => {
+      const row = select.dataset.row;
+      const recipe = metaByRecipe.get(select.value);
+      const family = document.querySelector(`.offer-family[data-row="${row}"]`);
+      const area = document.querySelector(`.offer-area[data-row="${row}"]`);
+      if (recipe && family) family.value = recipe.family || '';
+      if (recipe && area) area.value = recipe.production_area || '';
+    });
+  });
+</script>
+{% endblock %}

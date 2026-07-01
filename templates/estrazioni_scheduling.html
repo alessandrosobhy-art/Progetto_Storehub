@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "_estrazioni_hq_toolbar.html" %}
+<style>
+  #schedStoreList .sched-store-item {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding-left: .5rem;
+  }
+  #schedStoreList .sched-store-check {
+    margin-left: 0;
+    margin-top: 0;
+    position: static;
+    flex: 0 0 auto;
+  }
+  #schedStoreList .form-check-label {
+    width: 100%;
+    cursor: pointer;
+  }
+</style>
+<div class="container py-4">
+  <div class="mb-3">
+    <h1 class="h4 mb-0">Scheduling</h1>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="post" action="{{ url_for('estrazioni.scheduling') }}" data-no-overlay="1">
+        <div class="row g-3">
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Settimana</label>
+            <input class="form-control" type="week" name="week" value="{{ week_value }}" required>
+          </div>
+
+          <div class="col-12 col-lg-9">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
+              <label class="form-label mb-0">Store</label>
+              <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="schedSelectAll">Seleziona tutti</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="schedClearAll">Deseleziona tutti</button>
+              </div>
+            </div>
+
+            <input type="text" class="form-control mb-2" id="schedStoreSearch" placeholder="Cerca store per codice o nome..." autocomplete="off">
+
+            <div class="border rounded p-2" style="max-height: 320px; overflow: auto;">
+              <div class="d-flex flex-column gap-1" id="schedStoreList">
+                {% for s in (stores or []) %}
+                  {% set code = (s.code if s.code is defined else s.get('code')) %}
+                  {% set name = (s.name if s.name is defined else s.get('name')) %}
+                  {% if code %}
+                  <div class="form-check mb-0 px-2 py-1 rounded sched-store-item" data-search="{{ ((code|string) ~ ' ' ~ (name or ''))|lower }}">
+                    <input class="form-check-input sched-store-check" type="checkbox" name="sites" value="{{ code }}" id="sched-store-{{ loop.index }}">
+                    <label class="form-check-label" for="sched-store-{{ loop.index }}">{{ code }} - {{ name }}</label>
+                  </div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+            <div class="form-text">Seleziona uno o piu store dall'elenco.</div>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 mt-3">
+          <button type="submit" class="btn btn-primary">Genera CSV</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('estrazioni.scheduling') }}">Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const searchEl = document.getElementById('schedStoreSearch');
+  const listEl = document.getElementById('schedStoreList');
+  const btnAll = document.getElementById('schedSelectAll');
+  const btnNone = document.getElementById('schedClearAll');
+  if (!listEl) return;
+
+  function visibleItems() {
+    return Array.from(listEl.querySelectorAll('.sched-store-item')).filter(el => el.style.display !== 'none');
+  }
+
+  function applyFilter() {
+    const q = String(searchEl && searchEl.value || '').trim().toLowerCase();
+    Array.from(listEl.querySelectorAll('.sched-store-item')).forEach(function (el) {
+      const hay = String(el.dataset.search || '');
+      el.style.display = (!q || hay.includes(q)) ? '' : 'none';
+    });
+  }
+
+  if (searchEl) {
+    searchEl.addEventListener('input', applyFilter);
+  }
+
+  if (btnAll) {
+    btnAll.addEventListener('click', function () {
+      visibleItems().forEach(function (el) {
+        const cb = el.querySelector('.sched-store-check');
+        if (cb) cb.checked = true;
+      });
+    });
+  }
+
+  if (btnNone) {
+    btnNone.addEventListener('click', function () {
+      visibleItems().forEach(function (el) {
+        const cb = el.querySelector('.sched-store-check');
+        if (cb) cb.checked = false;
+      });
+    });
+  }
+});
+</script>
+{% endblock %}

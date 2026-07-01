@@ -1,0 +1,1487 @@
+{% extends "base.html" %}
+
+{% block title %}Rendiconto - Versamenti{% endblock %}
+
+{% block content %}
+  {% include "_rendiconto_toolbar.html" %}
+  {% set rc_ns = 'rendiconto' %}
+
+  <style>
+    /* Versamenti - styling */
+    #newVersamentoForm input[readonly],
+    #editVersamentoForm input[readonly] {
+      background-color: #e9ecef;
+    }
+    .versamenti-table .subrow td {
+      padding-top: .25rem;
+      padding-bottom: .5rem;
+    }
+  </style>
+
+  <div class="container py-4">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+      <div>
+        <h3 class="mb-1">{{ tr(rc_ns, 'deposits.title', 'Versamenti') }}</h3>
+        <div class="text-muted small">
+          {% if store_code %}
+            {{ tr(rc_ns, 'common.store', 'Store') }}: <strong>{{ store_code }}</strong>{% if store_name %} - {{ store_name }}{% endif %}
+          {% else %}
+            {{ tr(rc_ns, 'deposits.no_store', 'Seleziona uno store per inserire e visualizzare i versamenti.') }}
+          {% endif %}
+        </div>
+      </div>
+
+      <form method="get" class="d-flex align-items-end gap-2">
+        <div>
+          <label class="form-label mb-1 small">{{ tr(rc_ns, 'common.month', 'Mese') }}</label>
+          <input type="month" class="form-control form-control-sm" name="ym" value="{{ ym }}">
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" type="submit">{{ tr(rc_ns, 'common.go', 'Vai') }}</button>
+      </form>
+    </div>
+
+    {% if store_code %}
+    <div class="card mb-4">
+      <div class="card-header">{{ tr(rc_ns, 'deposits.new', 'Nuovo versamento') }}</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('rendiconto.versamenti') }}" class="row g-3" id="newVersamentoForm" enctype="multipart/form-data" data-versamento-form="1" data-mode="insert" data-no-overlay="1">
+          <input type="hidden" name="ym" value="{{ ym }}">
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'deposits.deposit_date', 'Data versamento') }}</label>
+            <input type="date" class="form-control" name="data_versamento" id="nv_data_vers" value="{{ today_iso }}" required>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'deposits.period_from_full', 'Periodo competenza - Dal') }}</label>
+            <input type="date" class="form-control" name="periodo_dal" id="nv_dal" value="{{ today_iso }}" required>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'deposits.period_to_full', 'Periodo competenza - Al') }}</label>
+            <input type="date" class="form-control" name="periodo_al" id="nv_al" value="{{ today_iso }}" required>
+          </div>
+
+          <div class="col-12">
+            <div class="alert alert-warning py-2 d-none" id="nv_period_warning"></div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'deposits.full_name', 'Nome e cognome') }}</label>
+            <input type="text" class="form-control" name="nome_cognome" required>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'deposits.type', 'Tipo versamento') }}</label>
+            <select class="form-select" name="tipo_versamento" id="nv_tipo" required>
+              <option value="" selected disabled>Seleziona…</option>
+              <option value="Operatore">{{ tr(rc_ns, 'deposits.operator', 'Operatore') }}</option>
+              <option value="Tessera">{{ tr(rc_ns, 'deposits.card', 'Tessera') }}</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-3" id="nv_tessera_wrap" style="display:none;">
+            <label class="form-label">{{ tr(rc_ns, 'deposits.card', 'Tessera') }}</label>
+            <input type="text" class="form-control" name="tessera" id="nv_tessera" inputmode="numeric" pattern="\d{0,16}" maxlength="16">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'deposits.bank_reference', 'Nome banca e distinta') }}</label>
+            <input type="text" class="form-control" name="riferimento" required>
+          </div>
+		  
+		  <div class="w-100 d-none d-md-block"></div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'common.amount', 'Importo') }}</label>
+            <div class="input-group">
+              <span class="input-group-text">€</span>
+              <input type="text" class="form-control money-input" name="valore" id="nv_valore" inputmode="decimal" placeholder="0,00" required>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'deposits.period_total', 'Totale distinte periodo') }}</label>
+            <div class="input-group">
+              <span class="input-group-text">€</span>
+              <input type="text" class="form-control" id="nv_distinte" readonly>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">{{ tr(rc_ns, 'deposits.difference', 'Differenza') }}</label>
+            <div class="input-group">
+              <span class="input-group-text">€</span>
+              <input type="text" class="form-control" id="nv_diff" readonly>
+            </div>
+          </div>
+
+          
+<div class="col-12 col-md-6">
+  <label class="form-label">{{ tr(rc_ns, 'deposits.photo_label', 'Foto distinta') }}</label>
+  <input type="file" class="form-control js-versamento-foto" name="foto" id="nv_foto" accept="image/*">
+  <div class="form-text">{{ tr(rc_ns, 'deposits.photo_help', 'Carica la foto della ricevuta di versamento, salvo una delle dichiarazioni sotto.') }}</div>
+  <div class="form-check mt-2">
+    <input class="form-check-input js-versamento-photo-waiver" type="checkbox" name="no_receipt_flag" id="nv_no_receipt" value="1">
+    <label class="form-check-label" for="nv_no_receipt">{{ tr(rc_ns, 'deposits.no_receipt', 'Dichiaro che lo sportello non ha emesso la ricevuta') }}</label>
+  </div>
+  <div class="form-check">
+    <input class="form-check-input js-versamento-photo-waiver" type="checkbox" name="lost_receipt_flag" id="nv_lost_receipt" value="1">
+    <label class="form-check-label" for="nv_lost_receipt">{{ tr(rc_ns, 'deposits.lost_receipt', 'Ricevuta smarrita') }}</label>
+  </div>
+</div>
+
+<div class="col-12 d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">{{ tr(rc_ns, 'deposits.save', 'Salva versamento') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <span>{{ tr(rc_ns, 'expenses.month_summary', 'Riepilogo mese') }} <strong>{{ ym }}</strong></span>
+        <span class="text-muted">{{ tr(rc_ns, 'deposits.total', 'Totale versamenti') }}: <strong>{{ "%.2f"|format(total) }} €</strong></span>
+      </div>
+
+      <div class="card-body p-0">
+        {% if rows %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 versamenti-table">
+              <thead>
+                <tr>
+                  <th style="white-space:nowrap;">{{ tr(rc_ns, 'deposits.deposit_date', 'Data versamento') }}</th>
+                  <th>{{ tr(rc_ns, 'deposits.full_name', 'Nome e cognome') }}</th>
+                  <th class="text-end" style="white-space:nowrap;">{{ tr(rc_ns, 'common.amount', 'Importo') }}</th>
+                  <th class="text-end" style="white-space:nowrap;">{{ tr(rc_ns, 'deposits.difference', 'Differenza') }}</th>
+                  <th class="text-center" style="white-space:nowrap;">{{ tr(rc_ns, 'common.photo', 'Foto') }}</th>
+                  <th class="text-end" style="white-space:nowrap;">{{ tr(rc_ns, 'common.actions', 'Azioni') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in rows %}
+                {% set diff = (r.differenza if r.differenza is defined else 0) %}
+                <tr>
+                  <td style="white-space:nowrap;">{{ r.data_versamento }}</td>
+                  <td>{{ r.nome }}</td>
+                  <td class="text-end" style="white-space:nowrap;">{{ "%.2f"|format(r.valore) }} €</td>
+                  <td class="text-end" style="white-space:nowrap;">
+                    <span class="{% if diff < 0 %}text-danger fw-semibold{% endif %}">{{ "%.2f"|format(diff) }} €</span>
+                  </td>
+                  
+</td>
+<td class="text-center" style="white-space:nowrap;">
+  {% if r.foto_file %}
+    <button type="button"
+            class="btn btn-sm btn-outline-secondary js-photo-btn"
+            data-photo-url="{{ url_for('rendiconto.versamenti_photo_scoped', store_code=store_code, filename=r.foto_file) }}"
+            data-bs-toggle="modal"
+            data-bs-target="#photoVersamentoModal"
+            title="{{ tr(rc_ns, 'expenses.view_photo', 'Vedi foto') }}">📷</button>
+  {% else %}
+    <span class="text-muted">-</span>
+  {% endif %}
+</td>
+<td class="text-end" style="white-space:nowrap;">
+                    {% if store_code %}
+                      <button type="button"
+                              class="btn btn-sm btn-outline-primary"
+                              data-bs-toggle="modal"
+                              data-bs-target="#editVersamentoModal"
+                              data-ym="{{ ym|e }}"
+                              data-id="{{ r.id|e }}"
+                              data-dataiso="{{ r.data_versamento_iso|e }}"
+                              data-daliso="{{ r.dal_iso|e }}"
+                              data-aliso="{{ r.al_iso|e }}"
+                              data-nome="{{ r.nome_raw|e }}"
+                              data-tipo="{{ r.tipo_raw|e }}"
+                              data-tessera="{{ r.tessera_raw|e }}"
+                              data-riferimento="{{ r.riferimento_raw|e }}"
+                              data-valore="{{ r.valore_key|e }}"
+                              data-has-photo="{{ 1 if r.foto_file else 0 }}"
+                              data-no-receipt="{{ 1 if r.no_receipt_flag else 0 }}"
+                              data-lost-receipt="{{ 1 if r.lost_receipt_flag else 0 }}">
+                        {{ tr(rc_ns, 'common.edit', 'Modifica') }}
+                      </button>
+
+                      <form method="post" action="{{ url_for('rendiconto.versamenti_delete') }}" class="d-inline">
+                        <input type="hidden" name="ym" value="{{ ym|e }}">
+                        <input type="hidden" name="id" value="{{ r.id|e }}">
+                        <input type="hidden" name="orig_data_vers" value="{{ r.data_versamento_iso|e }}">
+                        <input type="hidden" name="orig_dal" value="{{ r.dal_iso|e }}">
+                        <input type="hidden" name="orig_al" value="{{ r.al_iso|e }}">
+                        <input type="hidden" name="orig_nome" value="{{ r.nome_raw|e }}">
+                        <input type="hidden" name="orig_tipo" value="{{ r.tipo_raw|e }}">
+                        <input type="hidden" name="orig_tessera" value="{{ r.tessera_raw|e }}">
+                        <input type="hidden" name="orig_riferimento" value="{{ r.riferimento_raw|e }}">
+                        <input type="hidden" name="orig_valore" value="{{ r.valore_key|e }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm({{ tr(rc_ns, 'deposits.delete_confirm', 'Eliminare questo versamento?')|tojson }});">
+                          {{ tr(rc_ns, 'common.delete', 'Elimina') }}
+                        </button>
+                      </form>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                </tr>
+
+                <tr class="table-light subrow">
+                  <td colspan="6" class="small">
+                    <div class="d-flex flex-wrap gap-3">
+                      <div style="white-space:nowrap;">
+                        <span class="text-muted">{{ tr(rc_ns, 'deposits.period', 'Periodo') }}:</span>
+                        <strong>{{ r.dal }} → {{ r.al }}</strong>
+                      </div>
+                      <div style="white-space:nowrap;">
+                        <span class="text-muted">{{ tr(rc_ns, 'deposits.period_total', 'Totale distinte periodo') }}:</span>
+                        <strong>{{ "%.2f"|format(r.distinte_periodo or 0) }} €</strong>
+                      </div>
+                      <div style="white-space:nowrap;">
+                        <span class="text-muted">{{ tr(rc_ns, 'deposits.type', 'Tipo versamento') }}:</span>
+                        <strong>{{ r.tipo }}</strong>
+                      </div>
+                      {% if r.tessera and r.tessera != '0' %}
+                      <div style="white-space:nowrap;">
+                        <span class="text-muted">{{ tr(rc_ns, 'deposits.card', 'Tessera') }}:</span>
+                        <strong>{{ r.tessera }}</strong>
+                      </div>
+                      {% endif %}
+                      <div class="flex-grow-1">
+                        <span class="text-muted">{{ tr(rc_ns, 'deposits.reference_short', 'Rif.') }}:</span>
+                        <span>{{ r.riferimento or '-' }}</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-3 text-muted">{{ tr(rc_ns, 'deposits.empty', 'Nessun versamento trovato per il mese selezionato.') }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal modifica versamento -->
+  <div class="modal fade" id="editVersamentoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ tr(rc_ns, 'deposits.edit', 'Modifica versamento') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr(rc_ns, 'common.close', 'Chiudi') }}"></button>
+        </div>
+
+        <form method="post" action="{{ url_for('rendiconto.versamenti_update') }}" id="editVersamentoForm" enctype="multipart/form-data" data-versamento-form="1" data-mode="update" data-no-overlay="1">
+          <div class="modal-body">
+            <input type="hidden" name="ym" id="ev_ym" value="{{ ym|e }}">
+            <input type="hidden" name="id" id="ev_id" value="">
+
+            <!-- chiave originale (fallback se non esiste ID) -->
+            <input type="hidden" name="orig_data_vers" id="ev_orig_data_vers">
+            <input type="hidden" name="orig_dal" id="ev_orig_dal">
+            <input type="hidden" name="orig_al" id="ev_orig_al">
+            <input type="hidden" name="orig_nome" id="ev_orig_nome">
+            <input type="hidden" name="orig_tipo" id="ev_orig_tipo">
+            <input type="hidden" name="orig_tessera" id="ev_orig_tessera">
+            <input type="hidden" name="orig_riferimento" id="ev_orig_riferimento">
+            <input type="hidden" name="orig_valore" id="ev_orig_valore">
+
+            <div class="row g-3">
+              <div class="col-12 col-md-3">
+                <label class="form-label">{{ tr(rc_ns, 'deposits.deposit_date', 'Data versamento') }}</label>
+                <input type="date" class="form-control" name="data_versamento" id="ev_data_vers" required>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <label class="form-label">{{ tr(rc_ns, 'deposits.period_from', 'Periodo - Dal') }}</label>
+                <input type="date" class="form-control" name="periodo_dal" id="ev_dal" required>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <label class="form-label">{{ tr(rc_ns, 'deposits.period_to', 'Periodo - Al') }}</label>
+                <input type="date" class="form-control" name="periodo_al" id="ev_al" required>
+              </div>
+
+              <div class="col-12">
+                <div class="alert alert-warning py-2 d-none" id="ev_period_warning"></div>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label">{{ tr(rc_ns, 'deposits.full_name', 'Nome e cognome') }}</label>
+                <input type="text" class="form-control" name="nome_cognome" id="ev_nome" required>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <label class="form-label">{{ tr(rc_ns, 'deposits.type', 'Tipo versamento') }}</label>
+                <select class="form-select" name="tipo_versamento" id="ev_tipo" required>
+                  <option value="" disabled>Seleziona…</option>
+                  <option value="Operatore">{{ tr(rc_ns, 'deposits.operator', 'Operatore') }}</option>
+                  <option value="Tessera">{{ tr(rc_ns, 'deposits.card', 'Tessera') }}</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-3" id="ev_tessera_wrap" style="display:none;">
+                <label class="form-label">{{ tr(rc_ns, 'deposits.card', 'Tessera') }}</label>
+                <input type="text" class="form-control" name="tessera" id="ev_tessera" inputmode="numeric" pattern="\d{0,16}" maxlength="16">
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label">{{ tr(rc_ns, 'deposits.reference', 'Riferimento versamento') }}</label>
+                <input type="text" class="form-control" name="riferimento" id="ev_riferimento" required>
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label">{{ tr(rc_ns, 'common.amount', 'Importo') }}</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input type="text" class="form-control money-input" name="valore" id="ev_valore" inputmode="decimal" placeholder="0,00" required>
+                </div>
+              </div>
+
+<div class="col-12">
+  <label class="form-label">{{ tr(rc_ns, 'deposits.photo_label', 'Foto distinta') }}</label>
+  <input type="file" class="form-control js-versamento-foto" id="edit_foto" name="foto" accept="image/*">
+  <input type="hidden" id="ev_has_photo" value="0">
+  <div class="form-text">{{ tr(rc_ns, 'deposits.photo_required_help', "Se non c'e gia una foto associata, il caricamento e obbligatorio salvo una delle dichiarazioni sotto.") }}</div>
+  <div class="form-check mt-2">
+    <input class="form-check-input js-versamento-photo-waiver" type="checkbox" name="no_receipt_flag" id="ev_no_receipt" value="1">
+    <label class="form-check-label" for="ev_no_receipt">{{ tr(rc_ns, 'deposits.no_receipt', 'Dichiaro che lo sportello non ha emesso la ricevuta') }}</label>
+  </div>
+  <div class="form-check">
+    <input class="form-check-input js-versamento-photo-waiver" type="checkbox" name="lost_receipt_flag" id="ev_lost_receipt" value="1">
+    <label class="form-check-label" for="ev_lost_receipt">{{ tr(rc_ns, 'deposits.lost_receipt', 'Ricevuta smarrita') }}</label>
+  </div>
+</div>
+
+              <div class="col-12 col-md-3">
+                <label class="form-label">{{ tr(rc_ns, 'deposits.period_total', 'Totale distinte periodo') }}</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input type="text" class="form-control" id="ev_distinte" readonly>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <label class="form-label">{{ tr(rc_ns, 'deposits.difference', 'Differenza') }}</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input type="text" class="form-control" id="ev_diff" readonly>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ tr(rc_ns, 'common.cancel', 'Annulla') }}</button>
+            <button type="submit" class="btn btn-primary">{{ tr(rc_ns, 'expenses.save_changes', 'Salva modifiche') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  
+<!-- Photo modal -->
+<div class="modal fade" id="photoVersamentoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ tr(rc_ns, 'deposits.photo_title', 'Foto versamento') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr(rc_ns, 'common.close', 'Chiudi') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center">
+          <div id="photoVersamentoLoading" class="text-muted small mb-2" style="display:none;">{{ tr(rc_ns, 'common.loading', 'Caricamento...') }}</div>
+          <img id="photoVersamentoImg" src="" alt="{{ tr(rc_ns, 'common.photo', 'Foto') }}" style="max-width:100%; height:auto; display:none; border-radius:8px;">
+          <div id="photoVersamentoError" class="text-danger small" style="display:none;">{{ tr(rc_ns, 'common.photo_load_error', 'Impossibile caricare la foto.') }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal correzione distinte (chiusura differenza versamento) -->
+<div class="modal fade" id="adjustDistinteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ tr(rc_ns, 'deposits.adjust_title', 'Correzione distinte per chiudere la differenza') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr(rc_ns, 'common.close', 'Chiudi') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div id="adjError" class="alert alert-danger small" style="display:none;"></div>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-5">
+            <div class="d-flex gap-3 align-items-center mb-2">
+              <div class="small text-muted">{{ tr(rc_ns, 'deposits.period_total', 'Totale distinte periodo') }}:</div>
+              <div class="fw-semibold">€ <span id="adjDistPeriod">0,00</span></div>
+              <div class="small text-muted ms-auto">{{ tr(rc_ns, 'deposits.difference', 'Differenza') }}:</div>
+              <div class="fw-semibold">€ <span id="adjDiff">0,00</span></div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>{{ tr(rc_ns, 'common.date', 'Data') }}</th>
+                    <th class="text-end">Distinte</th>
+                    <th class="text-center">{{ tr(rc_ns, 'deposits.locked', 'Bloccata') }}</th>
+                    <th class="text-end">{{ tr(rc_ns, 'deposits.action', 'Azione') }}</th>
+                  </tr>
+                </thead>
+                <tbody id="adjDaysBody"></tbody>
+              </table>
+            </div>
+            <div class="small text-muted">Seleziona una o più giornate da correggere: modifica i tagli/monete finché la differenza torna a zero.</div>
+          </div>
+
+          <div class="col-12 col-lg-7">
+            <div class="card">
+              <div class="card-header d-flex align-items-center">
+                <div class="fw-semibold">Giornata: <span id="adjEditDate" class="ms-1">—</span></div>
+                <div class="ms-auto small text-muted">Totale giornata: € <span id="adjDayTotal">0,00</span></div>
+              </div>
+              <div class="card-body">
+                <div id="adjEditorEmpty" class="text-muted small">Seleziona una giornata per modificare le distinte.</div>
+                <div id="adjEditor" style="display:none;">
+                  {% set tagli = [5, 10, 20, 50, 100, 200, 500] %}
+
+                  <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                      <div class="fw-semibold mb-1">Distinta 1</div>
+                      <div class="table-responsive">
+                        <table class="table table-sm">
+                          <thead>
+                            <tr><th>Taglio</th><th class="text-end">Qta</th></tr>
+                          </thead>
+                          <tbody>
+                          {% for t in tagli %}
+                            <tr>
+                              <td>€ {{ t }}</td>
+                              <td class="text-end">
+                                <input type="number" min="0" step="1" class="form-control form-control-sm text-end" id="adj_d1_qta_{{ t }}" value="0">
+                              </td>
+                            </tr>
+                          {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text">Monete €</span>
+                        <input type="text" class="form-control text-end" id="adj_d1_monete" inputmode="decimal" placeholder="0,00">
+                        <span class="input-group-text">Tot.</span>
+                        <input type="text" class="form-control text-end" id="adj_d1_total" readonly>
+                      </div>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                      <div class="fw-semibold mb-1">Distinta 2</div>
+                      <div class="table-responsive">
+                        <table class="table table-sm">
+                          <thead>
+                            <tr><th>Taglio</th><th class="text-end">Qta</th></tr>
+                          </thead>
+                          <tbody>
+                          {% for t in tagli %}
+                            <tr>
+                              <td>€ {{ t }}</td>
+                              <td class="text-end">
+                                <input type="number" min="0" step="1" class="form-control form-control-sm text-end" id="adj_d2_qta_{{ t }}" value="0">
+                              </td>
+                            </tr>
+                          {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text">Monete €</span>
+                        <input type="text" class="form-control text-end" id="adj_d2_monete" inputmode="decimal" placeholder="0,00">
+                        <span class="input-group-text">Tot.</span>
+                        <input type="text" class="form-control text-end" id="adj_d2_total" readonly>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn btn-outline-primary" id="adjSaveDayBtn">Salva giornata</button>
+                    <div class="ms-auto">
+                      <button type="button" class="btn btn-success" id="adjCommitBtn" disabled>Salva versamento</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Questo template viene renderizzato prima del bootstrap.bundle (in base.html).
+  // Per evitare errori "bootstrap is not defined" e garantire che il submit venga intercettato
+  // (apertura popup correzione distinte), inizializziamo tutto dopo DOMContentLoaded.
+  document.addEventListener('DOMContentLoaded', function () {
+    (function() {
+      function parseMoney(s) {
+        s = (s || '').toString().trim();
+        if (!s) return 0;
+        if (s.includes('.') && s.includes(',')) {
+          s = s.replace(/\./g, '').replace(',', '.');
+        } else {
+          s = s.replace(',', '.');
+        }
+        const n = Number(s);
+        return Number.isFinite(n) ? n : 0;
+      }
+
+      function formatMoney(n) {
+        const num = Number(n);
+        if (!Number.isFinite(num)) return '';
+        try {
+          return num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } catch (e) {
+          return num.toFixed(2).replace('.', ',');
+        }
+      }
+
+
+      function endOfMonthIso(iso) {
+        try {
+          iso = (iso || '').trim();
+          if (!iso || iso.length < 7) return '';
+          const parts = iso.split('-');
+          const y = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10);
+          if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return '';
+          // JS Date: month is 0-based. Using day 0 of next month returns last day of target month.
+          const d = new Date(y, m, 0);
+          const mm = String(m).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const yyyy = String(y).padStart(4, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        } catch (e) {
+          return '';
+        }
+      }
+
+      function applySameMonthConstraint(dalEl, alEl) {
+        if (!dalEl || !alEl) return;
+        const dal = (dalEl.value || '').trim();
+        let al = (alEl.value || '').trim();
+
+        // reset validity
+        alEl.setCustomValidity('');
+
+        if (dal) {
+          alEl.min = dal;
+          const eom = endOfMonthIso(dal);
+          if (eom) alEl.max = eom;
+
+          // Clamp "Al" inside the same month of "Dal"
+          if (al) {
+            let newAl = al;
+
+            // If month differs, move to end-of-month of "Dal"
+            if (newAl.slice(0, 7) !== dal.slice(0, 7)) {
+              newAl = eom || dal;
+            }
+
+            // Enforce bounds (min/max)
+            if (newAl < dal) newAl = dal;
+            if (eom && newAl > eom) newAl = eom;
+
+            if (newAl !== al) {
+              alEl.value = newAl;
+              al = newAl;
+            }
+          }
+        } else {
+          alEl.removeAttribute('min');
+          alEl.removeAttribute('max');
+        }
+
+        if (dal && al) {
+          if (al < dal) {
+            alEl.setCustomValidity("La data 'Al' non può essere precedente alla data 'Dal'.");
+            return;
+          }
+          if (dal.slice(0, 7) !== al.slice(0, 7)) {
+            alEl.setCustomValidity("Il periodo deve essere all'interno dello stesso mese.");
+          }
+        }
+      }
+
+      function toggleTessera(selectEl, wrapEl, inputEl) {
+        const v = (selectEl.value || '').toLowerCase();
+        const show = v.includes('tess');
+        wrapEl.style.display = show ? '' : 'none';
+        if (!show && inputEl) inputEl.value = '';
+      }
+
+      function setPeriodWarning(warnEl, msg) {
+        if (!warnEl) return;
+        const m = (msg || '').toString().trim();
+        if (!m) {
+          warnEl.classList.add('d-none');
+          warnEl.textContent = '';
+          return;
+        }
+        warnEl.textContent = m;
+        warnEl.classList.remove('d-none');
+      }
+
+      function clearComputed(outDistEl, outDiffEl) {
+        if (outDistEl) outDistEl.value = '';
+        if (outDiffEl) {
+          outDiffEl.value = '';
+          outDiffEl.classList.remove('text-danger');
+        }
+      }
+
+      async function computeAndFill(dalEl, alEl, valEl, outDistEl, outDiffEl, warnEl, excludeId, excludeSig, abortSignal) {
+        applySameMonthConstraint(dalEl, alEl);
+        const dal = (dalEl.value || '').trim();
+        const al = (alEl.value || '').trim();
+        const valore = (valEl.value || '').trim();
+
+        // reset warning + validity
+        setPeriodWarning(warnEl, '');
+        if (dalEl) dalEl.setCustomValidity('');
+        if (alEl) alEl.setCustomValidity('');
+
+        if (alEl && alEl.validity && !alEl.validity.valid) {
+          clearComputed(outDistEl, outDiffEl);
+          return;
+        }
+
+        if (!dal || !al) {
+          clearComputed(outDistEl, outDiffEl);
+          return;
+        }
+
+        const url = new URL("{{ url_for('rendiconto.api_versamenti_compute') }}", window.location.origin);
+        url.searchParams.set('dal', dal);
+        url.searchParams.set('al', al);
+        url.searchParams.set('valore', valore || '0');
+        if (excludeId) url.searchParams.set('exclude_id', excludeId);
+        if (excludeSig) {
+          if (excludeSig.data_vers) url.searchParams.set('exclude_sig_data_vers', excludeSig.data_vers);
+          if (excludeSig.dal) url.searchParams.set('exclude_sig_dal', excludeSig.dal);
+          if (excludeSig.al) url.searchParams.set('exclude_sig_al', excludeSig.al);
+          if (excludeSig.valore) url.searchParams.set('exclude_sig_valore', excludeSig.valore);
+        }
+
+        try {
+          const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' }, signal: abortSignal });
+
+          if (res.status === 409) {
+            const data = await res.json().catch(() => ({}));
+            const msg = data.message || "Il periodo include giorni già versati.";
+            setPeriodWarning(warnEl, msg);
+            if (dalEl) dalEl.setCustomValidity(msg);
+            if (alEl) alEl.setCustomValidity(msg);
+            clearComputed(outDistEl, outDiffEl);
+            return;
+          }
+
+          if (res.status === 503) {
+            const data = await res.json().catch(() => ({}));
+            setPeriodWarning(warnEl, data.error || "Database occupato: riprova tra poco.");
+            clearComputed(outDistEl, outDiffEl);
+            return;
+          }
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            setPeriodWarning(warnEl, data.error || ('HTTP ' + res.status));
+            clearComputed(outDistEl, outDiffEl);
+            return;
+          }
+
+          const data = await res.json();
+          const dist = Number(data.distinte || 0);
+          const diff = Number(data.diff || 0);
+
+          outDistEl.value = formatMoney(dist);
+          outDiffEl.value = formatMoney(diff);
+          outDiffEl.classList.toggle('text-danger', diff < 0);
+        } catch (e) {
+          // non bloccare la UI
+          clearComputed(outDistEl, outDiffEl);
+        }
+      }
+
+      function makeComputeScheduler(dalEl, alEl, valEl, outDistEl, outDiffEl, warnEl, excludeIdGetter, excludeSigGetter) {
+        let t = null;
+        let controller = null;
+        return function schedule() {
+          if (t) clearTimeout(t);
+          if (controller) {
+            try { controller.abort(); } catch (_) {}
+          }
+          t = setTimeout(() => {
+            controller = new AbortController();
+            const ex = excludeIdGetter ? (excludeIdGetter() || '') : '';
+            const sig = excludeSigGetter ? (excludeSigGetter() || null) : null;
+            computeAndFill(dalEl, alEl, valEl, outDistEl, outDiffEl, warnEl, ex, sig, controller.signal);
+            }, 350);
+        };
+      }
+
+
+      // Espongo alcuni helper anche ad altri blocchi JS della pagina (es. popup correzione distinte)
+      // per evitare problemi di scope quando si intercettano i submit dei form.
+      window._versamentiHelpers = window._versamentiHelpers || {};
+      window._versamentiHelpers.applySameMonthConstraint = applySameMonthConstraint;
+      window._versamentiHelpers.computeAndFill = computeAndFill;
+
+      // Nuovo versamento
+      // format money inputs
+      document.querySelectorAll('input.money-input').forEach(inp => {
+        inp.addEventListener('blur', () => {
+          inp.value = formatMoney(parseMoney(inp.value));
+        });
+      });
+
+      function bindPhotoWaivers(formEl, opts) {
+        if (!formEl) return;
+        const fotoEl = formEl.querySelector('.js-versamento-foto');
+        const noReceiptEl = formEl.querySelector('input[name="no_receipt_flag"]');
+        const lostReceiptEl = formEl.querySelector('input[name="lost_receipt_flag"]');
+        const hasPhotoEl = opts && opts.hasPhotoEl ? opts.hasPhotoEl : null;
+
+        const sync = () => {
+          const hasExistingPhoto = !!(hasPhotoEl && String(hasPhotoEl.value || '') === '1');
+          const waived = !!((noReceiptEl && noReceiptEl.checked) || (lostReceiptEl && lostReceiptEl.checked));
+          const needsPhoto = !waived && !hasExistingPhoto;
+          if (fotoEl) {
+            fotoEl.required = needsPhoto;
+            fotoEl.setCustomValidity('');
+          }
+        };
+
+        if (noReceiptEl && lostReceiptEl) {
+          noReceiptEl.addEventListener('change', () => {
+            if (noReceiptEl.checked) lostReceiptEl.checked = false;
+            sync();
+          });
+          lostReceiptEl.addEventListener('change', () => {
+            if (lostReceiptEl.checked) noReceiptEl.checked = false;
+            sync();
+          });
+        }
+        if (fotoEl) fotoEl.addEventListener('change', sync);
+        sync();
+
+        formEl._syncVersamentoPhotoRequirement = sync;
+      }
+
+      function validateVersamentoForm(formEl) {
+        if (!formEl) return true;
+        if (typeof formEl._syncVersamentoPhotoRequirement === 'function') {
+          formEl._syncVersamentoPhotoRequirement();
+        }
+
+        const tipoEl = formEl.querySelector('select[name="tipo_versamento"]');
+        const tesseraEl = formEl.querySelector('input[name="tessera"]');
+        const fotoEl = formEl.querySelector('.js-versamento-foto');
+        const noReceiptEl = formEl.querySelector('input[name="no_receipt_flag"]');
+        const lostReceiptEl = formEl.querySelector('input[name="lost_receipt_flag"]');
+        const hasPhotoEl = formEl.querySelector('#ev_has_photo');
+
+        if (tesseraEl) {
+          const needsTessera = !!(tipoEl && String(tipoEl.value || '').trim().toLowerCase() === 'tessera');
+          tesseraEl.required = needsTessera;
+          if (!needsTessera) tesseraEl.setCustomValidity('');
+        }
+
+        if (fotoEl) {
+          const hasExistingPhoto = !!(hasPhotoEl && String(hasPhotoEl.value || '') === '1');
+          const waived = !!((noReceiptEl && noReceiptEl.checked) || (lostReceiptEl && lostReceiptEl.checked));
+          const hasSelectedPhoto = !!(fotoEl.files && fotoEl.files.length > 0);
+          if (!waived && !hasExistingPhoto && !hasSelectedPhoto) {
+            fotoEl.setCustomValidity('Carica la foto oppure seleziona una delle dichiarazioni previste.');
+          } else {
+            fotoEl.setCustomValidity('');
+          }
+        }
+
+        return formEl.checkValidity();
+      }
+      window.validateVersamentoForm = validateVersamentoForm;
+
+      const nvTipo = document.getElementById('nv_tipo');
+      const nvWrap = document.getElementById('nv_tessera_wrap');
+      const nvTess = document.getElementById('nv_tessera');
+      if (nvTipo && nvWrap) {
+        nvTipo.addEventListener('change', function() { toggleTessera(nvTipo, nvWrap, nvTess); });
+      }
+      bindPhotoWaivers(document.getElementById('newVersamentoForm'), {});
+
+      const nvDal = document.getElementById('nv_dal');
+      const nvAl = document.getElementById('nv_al');
+      const nvVal = document.getElementById('nv_valore');
+      const nvDist = document.getElementById('nv_distinte');
+      const nvDiff = document.getElementById('nv_diff');
+      const nvWarn = document.getElementById('nv_period_warning');
+
+      if (nvDal && nvAl && nvVal && nvDist && nvDiff) {
+        const nvSchedule = makeComputeScheduler(nvDal, nvAl, nvVal, nvDist, nvDiff, nvWarn, null, null);
+        const handler = () => { applySameMonthConstraint(nvDal, nvAl); nvSchedule(); };
+        nvDal.addEventListener('change', handler);
+        nvAl.addEventListener('change', handler);
+        nvVal.addEventListener('input', handler);
+        handler();
+      }
+
+      // Modal modifica
+      const modalEl = document.getElementById('editVersamentoModal');
+      if (!modalEl) return;
+
+      const evTipo = document.getElementById('ev_tipo');
+      const evWrap = document.getElementById('ev_tessera_wrap');
+      const evTess = document.getElementById('ev_tessera');
+      if (evTipo && evWrap) {
+        evTipo.addEventListener('change', function() { toggleTessera(evTipo, evWrap, evTess); });
+      }
+
+      const evDal = document.getElementById('ev_dal');
+      const evAl = document.getElementById('ev_al');
+      const evVal = document.getElementById('ev_valore');
+      const evDist = document.getElementById('ev_distinte');
+      const evDiff = document.getElementById('ev_diff');
+      const evWarn = document.getElementById('ev_period_warning');
+      const evId = document.getElementById('ev_id');
+      const evHasPhoto = document.getElementById('ev_has_photo');
+      bindPhotoWaivers(document.getElementById('editVersamentoForm'), { hasPhotoEl: evHasPhoto });
+
+      let evSchedule = null;
+      if (evDal && evAl && evVal && evDist && evDiff) {
+        evSchedule = makeComputeScheduler(
+          evDal, evAl, evVal, evDist, evDiff, evWarn,
+          () => (evId ? evId.value : ''),
+          () => {
+            const d = document.getElementById('ev_orig_data_vers')?.value || '';
+            const dal = document.getElementById('ev_orig_dal')?.value || '';
+            const al = document.getElementById('ev_orig_al')?.value || '';
+            const v = document.getElementById('ev_orig_valore')?.value || '';
+            if (d && dal && al && v) return { data_vers: d, dal: dal, al: al, valore: v };
+            return null;
+          }
+        );
+        const handler = () => { applySameMonthConstraint(evDal, evAl); evSchedule(); };
+        evDal.addEventListener('change', handler);
+        evAl.addEventListener('change', handler);
+        evVal.addEventListener('input', handler);
+      }
+
+      modalEl.addEventListener('show.bs.modal', function(event) {
+        const btn = event.relatedTarget;
+        if (!btn) return;
+
+        const ym = btn.getAttribute('data-ym') || '';
+        const id = btn.getAttribute('data-id') || '';
+        const dataIso = btn.getAttribute('data-dataiso') || '';
+        const dalIso = btn.getAttribute('data-daliso') || '';
+        const alIso = btn.getAttribute('data-aliso') || '';
+        const nome = btn.getAttribute('data-nome') || '';
+        const tipo = btn.getAttribute('data-tipo') || '';
+        const tessera = btn.getAttribute('data-tessera') || '';
+        const riferimento = btn.getAttribute('data-riferimento') || '';
+        const valoreKey = btn.getAttribute('data-valore') || '';
+        const hasPhoto = btn.getAttribute('data-has-photo') || '0';
+        const noReceipt = btn.getAttribute('data-no-receipt') || '0';
+        const lostReceipt = btn.getAttribute('data-lost-receipt') || '0';
+
+        document.getElementById('ev_ym').value = ym;
+        document.getElementById('ev_id').value = id;
+
+        // campi edit
+        document.getElementById('ev_data_vers').value = dataIso;
+        document.getElementById('ev_dal').value = dalIso;
+        document.getElementById('ev_al').value = alIso;
+        document.getElementById('ev_nome').value = nome;
+        document.getElementById('ev_tipo').value = tipo;
+        document.getElementById('ev_tessera').value = (tessera && tessera !== '0') ? tessera : '';
+        document.getElementById('ev_riferimento').value = riferimento;
+        document.getElementById('ev_valore').value = formatMoney(parseMoney(valoreKey || '0'));
+        document.getElementById('ev_has_photo').value = hasPhoto === '1' ? '1' : '0';
+        document.getElementById('ev_no_receipt').checked = noReceipt === '1';
+        document.getElementById('ev_lost_receipt').checked = lostReceipt === '1';
+        document.getElementById('edit_foto').value = '';
+
+        // chiave originale
+        document.getElementById('ev_orig_data_vers').value = dataIso;
+        document.getElementById('ev_orig_dal').value = dalIso;
+        document.getElementById('ev_orig_al').value = alIso;
+        document.getElementById('ev_orig_nome').value = nome;
+        document.getElementById('ev_orig_tipo').value = tipo;
+        document.getElementById('ev_orig_tessera').value = tessera;
+        document.getElementById('ev_orig_riferimento').value = riferimento;
+        document.getElementById('ev_orig_valore').value = valoreKey;
+
+        // toggle tessera
+        toggleTessera(evTipo, evWrap, null);
+        if (typeof document.getElementById('editVersamentoForm')._syncVersamentoPhotoRequirement === 'function') {
+          document.getElementById('editVersamentoForm')._syncVersamentoPhotoRequirement();
+        }
+
+        // calcola distinte/diff
+        applySameMonthConstraint(evDal, evAl);
+        if (evSchedule) evSchedule();
+      });
+    })();
+  
+
+// Foto versamento
+(() => {
+  const modalEl = document.getElementById('photoVersamentoModal');
+  if (!modalEl) return;
+
+  const img = document.getElementById('photoVersamentoImg');
+  const loading = document.getElementById('photoVersamentoLoading');
+  const err = document.getElementById('photoVersamentoError');
+
+  document.querySelectorAll('.js-photo-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const url = btn.getAttribute('data-photo-url') || '';
+      if (!url) return;
+
+      if (img) { img.style.display = 'none'; img.src = ''; }
+      if (err) err.style.display = 'none';
+      if (loading) loading.style.display = 'block';
+
+      if (img) {
+        img.onload = () => { if (loading) loading.style.display = 'none'; img.style.display = 'block'; };
+        img.onerror = () => { if (loading) loading.style.display = 'none'; if (err) err.style.display = 'block'; };
+        img.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+      }
+    });
+  });
+
+  modalEl.addEventListener('hidden.bs.modal', () => {
+    if (img) { img.src = ''; img.style.display = 'none'; }
+    if (loading) loading.style.display = 'none';
+    if (err) err.style.display = 'none';
+  });
+})();
+
+// Correzione distinte prima del salvataggio versamento
+(() => {
+  const adjustModalEl = document.getElementById('adjustDistinteModal');
+  if (!adjustModalEl) return;
+  // Intercetto i submit dei form versamenti (insert/update) con delega evento, così funziona anche se il form viene ricreato.
+
+  const adjError = document.getElementById('adjError');
+  const adjDistPeriod = document.getElementById('adjDistPeriod');
+  const adjDiff = document.getElementById('adjDiff');
+  const adjDaysBody = document.getElementById('adjDaysBody');
+  const adjEditDate = document.getElementById('adjEditDate');
+  const adjDayTotal = document.getElementById('adjDayTotal');
+  const adjEditorEmpty = document.getElementById('adjEditorEmpty');
+  const adjEditor = document.getElementById('adjEditor');
+  const adjSaveDayBtn = document.getElementById('adjSaveDayBtn');
+  const adjCommitBtn = document.getElementById('adjCommitBtn');
+
+  const TAGLI = [5, 10, 20, 50, 100, 200, 500];
+
+  function parseMoney(s) {
+    s = (s || '').toString().trim();
+    if (!s) return 0;
+    if (s.includes('.') && s.includes(',')) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(',', '.');
+    }
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function formatMoney(n) {
+    const num = Number(n);
+    if (!Number.isFinite(num)) return '0,00';
+    try {
+      return num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } catch (e) {
+      return num.toFixed(2).replace('.', ',');
+    }
+  }
+
+  function showError(msg) {
+    if (!adjError) return;
+    if (!msg) {
+      adjError.style.display = 'none';
+      adjError.textContent = '';
+      return;
+    }
+    adjError.textContent = msg;
+    adjError.style.display = '';
+  }
+
+  function getField(formEl, name) {
+    return (formEl?.querySelector(`[name="${name}"]`)?.value || '').trim();
+  }
+
+  function getExclude(formEl) {
+    return {
+      id: getField(formEl, 'id'),
+      orig_data_vers: getField(formEl, 'orig_data_vers'),
+      orig_dal: getField(formEl, 'orig_dal'),
+      orig_al: getField(formEl, 'orig_al'),
+      orig_nome: getField(formEl, 'orig_nome'),
+      orig_tipo: getField(formEl, 'orig_tipo'),
+      orig_tessera: getField(formEl, 'orig_tessera'),
+      orig_riferimento: getField(formEl, 'orig_riferimento'),
+      orig_valore: getField(formEl, 'orig_valore'),
+    };
+  }
+
+  const daysUrlBase = "{{ url_for('rendiconto.api_versamenti_days') }}";
+  const dayUrlBase = "{{ url_for('rendiconto.api_distinte_day') }}";
+  const saveDayUrl = "{{ url_for('rendiconto.api_distinte_day_save') }}";
+  const commitUrl = "{{ url_for('rendiconto.api_versamenti_commit') }}";
+  const versamentiUrlBase = "{{ url_for('rendiconto.versamenti') }}";
+
+  let state = {
+    formEl: null,
+    mode: 'insert',
+    exclude: null,
+    selectedDay: null,
+    submitInFlight: false,
+    commitInFlight: false,
+    lastDistPeriod: 0,
+    lastDiff: 0,
+  };
+
+  const bsAdjust = new bootstrap.Modal(adjustModalEl, { backdrop: 'static', keyboard: false });
+
+  const _vh = window._versamentiHelpers || {};
+  const _applySameMonth = (typeof _vh.applySameMonthConstraint === 'function') ? _vh.applySameMonthConstraint : function(){};
+  const _computeAndFill = (typeof _vh.computeAndFill === 'function') ? _vh.computeAndFill : null;
+
+  // Quando il modal di correzione viene chiuso (anche con "Annulla"), ricalcola distinte/differenza
+  if (adjustModalEl) {
+    adjustModalEl.addEventListener('hidden.bs.modal', () => {
+      try {
+        if (!state.formEl) return;
+
+        const dalEl = state.formEl.querySelector('input[name="periodo_dal"]');
+        const alEl = state.formEl.querySelector('input[name="periodo_al"]');
+        const valEl = state.formEl.querySelector('input[name="valore"]');
+
+        const isUpdate = (state.mode === 'update');
+        const outDistEl = document.getElementById(isUpdate ? 'ev_distinte' : 'nv_distinte');
+        const outDiffEl = document.getElementById(isUpdate ? 'ev_diff' : 'nv_diff');
+        const warnEl = document.getElementById(isUpdate ? 'ev_period_warning' : 'nv_period_warning');
+        const exIdEl = document.getElementById('ev_id');
+        const excludeId = (isUpdate && exIdEl) ? (exIdEl.value || '') : '';
+
+        let excludeSig = null;
+        if (isUpdate) {
+          const d = document.getElementById('ev_orig_data_vers')?.value || '';
+          const dal0 = document.getElementById('ev_orig_dal')?.value || '';
+          const al0 = document.getElementById('ev_orig_al')?.value || '';
+          const v0 = document.getElementById('ev_orig_valore')?.value || '';
+          if (d && dal0 && al0 && v0) excludeSig = { data_vers: d, dal: dal0, al: al0, valore: v0 };
+        }
+
+        if (dalEl && alEl) _applySameMonth(dalEl, alEl);
+        if (dalEl && alEl && valEl && outDistEl && outDiffEl) {
+          _computeAndFill && _computeAndFill(dalEl, alEl, valEl, outDistEl, outDiffEl, warnEl, excludeId, excludeSig, undefined);
+        }
+      } catch (_) {
+        // non bloccare
+      }
+    });
+  }
+
+
+  async function fetchDays(formEl, mode) {
+    const dal = getField(formEl, 'periodo_dal');
+    const al = getField(formEl, 'periodo_al');
+    const valore = getField(formEl, 'valore') || '0';
+    if (!dal || !al) throw new Error('Periodo competenza non valido');
+
+    const url = new URL(daysUrlBase, window.location.origin);
+    url.searchParams.set('dal', dal);
+    url.searchParams.set('al', al);
+    url.searchParams.set('valore', valore);
+
+    if (mode === 'update') {
+      const ex = getExclude(formEl);
+      for (const [k, v] of Object.entries(ex)) {
+        if (v) url.searchParams.set('exclude_' + k, v);
+      }
+    }
+
+    const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(t || ('HTTP ' + res.status));
+    }
+    return await res.json();
+  }
+
+  function renderDays(days) {
+    if (!adjDaysBody) return;
+    adjDaysBody.innerHTML = '';
+    (days || []).forEach(row => {
+      const tr = document.createElement('tr');
+      const d = row.date || '';
+      const total = Number((row.total ?? row.distinte) || 0);
+      const locked = !!row.locked;
+
+      tr.innerHTML = `
+        <td>${d}</td>
+        <td class="text-end">${formatMoney(total)}</td>
+        <td class="text-center">${locked ? '✓' : ''}</td>
+        <td class="text-end">
+          <button type="button" class="btn btn-sm btn-outline-primary" ${locked ? 'disabled' : ''} data-day="${d}">Modifica</button>
+        </td>
+      `;
+
+      const btn = tr.querySelector('button[data-day]');
+      if (btn && !locked) {
+        btn.addEventListener('click', () => openEditorForDay(d));
+      }
+      adjDaysBody.appendChild(tr);
+    });
+  }
+
+  function setSummary(distPeriod, diff) {
+    state.lastDistPeriod = distPeriod;
+    state.lastDiff = diff;
+    if (adjDistPeriod) adjDistPeriod.textContent = formatMoney(distPeriod);
+    if (adjDiff) {
+      adjDiff.textContent = formatMoney(diff);
+      adjDiff.classList.toggle('text-danger', Number(diff) < 0);
+      adjDiff.classList.toggle('text-success', Number(diff) > 0);
+    }
+    if (adjCommitBtn) {
+      adjCommitBtn.disabled = state.commitInFlight || (Math.round(Number(diff) * 100) !== 0);
+    }
+  }
+
+  function editorSetVisible(visible) {
+    if (adjEditorEmpty) adjEditorEmpty.style.display = visible ? 'none' : '';
+    if (adjEditor) adjEditor.style.display = visible ? '' : 'none';
+  }
+
+  function setEditorValues(payload) {
+    const d1 = payload?.distinte1 || [];
+    const d2 = payload?.distinte2 || [];
+
+    const m1 = payload?.d1_monete ?? '';
+    const m2 = payload?.d2_monete ?? '';
+
+    TAGLI.forEach(t => {
+      const r1 = d1.find(x => Number(x.taglio) === t);
+      const r2 = d2.find(x => Number(x.taglio) === t);
+      const i1 = document.getElementById(`adj_d1_qta_${t}`);
+      const i2 = document.getElementById(`adj_d2_qta_${t}`);
+      if (i1) i1.value = String(r1 ? (Number(r1.qta) || 0) : 0);
+      if (i2) i2.value = String(r2 ? (Number(r2.qta) || 0) : 0);
+    });
+
+    const mon1 = document.getElementById('adj_d1_monete');
+    const mon2 = document.getElementById('adj_d2_monete');
+    if (mon1) mon1.value = m1 === '' ? '' : formatMoney(m1);
+    if (mon2) mon2.value = m2 === '' ? '' : formatMoney(m2);
+  }
+
+  function readEditorPayload() {
+    const distinte1 = TAGLI.map(t => ({
+      taglio: t,
+      qta: Number(document.getElementById(`adj_d1_qta_${t}`)?.value || 0) || 0,
+    }));
+    const distinte2 = TAGLI.map(t => ({
+      taglio: t,
+      qta: Number(document.getElementById(`adj_d2_qta_${t}`)?.value || 0) || 0,
+    }));
+
+    const d1_monete = parseMoney(document.getElementById('adj_d1_monete')?.value || '0');
+    const d2_monete = parseMoney(document.getElementById('adj_d2_monete')?.value || '0');
+
+    return { distinte1, distinte2, d1_monete, d2_monete };
+  }
+
+  function computeDayTotal() {
+    const p = readEditorPayload();
+    let tot1 = p.distinte1.reduce((a, r) => a + (Number(r.taglio) * (Number(r.qta) || 0)), 0) + Number(p.d1_monete || 0);
+    let tot2 = p.distinte2.reduce((a, r) => a + (Number(r.taglio) * (Number(r.qta) || 0)), 0) + Number(p.d2_monete || 0);
+    tot1 = Math.round(tot1 * 100) / 100;
+    tot2 = Math.round(tot2 * 100) / 100;
+    const tot = Math.round((tot1 + tot2) * 100) / 100;
+
+    const t1El = document.getElementById('adj_d1_total');
+    const t2El = document.getElementById('adj_d2_total');
+    if (t1El) t1El.value = formatMoney(tot1);
+    if (t2El) t2El.value = formatMoney(tot2);
+    if (adjDayTotal) adjDayTotal.textContent = formatMoney(tot);
+  }
+
+  function bindEditorTotals() {
+    TAGLI.forEach(t => {
+      const i1 = document.getElementById(`adj_d1_qta_${t}`);
+      const i2 = document.getElementById(`adj_d2_qta_${t}`);
+      if (i1) i1.addEventListener('input', computeDayTotal);
+      if (i2) i2.addEventListener('input', computeDayTotal);
+    });
+    const m1 = document.getElementById('adj_d1_monete');
+    const m2 = document.getElementById('adj_d2_monete');
+    if (m1) m1.addEventListener('input', computeDayTotal);
+    if (m2) m2.addEventListener('input', computeDayTotal);
+  }
+
+  let editorBound = false;
+
+  async function refreshModal() {
+    showError('');
+    if (!state.formEl) return;
+
+    const data = await fetchDays(state.formEl, state.mode);
+    setSummary(Number(data.distinte_periodo || 0), Number(data.diff || 0));
+    renderDays(data.days || []);
+
+    if (state.selectedDay) {
+      // Se la giornata selezionata è ora bloccata o non presente, reset.
+      const exists = (data.days || []).some(x => x.date === state.selectedDay && !x.locked);
+      if (!exists) {
+        state.selectedDay = null;
+        if (adjEditDate) adjEditDate.textContent = '—';
+        editorSetVisible(false);
+      }
+    }
+  }
+
+  async function openEditorForDay(dayIso) {
+    showError('');
+    state.selectedDay = dayIso;
+    if (adjEditDate) adjEditDate.textContent = dayIso;
+    editorSetVisible(true);
+
+    const url = new URL(dayUrlBase, window.location.origin);
+    url.searchParams.set('d', dayIso);
+
+    const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) {
+      const t = await res.text();
+      showError(t || ('HTTP ' + res.status));
+      return;
+    }
+    const payload = await res.json();
+    setEditorValues(payload);
+    if (!editorBound) {
+      bindEditorTotals();
+      editorBound = true;
+    }
+    computeDayTotal();
+  }
+
+  async function saveDay() {
+    if (!state.selectedDay) return;
+    const payload = readEditorPayload();
+    const body = {
+      d: state.selectedDay,
+      distinte1: payload.distinte1,
+      distinte2: payload.distinte2,
+      d1_monete: payload.d1_monete,
+      d2_monete: payload.d2_monete,
+    };
+    if (state.mode === 'update') {
+      body.exclude = getExclude(state.formEl);
+    }
+
+    const res = await fetch(saveDayUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error || ('HTTP ' + res.status));
+      return;
+    }
+    await refreshModal();
+  }
+  async function commitVersamento() {
+    showError('');
+    if (!state.formEl) return;
+    if (state.commitInFlight) return;
+
+    state.commitInFlight = true;
+    if (adjCommitBtn) adjCommitBtn.disabled = true;
+    state.formEl.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(b => { b.disabled = true; });
+
+    try {
+      const fd = new FormData(state.formEl);
+      fd.set('mode', state.mode);
+
+      const res = await fetch(commitUrl, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const ym = data.ym || getField(state.formEl, 'ym') || '';
+        bsAdjust.hide();
+        // reload pagina
+        const url = new URL(versamentiUrlBase, window.location.origin);
+        if (ym) url.searchParams.set('ym', ym);
+        window.location.assign(url.toString());
+        return;
+      }
+
+      // Se non ok, prova a capire se serve ancora correzione.
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.needs_adjustment) {
+        await refreshModal();
+        return;
+      }
+      showError(data.error || ('HTTP ' + res.status));
+    } catch (e) {
+      showError((e && e.message) ? e.message : 'Errore inatteso durante il salvataggio del versamento.');
+    } finally {
+      state.commitInFlight = false;
+      if (state.formEl) {
+        state.formEl.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(b => { b.disabled = false; });
+      }
+      try { setSummary(state.lastDistPeriod || 0, state.lastDiff || 0); } catch (_) {}
+    }
+  }
+
+  async function trySave(formEl, mode) {
+    showError('');
+    if (state.submitInFlight) return;
+    state.submitInFlight = true;
+    if (formEl) {
+      formEl.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(b => { b.disabled = true; });
+    }
+    state.formEl = formEl;
+    state.mode = mode;
+    state.selectedDay = null;
+
+    // Se era aperto il modal edit, chiudilo prima.
+    const editModalEl = document.getElementById('editVersamentoModal');
+    if (mode === 'update' && editModalEl) {
+      const inst = bootstrap.Modal.getInstance(editModalEl);
+      if (inst) inst.hide();
+    }
+
+    let data;
+    try {
+      data = await fetchDays(formEl, mode);
+    } catch (e) {
+      alert(e.message || String(e));
+      state.submitInFlight = false;
+      if (formEl) {
+        formEl.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(b => { b.disabled = false; });
+      }
+      return;
+    }
+
+    const diff = Math.round(Number(data.diff || 0) * 100) / 100;
+    if (diff === 0) {
+      try {
+        await commitVersamentoDirect(formEl, mode);
+      } catch (e) {
+        alert((e && e.message) ? e.message : 'Errore inatteso durante il salvataggio del versamento.');
+      }
+      return;
+    }
+
+    // apertura modal correzione
+    if (adjEditDate) adjEditDate.textContent = '—';
+    editorSetVisible(false);
+    setSummary(Number(data.distinte_periodo || 0), diff);
+    renderDays(data.days || []);
+    state.submitInFlight = false;
+    if (formEl) {
+      formEl.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(b => { b.disabled = false; });
+    }
+    bsAdjust.show();
+  }
+  async function commitVersamentoDirect(formEl, mode) {
+    if (!formEl) return;
+    if (state.commitInFlight) return;
+
+    state.commitInFlight = true;
+
+    try {
+      const fd = new FormData(formEl);
+      fd.set('mode', mode);
+
+      const res = await fetch(commitUrl, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const ym = data.ym || getField(formEl, 'ym') || '';
+        const url = new URL(versamentiUrlBase, window.location.origin);
+        if (ym) url.searchParams.set('ym', ym);
+        window.location.assign(url.toString());
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.needs_adjustment) {
+        // riapri flusso correzione
+        state.submitInFlight = false;
+        formEl.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(b => { b.disabled = false; });
+        state.commitInFlight = false;
+        await trySave(formEl, mode);
+        return;
+      }
+      alert(data.error || ('HTTP ' + res.status));
+    } catch (e) {
+      throw e;
+    } finally {
+      state.commitInFlight = false;
+      state.submitInFlight = false;
+      if (formEl) {
+        formEl.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(b => { b.disabled = false; });
+      }
+      try { setSummary(state.lastDistPeriod || 0, state.lastDiff || 0); } catch (_) {}
+    }
+  }
+  document.addEventListener('submit', (e) => {
+    const formEl = e.target;
+    if (!(formEl instanceof HTMLFormElement)) return;
+    if (!formEl.matches('form[data-versamento-form="1"]')) return;
+
+    // blocca sempre il submit classico (evita reset campi) e poi gestiamo noi il flusso
+    e.preventDefault();
+
+    // applica vincolo stesso mese per sicurezza (anche se già gestito su change)
+    try {
+      const dalEl = formEl.querySelector('input[name="periodo_dal"]');
+      const alEl = formEl.querySelector('input[name="periodo_al"]');
+      if (dalEl && alEl) _applySameMonth(dalEl, alEl);
+    } catch (_) {
+      // non bloccare
+    }
+
+    if (!(window.validateVersamentoForm ? window.validateVersamentoForm(formEl) : formEl.checkValidity())) {
+      formEl.reportValidity();
+      return;
+    }
+
+    const mode = (formEl.dataset.mode || 'insert').toLowerCase();
+    Promise.resolve(trySave(formEl, mode === 'update' ? 'update' : 'insert')).catch((err) => {
+      alert((err && err.message) ? err.message : 'Errore inatteso durante il salvataggio del versamento.');
+    });
+  });
+if (adjSaveDayBtn) adjSaveDayBtn.addEventListener('click', saveDay);
+  if (adjCommitBtn) adjCommitBtn.addEventListener('click', commitVersamento);
+
+  adjustModalEl.addEventListener('show.bs.modal', () => {
+    showError('');
+  });
+})();
+
+  });
+  </script>
+{% endblock %}

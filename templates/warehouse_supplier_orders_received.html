@@ -1,0 +1,252 @@
+﻿{% extends "base.html" %}
+{% block title %}Ordini ricevuti{% endblock %}
+{% block content %}
+{% include "_supplier_orders_toolbar.html" %}
+<div class="container py-4 supplier-orders-page supplier-orders-received-page">
+  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+    <div>
+      <h1 class="h4 mb-1">Ordini ricevuti</h1>
+      <div class="text-muted small">Area operativa fornitore per presa in carico e picking.</div>
+    </div>
+  </div>
+
+  <form class="card border-0 shadow-sm supplier-orders-filter-card mb-3">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-lg-3 col-md-4">
+          <label class="form-label">Stato</label>
+          <select name="status" class="form-select">
+            <option value="">Tutti</option>
+            {% for st in status_options or [] %}
+              <option value="{{ st.value }}" {% if selected_status == st.value %}selected{% endif %}>{{ st.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-lg-9 col-md-8 d-flex justify-content-end gap-2 supplier-orders-filter-actions">
+          <a class="btn btn-outline-secondary" href="{{ url_for('warehouse.supplier_orders_received') }}">Reset</a>
+          <button class="btn btn-primary">Filtra</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="row g-3 supplier-orders-layout">
+    <div class="col-12 col-xxl-3 col-xl-4">
+      <div class="card border-0 shadow-sm supplier-orders-panel h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h6 mb-0">Ordini disponibili</h2>
+            <span class="text-muted small">{{ (rows or [])|length }} risultati</span>
+          </div>
+          <div class="supplier-order-list">
+            {% for row in rows or [] %}
+            {% set is_active = detail and detail.header.row_uuid == row.row_uuid %}
+            {% set supplier_status = 'Ricevuto' if row.status == 'Invitato' else row.status %}
+            <a class="supplier-order-list-item supplier-order-list-item-compact {% if is_active %}is-active{% endif %}" href="{% if is_active %}{{ url_for('warehouse.supplier_orders_received', status=selected_status) }}{% else %}{{ url_for('warehouse.supplier_orders_received', order_id=row.row_uuid, status=selected_status) }}{% endif %}">
+              <div class="supplier-order-list-top">
+                <div>
+                  <div class="supplier-order-code">{{ row.numero_ordine }}</div>
+                  <div class="supplier-order-meta">{{ row.order_date }}</div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap justify-content-end">
+                  <span class="badge supplier-status-badge supplier-status-{{ (supplier_status or '')|lower|replace(' ', '-') }}">{{ supplier_status }}</span>
+                  {% if row.archived_at %}<span class="badge text-bg-secondary">Archiviato</span>{% endif %}
+                </div>
+              </div>
+              <div class="supplier-order-list-body">
+                <div class="supplier-order-value">{{ row.site }}</div>
+                <div class="supplier-order-chip-stack">
+                  <span class="supplier-order-inline-chip">{{ row.requested_delivery_date }}</span>
+                  {% if row.store_name %}<span class="supplier-order-inline-chip supplier-order-clamp">{{ row.store_name }}</span>{% endif %}
+                </div>
+              </div>
+            </a>
+            {% else %}
+            <div class="text-muted p-3">Nessun ordine disponibile.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xxl-9 col-xl-8">
+      <div class="card border-0 shadow-sm supplier-orders-panel h-100">
+        <div class="card-body">
+          {% if detail %}
+          {% set is_archived = detail.header.archived_at and detail.header.status == 'Caricato' %}
+          {% set detail_supplier_status = 'Ricevuto' if detail.header.status == 'Invitato' else detail.header.status %}
+          <div class="supplier-order-detail-head mb-3">
+            <div>
+              <h2 class="h5 mb-1">{{ detail.header.numero_ordine }}</h2>
+              <div class="text-muted small">{{ detail.header.site }}{% if detail.header.store_name %} - {{ detail.header.store_name }}{% endif %}</div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+              <span class="badge supplier-status-badge supplier-status-{{ (detail_supplier_status or '')|lower|replace(' ', '-') }}">{{ detail_supplier_status }}</span>
+              {% if is_archived %}<span class="badge text-bg-secondary">Archiviato</span>{% endif %}
+            </div>
+          </div>
+
+          <div class="supplier-order-kpis mb-3">
+            <div class="supplier-order-kpi"><span>Data ordine</span><strong>{{ detail.header.order_date }}</strong></div>
+            <div class="supplier-order-kpi"><span>Consegna</span><strong>{{ detail.header.requested_delivery_date }}</strong></div>
+          </div>
+
+          <div class="supplier-order-note-box mb-3">
+            <div class="supplier-order-label mb-1">Note ordine</div>
+            <div>{{ detail.header.note_ordine or '-' }}</div>
+          </div>
+
+          {% if is_archived %}
+          <div class="alert alert-secondary d-flex justify-content-between align-items-center gap-3 flex-wrap supplier-archived-alert">
+            <div>
+              <div class="fw-semibold">Ordine archiviato</div>
+              <div class="small">L'ordine &egrave; completato e non &egrave; pi&ugrave; modificabile finch&eacute; non viene riaperto.</div>
+            </div>
+            <form method="post" action="{{ url_for('warehouse.supplier_orders_received_reopen', order_id=detail.header.row_uuid) }}">
+              <button class="btn btn-outline-primary">Riapri ordine</button>
+            </form>
+          </div>
+          {% endif %}
+
+          <form method="post" action="{{ url_for('warehouse.supplier_orders_received_complete', order_id=detail.header.row_uuid) }}">
+            <div class="vstack gap-3 supplier-received-lines">
+              {% for row in detail.rows or [] %}
+              <div class="supplier-received-line-card {% if row.supplier_added %}is-supplier-added{% endif %}">
+              <div class="supplier-received-line-top">
+                <div>
+                  <div class="fw-semibold">{{ row.descrizione }}</div>
+                  <div class="small text-muted">
+                      {% if row.unita %}{{ row.unita }}{% endif %}
+                      {% if row.supplier_added and row.replacement_for_row_uuid %} &middot; Sostituzione proposta{% elif row.supplier_added %} &middot; Riga aggiunta dal fornitore{% endif %}
+                  </div>
+                </div>
+                {% set picked_id = 'picked_' ~ loop.index %}
+                <div class="supplier-received-qty-pick">
+                  <div class="supplier-received-qty-box">
+                    <span>Quantit&agrave;</span>
+                    <strong>{{ row.qty_ordered }}</strong>
+                  </div>
+                  <div class="supplier-pick-toggle-wrap">
+                    <input class="btn-check supplier-pick-toggle-input" type="checkbox" value="1" id="{{ picked_id }}" name="picked_{{ row.row_uuid }}" {% if row.picked %}checked{% endif %} autocomplete="off" {% if is_archived %}disabled{% endif %}>
+                    <label class="supplier-pick-toggle" for="{{ picked_id }}">Pick effettuato</label>
+                  </div>
+                </div>
+              </div>
+                <div class="row g-2 align-items-end">
+                  <div class="col-md-4 col-sm-6">
+                    <label class="form-label">Lotto</label>
+                    <input type="text" class="form-control" name="lotto_{{ row.row_uuid }}" value="{{ row.lotto or '' }}" {% if is_archived %}disabled{% endif %}>
+                  </div>
+                  <div class="col-md-4 col-sm-6">
+                    <label class="form-label">Scadenza</label>
+                    <input type="date" class="form-control" name="scadenza_{{ row.row_uuid }}" value="{{ row.scadenza or '' }}" {% if is_archived %}disabled{% endif %}>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Note operative</label>
+                    <input type="text" class="form-control" name="note_fornitore_{{ row.row_uuid }}" value="{{ row.note_fornitore or '' }}" {% if is_archived %}disabled{% endif %}>
+                  </div>
+                </div>
+                {% if not row.supplier_added and not is_archived %}
+                <details class="supplier-inline-substitute mt-3">
+                  <summary>Sostituisci questo prodotto</summary>
+                  <div class="row g-2 align-items-end mt-1">
+                    <div class="col-lg-5">
+                      <label class="form-label">Prodotto sostitutivo</label>
+                      <select class="form-select" name="selected_product_descrizione" form="replace_{{ row.row_uuid }}">
+                        <option value="">Seleziona dal listino</option>
+                        {% for opt in catalog_options or [] %}
+                          <option value="{{ opt.descrizione }}">{{ opt.descrizione }}{% if opt.unita %} - {{ opt.unita }}{% endif %}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-lg-2 col-sm-4">
+                      <label class="form-label">Quantit&agrave;</label>
+                      <input type="number" step="0.01" min="0" class="form-control" name="qty_added" form="replace_{{ row.row_uuid }}">
+                    </div>
+                    <div class="col-lg-2 col-sm-4">
+                      <label class="form-label">Lotto</label>
+                      <input type="text" class="form-control" name="lotto_added" form="replace_{{ row.row_uuid }}">
+                    </div>
+                    <div class="col-lg-3 col-sm-4">
+                      <label class="form-label">Scadenza</label>
+                      <input type="date" class="form-control" name="scadenza_added" form="replace_{{ row.row_uuid }}">
+                    </div>
+                    <div class="col-lg-8">
+                      <label class="form-label">Note</label>
+                      <input type="text" class="form-control" name="note_added" form="replace_{{ row.row_uuid }}" placeholder="Motivo sostituzione o nota utile">
+                    </div>
+                    <div class="col-lg-4 d-flex justify-content-end align-items-end">
+                      <button class="btn btn-outline-primary w-100" type="submit" form="replace_{{ row.row_uuid }}">Conferma sostituzione</button>
+                    </div>
+                  </div>
+                </details>
+                {% endif %}
+                <div class="d-flex justify-content-end mt-3">
+                  {% if not is_archived %}
+                  <button class="btn btn-outline-primary btn-sm" formaction="{{ url_for('warehouse.supplier_orders_received_line', order_id=detail.header.row_uuid, line_id=row.row_uuid) }}">Salva riga</button>
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% if not is_archived %}
+            <div class="supplier-extra-product-card mt-3">
+              <div class="supplier-order-label mb-2">Aggiungi un prodotto extra</div>
+              <div class="row g-2 align-items-end">
+                <div class="col-lg-5">
+                  <label class="form-label">Prodotto</label>
+                  <select class="form-select" name="selected_product_descrizione" form="add_supplier_product_form">
+                    <option value="">Seleziona dal listino</option>
+                    {% for opt in catalog_options or [] %}
+                      <option value="{{ opt.descrizione }}">{{ opt.descrizione }}{% if opt.unita %} - {{ opt.unita }}{% endif %}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-lg-2 col-sm-4">
+                  <label class="form-label">Q.t&agrave;</label>
+                  <input type="number" step="0.01" min="0" class="form-control" name="qty_added" form="add_supplier_product_form">
+                </div>
+                <div class="col-lg-2 col-sm-4">
+                  <label class="form-label">Lotto</label>
+                  <input type="text" class="form-control" name="lotto_added" form="add_supplier_product_form">
+                </div>
+                <div class="col-lg-3 col-sm-4">
+                  <label class="form-label">Scadenza</label>
+                  <input type="date" class="form-control" name="scadenza_added" form="add_supplier_product_form">
+                </div>
+                <div class="col-lg-9">
+                  <label class="form-label">Note</label>
+                  <input type="text" class="form-control" name="note_added" form="add_supplier_product_form" placeholder="Note operative o motivazione aggiunta">
+                </div>
+                <div class="col-lg-3 d-flex justify-content-end align-items-end">
+                  <button class="btn btn-outline-primary w-100" type="submit" form="add_supplier_product_form">Aggiungi prodotto</button>
+                </div>
+              </div>
+            </div>
+            <div class="d-flex justify-content-end mt-3">
+              <button class="btn btn-success btn-lg supplier-complete-btn">Completa ordine</button>
+            </div>
+            {% endif %}
+          </form>
+          {% if not is_archived %}
+            {% for row in detail.rows or [] %}
+              {% if not row.supplier_added %}
+              <form id="replace_{{ row.row_uuid }}" method="post" action="{{ url_for('warehouse.supplier_orders_received_add_product', order_id=detail.header.row_uuid) }}">
+                <input type="hidden" name="replacement_for_row_uuid" value="{{ row.row_uuid }}">
+              </form>
+              {% endif %}
+            {% endfor %}
+            <form id="add_supplier_product_form" method="post" action="{{ url_for('warehouse.supplier_orders_received_add_product', order_id=detail.header.row_uuid) }}">
+              <input type="hidden" name="replacement_for_row_uuid" value="">
+            </form>
+          {% endif %}
+          {% else %}
+          <div class="text-muted">Seleziona un ordine per iniziare il picking.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

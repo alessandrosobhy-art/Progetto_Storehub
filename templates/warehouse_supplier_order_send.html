@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Invia Ordine{% endblock %}
+{% block content %}
+{% include "_supplier_orders_toolbar.html" %}
+<div class="container py-4 supplier-orders-page supplier-orders-send-page">
+  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+    <div>
+      <h1 class="h4 mb-1">Invia Ordine</h1>
+      <div class="text-muted small">Store ordinante: <strong>{{ store_code }}</strong>{% if store_name %} - {{ store_name }}{% endif %}</div>
+    </div>
+  </div>
+
+  <form method="post">
+    <div class="card shadow-sm border-0 supplier-orders-filter-card mb-3">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-lg-5 col-md-6">
+            <label class="form-label">Fornitore</label>
+            <select class="form-select" name="supplier_row_uuid" onchange="this.form.submit()">
+              <option value="">Seleziona...</option>
+              {% for s in supplier_options or [] %}
+                <option value="{{ s.row_uuid }}" {% if selected_supplier_uuid == s.row_uuid %}selected{% endif %}>{{ s.Fornitore }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <label class="form-label">Data consegna richiesta</label>
+            <input type="date" class="form-control" name="requested_delivery_date" value="{{ requested_delivery_date or '' }}">
+          </div>
+          <div class="col-lg-2 col-md-6">
+            <label class="form-label">Tipo ordine</label>
+            <input type="text" class="form-control" value="{{ selected_supplier.TipoOrdine if selected_supplier else '' }}" readonly>
+          </div>
+          <div class="col-lg-2 col-md-6">
+            <label class="form-label">Contatto</label>
+            <input type="text" class="form-control" value="{{ selected_contact.Email if selected_contact and selected_contact.Email else (selected_contact.Referente if selected_contact else '') }}" readonly>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Note ordine</label>
+            <textarea class="form-control" rows="2" name="note_ordine" placeholder="Note generali per il fornitore">{{ note_ordine or '' }}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if selected_supplier %}
+    <div class="card shadow-sm border-0 supplier-orders-panel supplier-send-panel">
+      <div class="card-header bg-white d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+          <div class="fw-semibold">{{ selected_supplier.Fornitore }}</div>
+          <div class="text-muted small">{{ selected_supplier.TipoOrdine }}{% if selected_contact %} &middot; {{ selected_contact.Referente or selected_contact.Email or '' }}{% endif %}</div>
+        </div>
+        <div class="supplier-send-grand-total text-start text-md-end">
+          <div class="small text-muted">Totale stimato</div>
+          <div class="h5 mb-0" id="supplierOrderGrandTotal">{{ '%.2f'|format(total_estimated|float) }} &euro;</div>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        {% if pricelist_rows %}
+        <div class="supplier-send-rows">
+          {% for row in pricelist_rows %}
+          <div class="supplier-send-row">
+            <div class="supplier-send-row-top">
+              <div>
+                <div class="fw-semibold">{{ row.descrizione }}</div>
+                <div class="small text-muted">{{ row.tipo_listino or '-' }} &middot; {{ row.gruppo or '-' }}{% if row.unita %} &middot; {{ row.unita }}{% endif %}{% if row.product_code %} &middot; {{ row.product_code }}{% endif %}</div>
+              </div>
+              <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <span class="badge text-bg-light border">{{ row.price_source or '-' }}</span>
+                {% if not row.estimated_price %}<span class="badge text-bg-warning">Prezzo n.d.</span>{% endif %}
+              </div>
+            </div>
+
+            <div class="supplier-send-row-grid">
+              <div class="supplier-send-metric">
+                <span>Prezzo stimato</span>
+                <strong>{{ '%.2f'|format(row.estimated_price|float) }} &euro;</strong>
+              </div>
+              <div class="supplier-send-input-wrap">
+                <label class="form-label">Colli</label>
+                <input type="number" step="0.01" min="0" class="form-control order-qty-colli" name="row-{{ loop.index0 }}-qty_colli" value="">
+              </div>
+              <div class="supplier-send-input-wrap">
+                <label class="form-label">Pezzi</label>
+                <input type="number" step="0.01" min="0" class="form-control order-qty-pezzi" name="row-{{ loop.index0 }}-qty_pezzi" value="">
+              </div>
+              <div class="supplier-send-metric supplier-send-subtotal-box">
+                <span>Subtotale</span>
+                <strong class="order-row-subtotal">0,00 &euro;</strong>
+              </div>
+            </div>
+
+            <input type="hidden" name="row-{{ loop.index0 }}-tipo_listino" value="{{ row.tipo_listino or '' }}">
+            <input type="hidden" name="row-{{ loop.index0 }}-product_code" value="{{ row.product_code or '' }}">
+            <input type="hidden" name="row-{{ loop.index0 }}-descrizione" value="{{ row.descrizione or '' }}">
+            <input type="hidden" name="row-{{ loop.index0 }}-gruppo" value="{{ row.gruppo or '' }}">
+            <input type="hidden" name="row-{{ loop.index0 }}-unita" value="{{ row.unita or '' }}">
+            <input type="hidden" name="row-{{ loop.index0 }}-qta_car" value="{{ row.qta_car if row.qta_car is not none else '' }}">
+            <input type="hidden" name="row-{{ loop.index0 }}-qta_int" value="{{ row.qta_int if row.qta_int is not none else '' }}">
+            <input type="hidden" name="row-{{ loop.index0 }}-conv" value="{{ row.conv if row.conv is not none else '' }}">
+            <input type="hidden" class="order-estimated-price" name="row-{{ loop.index0 }}-estimated_price" value="{{ row.estimated_price or 0 }}">
+            <input type="hidden" name="row-{{ loop.index0 }}-price_source" value="{{ row.price_source or '' }}">
+          </div>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="rows_count" value="{{ pricelist_rows|length }}">
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2 supplier-send-footer">
+          <div class="text-muted small">I prezzi storici usano la media delle ultime 4 settimane DDT.</div>
+          <button class="btn btn-primary btn-lg supplier-send-submit" name="submit_action" value="send">Invia ordine</button>
+        </div>
+        {% else %}
+        <div class="p-4 text-muted">Il fornitore selezionato non ha righe di listino disponibili.</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </form>
+</div>
+
+<script>
+(function(){
+  function num(v){
+    const s = String(v || '').replace(',', '.').trim();
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+  function fmt(n){
+    return (n || 0).toFixed(2).replace('.', ',') + ' \u20ac';
+  }
+  function recalc(){
+    let grand = 0;
+    document.querySelectorAll('.supplier-send-row').forEach(function(row){
+      const colli = num(row.querySelector('.order-qty-colli')?.value);
+      const pezzi = num(row.querySelector('.order-qty-pezzi')?.value);
+      const qtaCar = num(row.querySelector('input[name$="-qta_car"]')?.value);
+      const price = num(row.querySelector('.order-estimated-price')?.value);
+      let qty = colli;
+      if (pezzi > 0) qty += qtaCar > 0 ? (pezzi / qtaCar) : pezzi;
+      const subtotal = qty * price;
+      grand += subtotal;
+      const span = row.querySelector('.order-row-subtotal');
+      if (span) span.textContent = fmt(subtotal);
+    });
+    const total = document.getElementById('supplierOrderGrandTotal');
+    if (total) total.textContent = fmt(grand);
+  }
+  document.addEventListener('input', function(ev){
+    if (ev.target.closest('.order-qty-colli') || ev.target.closest('.order-qty-pezzi')) recalc();
+  });
+  recalc();
+})();
+</script>
+{% endblock %}

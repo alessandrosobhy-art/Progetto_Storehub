@@ -1,0 +1,65 @@
+USE [APP_STOREHUB];
+GO
+
+IF OBJECT_ID(N'dbo.DISTINTA_CASSA_FOTO', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.DISTINTA_CASSA_FOTO (
+        id BIGINT IDENTITY(1,1) NOT NULL,
+        row_uuid UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_DISTINTA_CASSA_FOTO_row_uuid DEFAULT NEWID(),
+        tenant_key NVARCHAR(120) NOT NULL CONSTRAINT DF_DISTINTA_CASSA_FOTO_tenant_key DEFAULT N'default',
+        site NVARCHAR(50) NOT NULL,
+        data_iso DATE NOT NULL,
+        foto_file NVARCHAR(255) NOT NULL,
+        created_at DATETIME2(0) NOT NULL CONSTRAINT DF_DISTINTA_CASSA_FOTO_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIME2(0) NOT NULL CONSTRAINT DF_DISTINTA_CASSA_FOTO_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_DISTINTA_CASSA_FOTO PRIMARY KEY CLUSTERED (id),
+        CONSTRAINT UQ_DISTINTA_CASSA_FOTO_tenant_site_data UNIQUE (tenant_key, site, data_iso),
+        CONSTRAINT UQ_DISTINTA_CASSA_FOTO_row_uuid UNIQUE (row_uuid)
+    );
+END;
+GO
+
+IF COL_LENGTH(N'dbo.DISTINTA_CASSA_FOTO', N'tenant_key') IS NULL
+BEGIN
+    ALTER TABLE dbo.DISTINTA_CASSA_FOTO ADD tenant_key NVARCHAR(120) NULL;
+    EXEC(N'UPDATE dbo.DISTINTA_CASSA_FOTO SET tenant_key = N''default'' WHERE tenant_key IS NULL OR LTRIM(RTRIM(tenant_key)) = N''''');
+    EXEC(N'ALTER TABLE dbo.DISTINTA_CASSA_FOTO ALTER COLUMN tenant_key NVARCHAR(120) NOT NULL');
+END;
+GO
+
+DECLARE @constraintName NVARCHAR(255);
+SELECT TOP 1 @constraintName = kc.name
+  FROM sys.key_constraints kc
+ WHERE kc.parent_object_id = OBJECT_ID(N'dbo.DISTINTA_CASSA_FOTO')
+   AND kc.type = N'UQ'
+   AND kc.name = N'UQ_DISTINTA_CASSA_FOTO_site_data';
+IF @constraintName IS NOT NULL
+BEGIN
+    DECLARE @dropSql NVARCHAR(MAX);
+    SET @dropSql = N'ALTER TABLE dbo.DISTINTA_CASSA_FOTO DROP CONSTRAINT ' + QUOTENAME(@constraintName);
+    EXEC(@dropSql);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_DISTINTA_CASSA_FOTO_site_data'
+      AND object_id = OBJECT_ID(N'dbo.DISTINTA_CASSA_FOTO')
+)
+BEGIN
+    CREATE INDEX IX_DISTINTA_CASSA_FOTO_site_data
+        ON dbo.DISTINTA_CASSA_FOTO(tenant_key, site, data_iso);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'UX_DISTINTA_CASSA_FOTO_tenant_site_data'
+      AND object_id = OBJECT_ID(N'dbo.DISTINTA_CASSA_FOTO')
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX UX_DISTINTA_CASSA_FOTO_tenant_site_data ON dbo.DISTINTA_CASSA_FOTO(tenant_key, site, data_iso)');
+END;
+GO

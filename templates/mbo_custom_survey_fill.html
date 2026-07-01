@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Survey MBO</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body { min-height:100vh; background:#f6f8fb; }
+  .survey-page { max-width: 980px; }
+  .survey-band { background:#fff; border:1px solid var(--bs-border-color); border-radius:.75rem; padding:1rem; }
+  .survey-question { border-top:1px solid var(--bs-border-color); padding-top:1rem; margin-top:1rem; }
+  .survey-choice-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:.55rem; }
+  .survey-choice-grid--score { grid-template-columns:repeat(4, minmax(54px, 1fr)); }
+  .survey-choice-grid input { position:absolute; opacity:0; pointer-events:none; }
+  .survey-choice-grid label {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:46px;
+    border:1px solid var(--bs-border-color);
+    border-radius:.6rem;
+    font-weight:800;
+    text-align:center;
+    cursor:pointer;
+    background:var(--bs-tertiary-bg);
+    padding:.55rem .7rem;
+  }
+  .survey-choice-grid label:hover { border-color:var(--bs-primary); }
+  .survey-choice-grid input:focus-visible + label { box-shadow:0 0 0 .2rem rgba(13,110,253,.18); }
+  .survey-choice-grid input:checked + label { color:#fff; background:var(--bs-primary); border-color:var(--bs-primary); box-shadow:0 0 0 .18rem rgba(13,110,253,.14); }
+  .survey-choice-grid--score label:nth-of-type(1) { border-color:rgba(220,53,69,.45); color:#b02a37; }
+  .survey-choice-grid--score label:nth-of-type(2) { border-color:rgba(253,126,20,.55); color:#a84f00; }
+  .survey-choice-grid--score label:nth-of-type(3) { border-color:rgba(255,193,7,.7); color:#8a5a00; }
+  .survey-choice-grid--score label:nth-of-type(4) { border-color:rgba(25,135,84,.55); color:var(--bs-success); }
+  .survey-choice-grid--score input[value="1"]:checked + label { background:var(--bs-danger); border-color:var(--bs-danger); color:#fff; }
+  .survey-choice-grid--score input[value="2"]:checked + label { background:#fd7e14; border-color:#fd7e14; color:#fff; }
+  .survey-choice-grid--score input[value="3"]:checked + label { background:#ffc107; border-color:#ffc107; color:#212529; }
+  .survey-choice-grid--score input[value="4"]:checked + label { background:var(--bs-success); border-color:var(--bs-success); color:#fff; }
+  @media (max-width: 575.98px) {
+    .survey-choice-grid,
+    .survey-choice-grid--score { grid-template-columns:1fr; }
+    .survey-choice-grid--score label { min-height:44px; }
+  }
+</style>
+</head>
+<body>
+<div class="container-fluid survey-page py-4">
+  {% set flashes = get_flashed_messages(with_categories=true) %}
+  {% if flashes %}
+    {% for category, message in flashes %}
+    <div class="alert alert-{{ 'danger' if category == 'error' else category }} mb-3">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  {% if not survey %}
+  <section class="survey-band">
+    <h1 class="h4 mb-1">Survey non disponibile</h1>
+    <div class="text-muted">Il link usato non e valido.</div>
+  </section>
+  {% else %}
+  <section class="survey-band mb-3">
+    <h1 class="mb-1">{{ survey.display_name or survey.survey_name }}</h1>
+    <div class="text-muted">{{ survey.start_year_month }} / {{ survey.end_year_month }}</div>
+    <div class="alert alert-info mt-3 mb-0">
+      Gentile utente, ti chiediamo pochi minuti per condividere la tua opinione. La compilazione e anonima: non ti verra richiesto il nome e le risposte saranno raccolte senza dati identificativi.
+    </div>
+  </section>
+
+  {% if survey.is_active and survey.link_active %}
+  <form method="post" class="survey-band">
+    {% for q in survey.questions %}
+    <div class="survey-question">
+      <label class="form-label fw-semibold">{{ q.text }}</label>
+      <div class="text-muted small mb-2">{{ q.category }}</div>
+      {% if q.type == 'score_1_4' %}
+      <div class="survey-choice-grid survey-choice-grid--score">
+        {% for n in [1,2,3,4] %}
+        <input type="radio" id="{{ q.question_uuid }}_{{ n }}" name="{{ q.question_uuid }}" value="{{ n }}" {% if form_values.get(q.question_uuid)|int == n %}checked{% endif %} required>
+        <label for="{{ q.question_uuid }}_{{ n }}">{{ n }}</label>
+        {% endfor %}
+      </div>
+      {% elif q.type == 'single_choice' %}
+      <div class="survey-choice-grid">
+        {% for opt in q.options %}
+        <input type="radio" id="{{ q.question_uuid }}_{{ opt.option_uuid }}" name="{{ q.question_uuid }}" value="{{ opt.option_uuid }}" {% if form_values.get(q.question_uuid) == opt.option_uuid %}checked{% endif %} required>
+        <label for="{{ q.question_uuid }}_{{ opt.option_uuid }}">
+          <span>
+            {{ opt.text }}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+      {% elif q.type == 'number' %}
+      <input class="form-control" type="number" step="any" name="{{ q.question_uuid }}" value="{{ form_values.get(q.question_uuid, '') }}" required>
+      {% else %}
+      <textarea class="form-control" name="{{ q.question_uuid }}" rows="3" required>{{ form_values.get(q.question_uuid, '') }}</textarea>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="d-flex justify-content-end mt-4">
+      <button class="btn btn-primary btn-lg">Invia survey</button>
+    </div>
+  </form>
+  {% else %}
+  <section class="survey-band">
+    <h2 class="h5 mb-1">Survey non attiva</h2>
+    <div class="text-muted">Questo link e stato disattivato.</div>
+  </section>
+  {% endif %}
+  {% endif %}
+</div>
+</body>
+</html>

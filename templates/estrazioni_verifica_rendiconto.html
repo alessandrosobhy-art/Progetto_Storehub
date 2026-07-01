@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Estrazioni - Verifica Rendiconto{% endblock %}
+
+{% block content %}
+  {% include "_estrazioni_hq_toolbar.html" %}
+
+  <div class="container py-4">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+      <div>
+        <h3 class="mb-1">Verifica Rendiconto</h3>
+        <div class="text-muted small">
+          Store visibili: <strong>{{ stores_count }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-md-3">
+            <label class="form-label small text-muted mb-1">Cosa cercare</label>
+            <select class="form-select" id="vrKind">
+              <option value="VERSAMENTI">Versamenti</option>
+              <option value="SPESE">Spese</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label small text-muted mb-1">Periodo</label>
+            <select class="form-select" id="vrMode">
+              <option value="WEEK">Settimana</option>
+              <option value="MONTH" selected>Mese</option>
+              <option value="PERIOD">Periodo</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div id="vrBoxWeek" class="d-none">
+              <div class="d-flex align-items-end gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary" id="vrWeekPrev">◀</button>
+                <div>
+                  <label class="form-label small text-muted mb-1">Data (nella settimana)</label>
+                  <input type="date" class="form-control" id="vrWeekAnchor" />
+                </div>
+                <button type="button" class="btn btn-outline-secondary" id="vrWeekNext">▶</button>
+                <div class="text-muted small" id="vrWeekLabel"></div>
+              </div>
+            </div>
+
+            <div id="vrBoxMonth">
+              <div class="d-flex align-items-end gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary" id="vrMonthPrev">◀</button>
+                <div>
+                  <label class="form-label small text-muted mb-1">Mese</label>
+                  <input type="month" class="form-control" id="vrMonthPicker" />
+                </div>
+                <button type="button" class="btn btn-outline-secondary" id="vrMonthNext">▶</button>
+                <div class="text-muted small" id="vrMonthLabel"></div>
+              </div>
+            </div>
+
+            <div id="vrBoxPeriod" class="d-none">
+              <div class="d-flex align-items-end gap-2 flex-wrap">
+                <div>
+                  <label class="form-label small text-muted mb-1">Dal</label>
+                  <input type="date" class="form-control" id="vrPeriodStart" />
+                </div>
+                <div>
+                  <label class="form-label small text-muted mb-1">Al</label>
+                  <input type="date" class="form-control" id="vrPeriodEnd" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 d-flex align-items-center gap-2 flex-wrap mt-3">
+            <button type="button" class="btn btn-primary" id="vrBtnSearch">Cerca</button>
+            <button type="button" class="btn btn-outline-success" id="vrBtnExport" disabled>Estrai Excel (vista corrente)</button>
+            <div class="ms-auto text-muted small" id="vrSummary"></div>
+          </div>
+        </div>
+
+        <div class="alert alert-danger mt-3 d-none" id="vrError"></div>
+        <div class="alert alert-warning mt-3 d-none" id="vrWarn"></div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label small text-muted mb-1">Filtra per</label>
+            <select class="form-select" id="vrFilterKey" disabled>
+              <option value="ALL">Tutti i campi</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label small text-muted mb-1">Cerca</label>
+            <div id="vrFilterTextWrap">
+              <input type="text" class="form-control" id="vrFilterVal" placeholder="Scrivi per filtrare..." disabled>
+            </div>
+            <div id="vrFilterDateWrap" class="d-none">
+              <div class="d-flex gap-2 flex-wrap">
+                <input type="date" class="form-control" id="vrFilterDateStart" disabled>
+                <input type="date" class="form-control" id="vrFilterDateEnd" disabled>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-md-2 d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary w-100" id="vrFilterClear" disabled>Reset</button>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <div class="text-muted small" id="vrCount"></div>
+          <div class="spinner-border spinner-border-sm d-none" role="status" id="vrSpinner"></div>
+        </div>
+
+        <div id="vrResults"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="vrPhotoSpesaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Foto spesa</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body text-center">
+          <div class="text-muted small mb-2" id="vrPhotoSpesaLoading" style="display:none;">Caricamento...</div>
+          <img id="vrPhotoSpesaImg" src="" class="img-fluid rounded" alt="Foto spesa" style="max-height:70vh;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="vrPhotoVersamentoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Foto versamento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center">
+            <div id="vrPhotoVersamentoLoading" class="text-muted small mb-2" style="display:none;">Caricamento...</div>
+            <img id="vrPhotoVersamentoImg" src="" alt="Foto" style="max-width:100%; height:auto; display:none; border-radius:8px;">
+            <div id="vrPhotoVersamentoError" class="text-danger small" style="display:none;">Impossibile caricare la foto.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.ESTRAZIONI_VERIFICA_CFG = {
+      apiUrl: "{{ url_for('estrazioni.api_verifica_rendiconto') }}",
+      exportUrl: "{{ url_for('estrazioni.api_verifica_rendiconto_export_xlsx') }}",
+      build: "v1.0.0",
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/estrazioni_verifica_rendiconto_v1.js') }}?v=1.0.1" defer></script>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Admin - Finance store{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="mb-3">
+    <h1 class="h4 mb-1">Finance · Mappatura store</h1>
+    <div class="text-muted small">Gestisci i codici convenzione e lo storico delle assegnazioni store.</div>
+  </div>
+
+  <datalist id="financeCodeOptions">
+    {% for r in code_options or [] %}
+    <option value="{{ r.CodeValue }}">{{ r.SourceLabel or '' }}</option>
+    {% endfor %}
+  </datalist>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Inserimento codice</h2>
+          <form method="post" class="row g-2">
+            <input type="hidden" name="action" value="add_code">
+            <div class="col-12">
+              <label class="form-label">Codice</label>
+              <input class="form-control form-control-sm" name="code" list="financeCodeOptions" placeholder="Es. 563857700025" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Descrizione</label>
+              <input class="form-control form-control-sm" name="label" placeholder="Facoltativa">
+            </div>
+            <div class="col-12 d-flex gap-2">
+              <button class="btn btn-primary btn-sm" type="submit">Salva codice</button>
+            </div>
+          </form>
+
+          <details class="mt-4">
+            <summary class="small text-muted" style="cursor:pointer;">Import massivo codici</summary>
+            <form method="post" class="mt-3">
+              <input type="hidden" name="action" value="import_codes">
+              <textarea class="form-control form-control-sm" name="catalog_text" rows="8" placeholder="7860755 - I LOVE POKE FIRENZE&#10;563857700025 - I LOVE POKE SALERNO"></textarea>
+              <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-outline-primary btn-sm" type="submit">Importa codici</button>
+              </div>
+            </form>
+            {% if import_result %}
+            <div class="alert alert-info mt-3 mb-0 small">
+              <div><strong>Codici importati:</strong> {{ import_result.ok }}</div>
+              {% if import_result.warnings %}
+              <ul class="mb-0 mt-2">
+                {% for warning in import_result.warnings %}
+                <li>{{ warning }}</li>
+                {% endfor %}
+              </ul>
+              {% endif %}
+            </div>
+            {% endif %}
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Assegnazione</h2>
+          <form method="post" class="row g-2">
+            <input type="hidden" name="action" value="assign_code">
+            <input type="hidden" name="assignment_id" value="{{ edit_assignment.AssignmentId if edit_assignment else '' }}">
+            <input type="hidden" name="return_search" value="{{ search }}">
+            <div class="col-12">
+              <label class="form-label">Codice</label>
+              <input class="form-control form-control-sm" name="code" list="financeCodeOptions" value="{{ (edit_assignment.CodeValue if edit_assignment else selected_code) or '' }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Store</label>
+              <select class="form-select form-select-sm" name="store_code" required>
+                <option value="">Seleziona store</option>
+                {% for s in stores or [] %}
+                <option value="{{ s.code }}" {% if edit_assignment and edit_assignment.StoreCode == s.code %}selected{% endif %}>{{ s.code }} - {{ s.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Data decorrenza</label>
+              <input type="date" class="form-control form-control-sm" name="valid_from" value="{{ edit_assignment.ValidFrom.isoformat() if edit_assignment and edit_assignment.ValidFrom and edit_assignment.ValidFrom.isoformat else '' }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Nota</label>
+              <input class="form-control form-control-sm" name="note" value="{{ edit_assignment.Note if edit_assignment else '' }}" placeholder="Facoltativa">
+            </div>
+            <div class="col-12 d-flex gap-2">
+              <button class="btn btn-primary btn-sm" type="submit">{{ 'Aggiorna' if edit_assignment else 'Assegna' }}</button>
+              {% if edit_assignment %}
+              <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin_finance_store_map', q=search, code=selected_code) }}">Annulla</a>
+              {% endif %}
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Storico assegnazioni</h2>
+          <form method="get" class="row g-2">
+            <div class="col-12">
+              <label class="form-label">Codice</label>
+              <input class="form-control form-control-sm" name="code" list="financeCodeOptions" value="{{ selected_code }}" placeholder="Seleziona o cerca un codice">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Filtro testo</label>
+              <input class="form-control form-control-sm" name="q" value="{{ search }}" placeholder="Codice o descrizione">
+            </div>
+            <div class="col-12 d-flex gap-2">
+              <button class="btn btn-outline-primary btn-sm" type="submit">Mostra storico</button>
+              <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin_finance_store_map') }}">Reset</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mt-3">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <h2 class="h6 mb-0">Storico{% if selected_code %} · <code>{{ selected_code }}</code>{% endif %}</h2>
+        {% if selected_code %}
+        <div class="small text-muted">Modifica o libera le assegnazioni del codice selezionato.</div>
+        {% endif %}
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="width:140px;">Codice</th>
+              <th>Store</th>
+              <th style="width:140px;">Dal</th>
+              <th>Nota</th>
+              <th class="text-end" style="width:170px;">Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in assignments or [] %}
+            <tr>
+              <td><code>{{ r.CodeValue }}</code></td>
+              <td>{{ r.StoreCode }}{% if r.StoreName %} - {{ r.StoreName }}{% endif %}</td>
+              <td>{{ r.ValidFrom.strftime('%d/%m/%Y') if r.ValidFrom and r.ValidFrom.strftime else (r.ValidFrom or '') }}</td>
+              <td>{{ r.Note or '' }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin_finance_store_map', q=search, code=selected_code or r.CodeValue, edit_assignment_id=r.AssignmentId) }}">Modifica</a>
+                <form method="post" class="d-inline" onsubmit="return confirm('Eliminare questa assegnazione?');">
+                  <input type="hidden" name="action" value="delete_assignment">
+                  <input type="hidden" name="assignment_id" value="{{ r.AssignmentId }}">
+                  <input type="hidden" name="selected_code" value="{{ selected_code or r.CodeValue }}">
+                  <input type="hidden" name="return_search" value="{{ search }}">
+                  <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">Seleziona un codice dalla tendina per vedere lo storico.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

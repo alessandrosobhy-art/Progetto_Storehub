@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Assegnazioni tenant{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Assegnazioni tenant</h1>
+      <div class="text-muted small">Vista di controllo per utenti, store, moduli, storage e traduzioni personalizzate.</div>
+    </div>
+    <a class="btn btn-outline-primary" href="{{ url_for('master_tenants') }}">Gestisci tenant</a>
+  </div>
+
+  <div class="row g-3">
+    {% for card in cards %}
+      {% set tenant = card.tenant %}
+      <div class="col-12 col-xl-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+              <div class="fw-bold">{{ tenant.display_name or tenant.tenant_key }}</div>
+              <div class="text-muted small">
+                {{ tenant.tenant_key }} · {{ tenant.database_name }}
+              </div>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+              {% if tenant.is_active %}
+                <span class="badge text-bg-success">Attivo</span>
+              {% else %}
+                <span class="badge text-bg-secondary">Disattivo</span>
+              {% endif %}
+              {% if tenant.master_can_admin %}
+                <span class="badge text-bg-info">Master admin</span>
+              {% endif %}
+              {% if tenant.tenant_admin_enabled %}
+                <span class="badge text-bg-primary">Admin tenant</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="row g-2 mb-3">
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted small">Utenti</div>
+                  <div class="fs-5 fw-bold">{{ card.active_users|length }} / {{ card.users|length }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted small">Store</div>
+                  <div class="fs-5 fw-bold">{{ card.active_stores|length }} / {{ card.stores|length }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted small">Moduli</div>
+                  <div class="fs-5 fw-bold">{{ card.active_modules|length }} / {{ card.modules|length }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted small">Traduzioni</div>
+                  <div class="fs-5 fw-bold">{{ card.translation_overrides }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="accordion" id="tenantAssign{{ loop.index }}">
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#tenantUsers{{ loop.index }}">
+                    Utenti assegnati
+                  </button>
+                </h2>
+                <div id="tenantUsers{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#tenantAssign{{ loop.index }}">
+                  <div class="accordion-body p-0">
+                    <table class="table table-sm mb-0">
+                      <tbody>
+                        {% for user in card.users %}
+                          <tr>
+                            <td>{{ user.email }}</td>
+                            <td class="text-muted">{{ user.tenant_role }}</td>
+                            <td class="text-end">
+                              {% if user.is_active %}<span class="badge text-bg-success">Attivo</span>{% else %}<span class="badge text-bg-secondary">Disattivo</span>{% endif %}
+                            </td>
+                          </tr>
+                        {% else %}
+                          <tr><td class="text-muted p-3">Nessun utente assegnato.</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#tenantStores{{ loop.index }}">
+                    Store assegnati
+                  </button>
+                </h2>
+                <div id="tenantStores{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#tenantAssign{{ loop.index }}">
+                  <div class="accordion-body p-0">
+                    <table class="table table-sm mb-0">
+                      <tbody>
+                        {% for store in card.stores %}
+                          <tr>
+                            <td style="width: 90px;"><code>{{ store.store_code }}</code></td>
+                            <td>{{ store.store_name }}</td>
+                            <td class="text-end">
+                              {% if store.is_active %}<span class="badge text-bg-success">Attivo</span>{% else %}<span class="badge text-bg-secondary">Disattivo</span>{% endif %}
+                            </td>
+                          </tr>
+                        {% else %}
+                          <tr><td class="text-muted p-3">Nessuno store assegnato.</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#tenantModules{{ loop.index }}">
+                    Moduli e storage
+                  </button>
+                </h2>
+                <div id="tenantModules{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#tenantAssign{{ loop.index }}">
+                  <div class="accordion-body">
+                    <div class="mb-2 fw-semibold">Moduli attivi</div>
+                    <div class="d-flex flex-wrap gap-1 mb-3">
+                      {% for module in card.active_modules %}
+                        <span class="badge text-bg-primary">{{ module.display_name or module.module_key }}</span>
+                      {% else %}
+                        <span class="text-muted small">Nessun modulo attivo.</span>
+                      {% endfor %}
+                    </div>
+                    <div class="mb-2 fw-semibold">Storage attivi</div>
+                    <div class="d-flex flex-wrap gap-1">
+                      {% for rule in card.active_storage_rules %}
+                        <span class="badge text-bg-light border text-dark">{{ rule.display_name or rule.category_key }} · {{ rule.provider }}</span>
+                      {% else %}
+                        <span class="text-muted small">Nessuna regola storage attiva.</span>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="col-12">
+        <div class="alert alert-info">Nessun tenant configurato.</div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

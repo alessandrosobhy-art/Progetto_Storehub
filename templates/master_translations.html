@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Traduzioni{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Traduzioni</h1>
+      <div class="text-muted small">Base piattaforma e personalizzazioni del tenant restano separate.</div>
+    </div>
+  </div>
+
+  <form class="card shadow-sm mb-3" method="get">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label fw-semibold" for="tenant_key">Tenant</label>
+          <select class="form-select" id="tenant_key" name="tenant_key">
+            {% for t in tenants %}
+              {% set key = t.tenant_key or t.get('tenant_key') %}
+              <option value="{{ key }}" {% if key == selected_tenant_key %}selected{% endif %}>
+                {{ t.display_name or t.get('display_name') or key }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-semibold" for="language">Lingua</label>
+          <select class="form-select" id="language" name="language">
+            {% for lang in languages %}
+              <option value="{{ lang.code }}" {% if lang.code == selected_language %}selected{% endif %}>{{ lang.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold" for="template">Area / template</label>
+          <select class="form-select" id="template" name="template">
+            {% for item in templates %}
+              <option value="{{ item.key }}" {% if item.key == selected_template %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-semibold" for="view">Vista</label>
+          <select class="form-select" id="view" name="view">
+            <option value="base" {% if view_mode == 'base' %}selected{% endif %}>Base</option>
+            <option value="tenant" {% if view_mode == 'tenant' %}selected{% endif %}>Tenant</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-grid">
+          <button class="btn btn-outline-primary" type="submit">Filtra</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link {% if view_mode == 'base' %}active{% endif %}" href="{{ url_for('master_translations', tenant_key=selected_tenant_key, language=selected_language, template=selected_template, view='base') }}">
+        Base <span class="badge text-bg-light ms-1">{{ base_groups|length }}</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if view_mode == 'tenant' %}active{% endif %}" href="{{ url_for('master_translations', tenant_key=selected_tenant_key, language=selected_language, template=selected_template, view='tenant') }}">
+        Tenant <span class="badge text-bg-light ms-1">{{ tenant_rows|length }}</span>
+      </a>
+    </li>
+  </ul>
+
+  {% if view_mode == 'base' %}
+  <form class="card shadow-sm" method="post">
+    <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+    <input type="hidden" name="language" value="{{ selected_language }}">
+    <input type="hidden" name="template" value="{{ selected_template }}">
+    <input type="hidden" name="view" value="base">
+    <input type="hidden" name="row_count" value="{{ base_groups|length }}">
+    <div class="card-header bg-white">
+      <div class="fw-semibold">Configurazione base StoreHub</div>
+      <div class="text-muted small">Se una voce e usata in piu punti, viene salvata una volta sola e applicata a tutte le occorrenze elencate.</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 18%;">Area</th>
+            <th style="width: 18%;">Voce base</th>
+            <th>Testo</th>
+            <th style="width: 30%;">Dove viene usata</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in base_groups %}
+          {% set idx = loop.index0 %}
+          <tr>
+            <td>
+              {% for area in row.areas %}
+                <span class="badge text-bg-secondary me-1 mb-1">{{ area }}</span>
+              {% endfor %}
+            </td>
+            <td>{{ row.source_text or row.text_value }}</td>
+            <td>
+              <input type="hidden" name="occurrences_{{ idx }}" value='{{ row.occurrences|tojson }}'>
+              <input type="hidden" name="base_text_value_{{ idx }}" value="{{ row.text_value }}">
+              <input class="form-control form-control-sm" name="text_value_{{ idx }}" value="{{ row.text_value }}">
+            </td>
+            <td>
+              <details>
+                <summary>{{ row.occurrences|length }} occorrenze</summary>
+                <div class="small text-muted mt-2">
+                  {% for occ in row.occurrences %}
+                    <div><code>{{ occ.namespace }}.{{ occ.translation_key }}</code> - {{ occ.area }}</div>
+                  {% endfor %}
+                </div>
+              </details>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="text-muted p-4">Nessuna traduzione base trovata.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-footer d-flex justify-content-end gap-2">
+      <button class="btn btn-outline-primary" type="submit" name="action" value="save_tenant">Personalizza per questo tenant</button>
+      <button class="btn btn-primary" type="submit" name="action" value="save_base">Salva base</button>
+    </div>
+  </form>
+  {% else %}
+  <form class="card shadow-sm" method="post">
+    <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+    <input type="hidden" name="language" value="{{ selected_language }}">
+    <input type="hidden" name="template" value="{{ selected_template }}">
+    <input type="hidden" name="view" value="tenant">
+    <input type="hidden" name="row_count" value="{{ tenant_rows|length }}">
+    <div class="card-header bg-white">
+      <div class="fw-semibold">Personalizzazioni tenant</div>
+      <div class="text-muted small">Qui compaiono solo le voci diverse dalla base. Ripristina elimina la personalizzazione e torna al valore base.</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 16%;">Area</th>
+            <th style="width: 20%;">Chiave</th>
+            <th style="width: 22%;">Base</th>
+            <th>Personalizzazione</th>
+            <th style="width: 12%;">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in tenant_rows %}
+          {% set idx = loop.index0 %}
+          <tr>
+            <td>{{ row.area }}</td>
+            <td>
+              <code>{{ row.namespace }}.{{ row.translation_key }}</code>
+              {% if not row.has_base %}
+                <div class="badge text-bg-info mt-1">Solo tenant</div>
+              {% endif %}
+            </td>
+            <td>{{ row.base_text_value or '-' }}</td>
+            <td>
+              <input type="hidden" name="namespace_{{ idx }}" value="{{ row.namespace }}">
+              <input type="hidden" name="translation_key_{{ idx }}" value="{{ row.translation_key }}">
+              <input type="hidden" name="language_code_{{ idx }}" value="{{ row.language_code }}">
+              <input class="form-control form-control-sm" name="text_value_{{ idx }}" value="{{ row.text_value }}">
+            </td>
+            <td>
+              {% if row.has_base %}
+                <button class="btn btn-sm btn-outline-secondary" type="submit" name="reset_row" value="{{ idx }}">Ripristina</button>
+              {% else %}
+                <span class="text-muted small">Custom</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-muted p-4">Nessuna personalizzazione per questo tenant.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-footer d-flex justify-content-end">
+      <button class="btn btn-primary" type="submit" name="action" value="save">Salva personalizzazioni</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

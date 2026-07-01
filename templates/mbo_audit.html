@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+{% block title %}MBO - Dati audit{% endblock %}
+{% block head_extra %}
+<style>
+  .mbo-audit-page {
+    max-width: 1680px;
+  }
+
+  .mbo-audit-panel,
+  .mbo-audit-head,
+  .mbo-audit-kpis {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+  }
+
+  .mbo-audit-head,
+  .mbo-audit-panel {
+    padding: 1rem;
+  }
+
+  .mbo-audit-kpis {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(130px, 1fr));
+    gap: .75rem;
+    padding: .75rem;
+  }
+
+  .mbo-audit-kpi {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .625rem .75rem;
+  }
+
+  .mbo-audit-kpi span {
+    display: block;
+    color: var(--bs-secondary-color);
+    font-size: .8rem;
+  }
+
+  .mbo-audit-kpi strong {
+    display: block;
+    font-size: 1.35rem;
+    line-height: 1.15;
+  }
+
+  .mbo-audit-upload {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto;
+    gap: .75rem;
+    align-items: end;
+  }
+
+  .mbo-audit-table {
+    min-width: 1100px;
+  }
+
+  .mbo-audit-grid {
+    min-width: 1500px;
+  }
+
+  .mbo-audit-grid th,
+  .mbo-audit-table th {
+    color: var(--bs-secondary-color);
+    font-size: .75rem;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+
+  .mbo-score-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 58px;
+    border-radius: 999px;
+    padding: .15rem .45rem;
+    font-weight: 700;
+    font-size: .82rem;
+  }
+
+  .mbo-score-ok {
+    background: rgba(25, 135, 84, .12);
+    color: var(--bs-success);
+  }
+
+  .mbo-score-missing {
+    background: rgba(220, 53, 69, .12);
+    color: var(--bs-danger);
+  }
+
+  .mbo-score-duplicate {
+    background: rgba(255, 193, 7, .25);
+    color: #8a5a00;
+  }
+
+  .mbo-score-manual {
+    background: rgba(253, 126, 20, .18);
+    color: #a84f00;
+  }
+
+  .mbo-score-closed {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-secondary-color);
+  }
+
+  .mbo-audit-edit {
+    position: relative;
+  }
+
+  .mbo-audit-edit summary {
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .mbo-audit-edit summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mbo-audit-popover {
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    left: 0;
+    min-width: 240px;
+    padding: .75rem;
+    margin-top: .35rem;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .625rem;
+    box-shadow: 0 .75rem 2rem rgba(15, 23, 42, .16);
+  }
+
+  .mbo-audit-popover .btn {
+    width: 100%;
+  }
+
+  @media (max-width: 1199.98px) {
+    .mbo-audit-kpis {
+      grid-template-columns: repeat(3, minmax(130px, 1fr));
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .mbo-audit-kpis,
+    .mbo-audit-upload {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+{% block content %}
+{% include "_mbo_toolbar.html" %}
+
+<div class="container-fluid mbo-audit-page py-4">
+  <div class="mbo-audit-head d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+      <h1 class="mb-1">Dati audit</h1>
+      <div class="text-muted">Import Yoobic, match store e controllo mensile 1 audit per store.</div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label mb-1">Anno</label>
+        <select name="year" class="form-select">
+          {% for y in mbo_year_options %}
+          <option value="{{ y }}" {% if y == mbo_year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline-primary">Carica</button>
+    </form>
+  </div>
+
+  <div class="mbo-audit-kpis mb-3">
+    <div class="mbo-audit-kpi">
+      <span>Store Supabase</span>
+      <strong>{{ audit_matrix.store_count }}</strong>
+    </div>
+    <div class="mbo-audit-kpi">
+      <span>Audit caricati</span>
+      <strong>{{ audit_matrix.audit_count }}</strong>
+    </div>
+    <div class="mbo-audit-kpi">
+      <span>Senza match</span>
+      <strong class="text-danger">{{ audit_matrix.unmatched_count }}</strong>
+    </div>
+    <div class="mbo-audit-kpi">
+      <span>Mesi mancanti</span>
+      <strong class="text-danger">{{ audit_matrix.missing_count }}</strong>
+    </div>
+    <div class="mbo-audit-kpi">
+      <span>Mesi doppi</span>
+      <strong class="text-warning">{{ audit_matrix.duplicate_count }}</strong>
+    </div>
+    <div class="mbo-audit-kpi">
+      <span>Audit da decidere</span>
+      <strong class="text-primary">{{ audit_matrix.excess_count }}</strong>
+    </div>
+  </div>
+
+  <section class="mbo-audit-panel mb-3">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+      <div>
+        <h2 class="h5 mb-1">Carica file audit</h2>
+        <div class="text-muted small">Accetta CSV Yoobic o ZIP con uno o piu CSV. Il match automatico usa ADDRESS = anagrafica store tenant / Yoobic address.</div>
+      </div>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="mbo-audit-upload">
+      <input type="hidden" name="action" value="upload_audit">
+      <input type="hidden" name="year" value="{{ mbo_year }}">
+      <div>
+        <label class="form-label">File CSV/ZIP</label>
+        <input type="file" name="audit_file" class="form-control" accept=".csv,.zip" required>
+      </div>
+      <button class="btn btn-primary">Importa audit</button>
+    </form>
+  </section>
+
+  {% if audit_matrix.unmatched_addresses %}
+  <section class="mbo-audit-panel mb-3">
+    <h2 class="h5 mb-3">Indirizzi senza match store</h2>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mbo-audit-table mb-0">
+        <thead>
+          <tr>
+            <th>Address Yoobic</th>
+            <th>Righe</th>
+            <th>Store Supabase</th>
+            <th class="text-end">Azione</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in audit_matrix.unmatched_addresses %}
+          <tr>
+            <td>{{ item.address }}</td>
+            <td>{{ item.count }}</td>
+            <td>
+              <form id="map_{{ loop.index }}" method="post" class="m-0">
+                <input type="hidden" name="action" value="save_address_mapping">
+                <input type="hidden" name="year" value="{{ mbo_year }}">
+                <input type="hidden" name="address_norm" value="{{ item.address_norm }}">
+                <input type="hidden" name="address_sample" value="{{ item.address }}">
+              </form>
+              <select form="map_{{ loop.index }}" name="store_code" class="form-select form-select-sm" required>
+                <option value="">Seleziona store</option>
+                {% for store in audit_matrix.stores %}
+                <option value="{{ store.store_code }}">{{ store.store_name }}{% if store.store_code %} ({{ store.store_code }}){% endif %}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-end">
+              <button form="map_{{ loop.index }}" class="btn btn-sm btn-outline-primary">Salva match</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if audit_matrix.duplicate_audits %}
+  <section class="mbo-audit-panel mb-3">
+    <h2 class="h5 mb-3">Audit doppi da decidere</h2>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mbo-audit-table mb-0">
+        <thead>
+          <tr>
+            <th>Store</th>
+            <th>Data audit</th>
+            <th>Score</th>
+            <th>Mese attuale</th>
+            <th>Riassegna a mese</th>
+            <th class="text-end">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for audit in audit_matrix.duplicate_audits %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ audit.store_name }}</div>
+              <div class="small text-warning">Audit {{ audit.duplicate_index }} di {{ audit.duplicate_total }}</div>
+              <div class="text-muted small">{{ audit.address }}</div>
+            </td>
+            <td>{{ audit.audit_date }}</td>
+            <td>{{ "%.2f"|format(audit.score or 0) }}%</td>
+            <td>{{ audit.assigned_year_month or audit.audit_year_month }}</td>
+            <td>
+              <form id="assign_{{ loop.index }}" method="post" class="m-0">
+                <input type="hidden" name="action" value="save_audit_assignment">
+                <input type="hidden" name="year" value="{{ mbo_year }}">
+                <input type="hidden" name="row_uuid" value="{{ audit.row_uuid }}">
+                <input type="hidden" name="store_code" value="{{ audit.store_code }}">
+              </form>
+              <select form="assign_{{ loop.index }}" name="year_month" class="form-select form-select-sm" required>
+                {% for month in audit.available_months or audit_matrix.month_labels %}
+                <option value="{{ month.year_month }}" {% if month.year_month == audit.assigned_year_month %}selected{% endif %}>{{ month.month_label }} {{ mbo_year }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-end">
+              <button form="assign_{{ loop.index }}" class="btn btn-sm btn-outline-primary">Salva</button>
+              <form method="post" class="d-inline" onsubmit="return confirm('Escludere questo audit dal calcolo MBO?');">
+                <input type="hidden" name="action" value="ignore_audit_row">
+                <input type="hidden" name="year" value="{{ mbo_year }}">
+                <input type="hidden" name="row_uuid" value="{{ audit.row_uuid }}">
+                <button class="btn btn-sm btn-outline-danger">Escludi</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if audit_matrix.ignored_audits %}
+  <section class="mbo-audit-panel mb-3">
+    <h2 class="h5 mb-3">Audit esclusi</h2>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mbo-audit-table mb-0">
+        <thead>
+          <tr>
+            <th>Store</th>
+            <th>Address</th>
+            <th>Data audit</th>
+            <th>Mese</th>
+            <th>Score</th>
+            <th class="text-end">Azione</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for audit in audit_matrix.ignored_audits %}
+          <tr>
+            <td>{{ audit.assigned_store_code or audit.matched_store_code or "-" }}</td>
+            <td>{{ audit.address }}</td>
+            <td>{{ audit.audit_date }}</td>
+            <td>{{ audit.assigned_year_month or audit.audit_year_month }}</td>
+            <td>{{ "%.2f"|format(audit.score or 0) }}%</td>
+            <td class="text-end">
+              <form method="post" class="d-inline">
+                <input type="hidden" name="action" value="restore_audit_row">
+                <input type="hidden" name="year" value="{{ mbo_year }}">
+                <input type="hidden" name="row_uuid" value="{{ audit.row_uuid }}">
+                <button class="btn btn-sm btn-outline-primary">Ripristina</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="mbo-audit-panel">
+    <h2 class="h5 mb-3">Controllo mensile audit</h2>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mbo-audit-grid mb-0">
+        <thead>
+          <tr>
+            <th style="min-width: 230px;">Store</th>
+            {% for month in audit_matrix.month_labels %}
+            <th>{{ month.month_label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in audit_matrix.rows %}
+          {% set row_idx = loop.index %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ row.store_name }}</div>
+              <div class="text-muted small">{{ row.store_code }}</div>
+              {% if row.closure_date %}
+              <div class="text-muted small">Chiusura: {{ row.closure_date }}</div>
+              {% endif %}
+            </td>
+            {% for cell in row.months %}
+            <td>
+              {% if cell.status == 'closed' %}
+              <span class="mbo-score-pill mbo-score-closed">chiuso</span>
+              {% else %}
+              {% set cell_idx = loop.index %}
+              {% set form_id = "grid_manual_" ~ row_idx ~ "_" ~ cell_idx %}
+              {% set reset_id = "grid_reset_" ~ row_idx ~ "_" ~ cell_idx %}
+              <details class="mbo-audit-edit">
+                <summary>
+                  {% if cell.status == 'manual' %}
+                  <span class="mbo-score-pill mbo-score-manual">{{ "%.1f"|format(cell.score or 0) }}%</span>
+                  {% elif cell.status == 'ok' %}
+                  <span class="mbo-score-pill mbo-score-ok">{{ "%.1f"|format(cell.score or 0) }}%</span>
+                  {% elif cell.status == 'duplicate' %}
+                  <span class="mbo-score-pill mbo-score-duplicate">{{ cell.audits|length }} audit</span>
+                  {% else %}
+                  <span class="mbo-score-pill mbo-score-missing">{{ "%.1f"|format(cell.score or 0) }}%</span>
+                  {% endif %}
+                </summary>
+                <div class="mbo-audit-popover">
+                  <div class="small text-muted mb-2">
+                    {{ row.store_name }} - {{ cell.year_month }}
+                    {% if cell.imported_score is not none %}
+                    <br>Caricamento: {{ "%.2f"|format(cell.imported_score or 0) }}%
+                    {% else %}
+                    <br>Default: 0.00%
+                    {% endif %}
+                  </div>
+                  <form id="{{ form_id }}" method="post" class="m-0">
+                    <input type="hidden" name="action" value="save_manual_value">
+                    <input type="hidden" name="year" value="{{ mbo_year }}">
+                    <input type="hidden" name="store_code" value="{{ row.store_code }}">
+                    <input type="hidden" name="year_month" value="{{ cell.year_month }}">
+                    <label class="form-label small mb-1">Valore %</label>
+                    <input type="number" step="0.01" min="0" max="100" name="score" class="form-control form-control-sm mb-2" value="{{ '%.2f'|format(cell.score or 0) }}">
+                    <label class="form-label small mb-1">Nota</label>
+                    <input type="text" name="note" class="form-control form-control-sm mb-2" value="{{ (cell.manual or {}).get('note', '') }}">
+                    <button class="btn btn-sm btn-primary">Salva valore</button>
+                  </form>
+                  {% if cell.manual %}
+                  <form id="{{ reset_id }}" method="post" class="mt-2">
+                    <input type="hidden" name="action" value="reset_manual_value">
+                    <input type="hidden" name="year" value="{{ mbo_year }}">
+                    <input type="hidden" name="store_code" value="{{ row.store_code }}">
+                    <input type="hidden" name="year_month" value="{{ cell.year_month }}">
+                    <button class="btn btn-sm btn-outline-secondary">Ripristina caricamento</button>
+                  </form>
+                  {% endif %}
+                </div>
+              </details>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="13" class="text-center text-muted py-4">Nessuno store Supabase disponibile.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

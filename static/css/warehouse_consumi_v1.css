@@ -1,0 +1,105 @@
+.warehouse-consumi .con-mode-box {
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: .75rem;
+  padding: .75rem;
+  background: rgba(0,0,0,.02);
+}
+
+.warehouse-consumi .table-consumi th,
+.warehouse-consumi .table-consumi td {
+  vertical-align: middle;
+}
+
+.warehouse-consumi .table-consumi td {
+  white-space: nowrap;
+}
+
+.warehouse-consumi .table-consumi td:first-child {
+  white-space: normal;
+}
+
+.warehouse-consumi .table-consumi .table-total td {
+  border-top: 2px solid rgba(0,0,0,.15);
+  background: rgba(0,0,0,.02);
+}
+
+/* Sticky descrizione + scroll orizzontale senza sovrapposizioni (stile Inserimento DDT) */
+.warehouse-consumi .table-consumi th.con-sticky,
+.warehouse-consumi .table-consumi td.con-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.warehouse-consumi .table-consumi th.con-sticky {
+  z-index: 3;
+  background: var(--bs-body-bg);
+}
+
+.warehouse-consumi .table-consumi td.con-sticky {
+  background: inherit; /* mantiene striped */
+  box-shadow: 1px 0 0 rgba(0,0,0,.08);
+}
+
+/* -----------------------------
+   Mobile optimized list view
+   ----------------------------- */
+.warehouse-consumi .con-mobile-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.warehouse-consumi .con-mobile-item {
+  text-align: left;
+  padding: .85rem .9rem;
+}
+
+.warehouse-consumi .con-mobile-item .con-mobile-desc {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.warehouse-consumi .con-mobile-item .con-mobile-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem .9rem;
+}
+
+.warehouse-consumi .con-mobile-item .con-mobile-metrics .metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .35rem;
+}
+
+.warehouse-consumi .con-mobile-item .con-mobile-metrics .metric .label {
+  color: rgba(0,0,0,.55);
+}
+
+.warehouse-consumi .con-mobile-item .con-mobile-metrics .metric .value {
+  font-weight: 600;
+}
+
+.warehouse-consumi .con-mobile-total {
+  background: rgba(0,0,0,.03);
+}
+
+.warehouse-consumi .con-modal-kv {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .5rem 1rem;
+}
+
+.warehouse-consumi .con-modal-kv .k {
+  color: rgba(0,0,0,.65);
+}
+
+.warehouse-consumi .con-modal-kv .v {
+  font-weight: 600;
+  text-align: right;
+}
+
+@media (max-width: 991.98px) {
+  .warehouse-consumi #conTableWrap.table-responsive {
+    overflow-x: visible;
+  }
+}

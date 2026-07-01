@@ -1,0 +1,1252 @@
+{% extends "base.html" %}
+{% block title %}Rendiconto - Distinta cassa{% endblock %}
+
+{% block content %}
+  {% include "_rendiconto_toolbar.html" %}
+  {% set cs_ns = 'cash_statement' %}
+
+  <style>
+    /* Distinta cassa - styling richiesto */
+    #distintaForm input.calc-field[readonly] {
+      background-color: #e9ecef; /* grigio chiaro */
+    }
+
+    /* Campi obbligatori con contorno nero */
+    #distintaForm .form-control:required,
+    #distintaForm .form-select:required {
+      border-color: #000;
+      border-width: 2px;
+    }
+    #distintaForm .form-control:required:focus,
+    #distintaForm .form-select:required:focus {
+      border-color: #000;
+      box-shadow: 0 0 0 .15rem rgba(0,0,0,.15);
+    }
+
+    /* Input-group (valuta) su campi obbligatori: contorno nero anche sul prefisso € */
+    #distintaForm .input-group.req-group .input-group-text,
+    #distintaForm .input-group.req-group .form-control {
+      border-color: #000;
+      border-width: 2px;
+    }
+    #distintaForm .input-group.req-group .form-control:focus {
+      border-color: #000;
+      box-shadow: 0 0 0 .15rem rgba(0,0,0,.15);
+    }
+
+    #distintaForm .ipratico-mismatch {
+      border-color: #dc3545 !important;
+      color: #dc3545;
+      box-shadow: 0 0 0 .12rem rgba(220, 53, 69, .12);
+    }
+
+    #distintaForm .input-group.ipratico-mismatch-group .input-group-text,
+    #distintaForm .input-group.ipratico-mismatch-group .form-control {
+      border-color: #dc3545 !important;
+      color: #dc3545;
+    }
+  </style>
+
+  <div class="container my-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+      <div>
+        <h3 class="mb-1">{{ tr(cs_ns, 'ui.title', 'Distinta cassa') }}</h3>
+        <div class="text-muted small">
+          {{ tr(cs_ns, 'ui.store', 'Store') }}: <strong>{{ store_code or '-' }}</strong>{% if store_name %} - {{ store_name }}{% endif %}
+        </div>
+      </div>
+
+      <form class="row g-2 align-items-end" method="get" id="distintaDateForm">
+        <div class="col-auto">
+          <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.date', 'Data') }}</label>
+          <input class="form-control" type="date" name="d" value="{{ d }}" id="distintaDatePicker">
+        </div>
+        {% if ipratico_enabled %}
+        <div class="col-auto">
+          <button class="btn btn-outline-primary" type="button" id="btnImportIpratico" {% if not store_code or locked_validated %}disabled{% endif %}>{{ tr(cs_ns, 'ui.import_ipratico', 'Import iPratico') }}</button>
+        </div>
+        {% endif %}
+      </form>
+    </div>
+
+
+    {% if not store_code %}
+      <div class="alert alert-warning">{{ tr(cs_ns, 'ui.select_store_warning', 'Seleziona prima uno store per usare la Distinta cassa.') }}</div>
+    {% endif %}
+
+    {% if locked_distinte %}
+      <div class="alert alert-info">
+        {{ tr(cs_ns, 'ui.locked_deposit_period', 'Giornata inclusa nel periodo competenza di un versamento: le distinte contanti non sono modificabili e la distinta non e eliminabile.') }}
+      </div>
+    {% endif %}
+    {% if locked_validated %}
+      <div class="alert alert-secondary">
+        {{ tr(cs_ns, 'ui.locked_validated', "Giornata convalidata: solo l'amministratore puo modificare o eliminare la distinta di cassa.") }}
+      </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('rendiconto.distinta_cassa_save') }}" id="distintaForm" enctype="multipart/form-data">
+      <input type="hidden" name="d" value="{{ d }}">
+      <input type="hidden" name="distinte1_json" id="distinte1_json">
+      <input type="hidden" name="distinte2_json" id="distinte2_json">
+      <input type="hidden" name="tickets_json" id="tickets_json">
+      <input type="hidden" name="deliveries_json" id="deliveries_json">
+      <input type="hidden" name="coupons_json" id="coupons_json">
+      {% for section in custom_option_lists %}
+        <input type="hidden" name="custom_list__{{ section.section_key }}_json" id="custom_list__{{ section.section_key }}_json">
+      {% endfor %}
+
+      <div class="card mb-3">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <div class="fw-semibold">{{ cash_statement_labels.sections.get('dati_chiusura', 'Dati chiusura') }}</div>
+          <div class="small text-muted">
+	            Spese: <strong id="speseNetLbl">{{ '%.2f'|format(spese_info.net or 0) }}</strong> €
+            {% if spese_info.note_credito %}
+	              <span class="ms-2">Note credito: {{ '%.2f'|format(spese_info.note_credito or 0) }} €</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-body">
+          {% set req_keys = ['vendite_lorde','scontrini','contanti','pos'] %}
+          <div class="row g-3">
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ tr(cs_ns, 'ui.turnover', 'GIRO AFFARI') }}</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control calc-field money-input" id="giroAffari" value="0,00" readonly>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ cash_statement_labels.fields.get('vendite_lorde', 'VENDITE LORDE') }}</label>
+              <div class="input-group {% if store_code %}req-group{% endif %}">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control chiusura-input money-input" name="vendite_lorde" value="{{ init.chiusura['vendite_lorde'] }}" {% if store_code %}required{% endif %} inputmode="decimal" placeholder="0,00">
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ cash_statement_labels.fields.get('annullati', 'ANNULLATI') }}</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control chiusura-input money-input" name="annullati" value="{{ init.chiusura['annullati'] }}" inputmode="decimal" placeholder="0,00">
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ cash_statement_labels.fields.get('scontrini', 'SCONTRINI') }}</label>
+              <input class="form-control chiusura-input int-input" name="scontrini" value="{{ init.chiusura['scontrini'] }}" {% if store_code %}required{% endif %} type="number" min="0" step="1" inputmode="numeric" placeholder="0">
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ cash_statement_labels.fields.get('pos', 'POS') }}</label>
+              <div class="input-group {% if store_code %}req-group{% endif %}">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control chiusura-input money-input" name="pos" value="{{ init.chiusura['pos'] }}" {% if store_code %}required{% endif %} inputmode="decimal" placeholder="0,00">
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ cash_statement_labels.fields.get('contanti', 'CONTANTI') }}</label>
+              <div class="input-group {% if store_code %}req-group{% endif %}">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control chiusura-input money-input" name="contanti" value="{{ init.chiusura['contanti'] }}" {% if store_code %}required{% endif %} inputmode="decimal" placeholder="0,00">
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label d-flex align-items-center gap-2">
+                <span>{{ cash_statement_labels.fields.get('ticket', 'TICKET') }}</span>
+                <span class="badge text-bg-light border fw-normal">{{ tr(cs_ns, 'ui.imported_value', 'Dato importato') }}</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control chiusura-input money-input calc-field" name="ticket" value="{{ init.chiusura['ticket'] }}" inputmode="decimal" placeholder="0,00" readonly>
+              </div>
+              <div class="small text-warning mt-1 d-none" id="ticketMismatchHint"></div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ cash_statement_labels.fields.get('fatture', 'FATTURE') }}</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control chiusura-input money-input" name="fatture" value="{{ init.chiusura['fatture'] }}" inputmode="decimal" placeholder="0,00">
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ cash_statement_labels.fields.get('numero_fatture', 'NUMERO FATTURE') }}</label>
+              <input class="form-control chiusura-input int-input" name="numero_fatture" value="{{ init.chiusura['numero_fatture'] }}" type="number" min="0" step="1" inputmode="numeric" placeholder="0">
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ tr(cs_ns, 'ui.expenses', 'SPESE') }}</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control calc-field money-input" id="speseNet" value="{{ '%.2f'|format(spese_info.net or 0) }}" readonly>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ cash_statement_labels.fields.get('omaggi', 'OMAGGI') }}</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control chiusura-input money-input" name="omaggi" value="{{ init.chiusura['omaggi'] }}" inputmode="decimal" placeholder="0,00">
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ cash_statement_labels.fields.get('vendite_iva_4', 'VENDITE 4%') }}</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control chiusura-input money-input" name="vendite_iva_4" value="{{ init.chiusura['vendite_iva_4'] }}" inputmode="decimal" placeholder="0,00">
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ cash_statement_labels.fields.get('vendite_iva_22', 'VENDITE 22%') }}</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control chiusura-input money-input" name="vendite_iva_22" value="{{ init.chiusura['vendite_iva_22'] }}" inputmode="decimal" placeholder="0,00">
+              </div>
+            </div>
+
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label">{{ tr(cs_ns, 'ui.cash_difference', 'DIFFERENZA CASSA') }}</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input class="form-control calc-field money-input" id="diffCassa" value="0,00" readonly>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% for section in custom_config %}
+        <div class="card mb-3">
+          <div class="card-header fw-semibold">{{ section.label }}</div>
+          <div class="card-body">
+            <div class="row g-3">
+              {% for field in section.fields %}
+                {% set fname = 'custom_field__' ~ section.section_key ~ '__' ~ field.field_key %}
+                {% set is_calc = field.value_type == 'calculated' %}
+                <div class="col-12 col-md-4 col-lg-3">
+                  <label class="form-label">{{ field.label }}</label>
+                  {% if field.value_type == 'int' %}
+                    <input class="form-control custom-distinta-field int-input" name="{{ fname }}" value="{{ init.custom_fields.get(fname, '') }}" type="number" min="0" step="1" data-cash-difference-sign="{{ field.cash_difference_sign if field.affects_cash_difference else 0 }}" {% if is_calc %}readonly{% endif %}>
+                  {% elif field.value_type == 'text' %}
+                    <input class="form-control custom-distinta-field" name="{{ fname }}" value="{{ init.custom_fields.get(fname, '') }}" {% if is_calc %}readonly{% endif %}>
+                  {% else %}
+                    <div class="input-group">
+                      <span class="input-group-text">&euro;</span>
+                      <input class="form-control custom-distinta-field money-input {% if is_calc %}calc-field custom-calculated-field{% endif %}" name="{{ fname }}" value="{{ init.custom_fields.get(fname, '') }}" inputmode="decimal" placeholder="0,00" data-field-key="{{ field.field_key }}" data-cash-difference-sign="{{ field.cash_difference_sign if field.affects_cash_difference else 0 }}" {% if is_calc %}readonly data-formula="{{ field.formula_expression or '' }}"{% endif %}>
+                    </div>
+                  {% endif %}
+                  {% if field.formula_expression %}
+                    <div class="form-text">Formula: {{ field.formula_expression }}</div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">{{ cash_statement_labels.sections.get('foto', 'Foto') }}</div>
+        <div class="card-body">
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-lg-7">
+                            <input type="file" class="form-control" name="foto" accept="image/*">
+                          </div>
+            <div class="col-12 col-lg-5">
+                            <div>
+                {% if distinta_photo_file %}
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#photoDistintaModal" data-photo-url="{{ url_for('rendiconto.distinta_cassa_photo_scoped', store_code=store_code, filename=distinta_photo_file) }}" aria-label="{{ tr(cs_ns, 'ui.open_photo', 'Apri foto') }}" title="{{ tr(cs_ns, 'ui.open_photo', 'Apri foto') }}">&#128247;</button>
+                    <button type="submit" class="btn btn-outline-danger" form="deleteDistintaPhotoForm" aria-label="{{ tr(cs_ns, 'ui.delete_photo', 'Elimina foto') }}" title="{{ tr(cs_ns, 'ui.delete_photo', 'Elimina foto') }}" {% if locked_validated %}disabled{% endif %}>&times;</button>
+                  </div>
+                {% else %}
+                  <div class="text-muted small">{{ tr(cs_ns, 'ui.no_photo', 'Nessuna foto associata a questa giornata.') }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">{{ cash_statement_labels.sections.get('distinte', 'Distinte') }}</div>
+	        <div class="card-body">
+	          {% set tagli = [5,10,20,50,100,200,500] %}
+	          <div class="row g-3">
+	            <div class="col-12 col-lg-6">
+	              <div class="border rounded p-3">
+	                <div class="d-flex justify-content-between align-items-center mb-2">
+	                  <div class="fw-semibold">{{ tr(cs_ns, 'ui.deposit_1', 'Distinta 1') }}</div>
+	                  <div class="small">{{ tr(cs_ns, 'ui.total', 'Totale') }}: <strong id="d1_total">0,00</strong> €</div>
+	                </div>
+	                <div class="table-responsive">
+	                  <table class="table table-sm align-middle mb-2">
+	                    <thead>
+	                      <tr>
+	                        <th class="text-nowrap">{{ tr(cs_ns, 'ui.denomination', 'Taglio') }}</th>
+	                        <th style="width: 140px;">{{ tr(cs_ns, 'ui.qty', 'Qta') }}</th>
+	                        <th class="text-end">{{ tr(cs_ns, 'ui.total', 'Totale') }}</th>
+	                      </tr>
+	                    </thead>
+	                    <tbody>
+	                      {% for t in tagli %}
+	                        <tr>
+	                          <td class="text-nowrap">{{ t }} €</td>
+	                          <td>
+	                            <input class="form-control form-control-sm distinta-qta" type="number" min="0" step="1" id="d1_qta_{{ t }}" inputmode="numeric" {% if locked_distinte %}disabled{% endif %}>
+	                          </td>
+	                          <td class="text-end text-nowrap"><span id="d1_line_{{ t }}">0,00</span> €</td>
+	                        </tr>
+	                      {% endfor %}
+	                    </tbody>
+	                  </table>
+	                </div>
+	                <div class="row g-2 align-items-end">
+	                  <div class="col-8">
+	                    <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.coins_total', 'Monete totali') }}</label>
+	                    <div class="input-group">
+	                      <span class="input-group-text">€</span>
+	                      <input class="form-control money-input" name="d1_monete" id="d1_monete" value="{{ init.d1_monete }}" inputmode="decimal" placeholder="0,00" {% if locked_distinte %}disabled{% endif %}>
+	                    </div>
+	                  </div>
+	                </div>
+	              </div>
+	            </div>
+	            <div class="col-12 col-lg-6">
+	              <div class="border rounded p-3">
+	                <div class="d-flex justify-content-between align-items-center mb-2">
+	                  <div class="fw-semibold">{{ tr(cs_ns, 'ui.deposit_2', 'Distinta 2') }}</div>
+	                  <div class="small">{{ tr(cs_ns, 'ui.total', 'Totale') }}: <strong id="d2_total">0,00</strong> €</div>
+	                </div>
+	                <div class="table-responsive">
+	                  <table class="table table-sm align-middle mb-2">
+	                    <thead>
+	                      <tr>
+	                        <th class="text-nowrap">{{ tr(cs_ns, 'ui.denomination', 'Taglio') }}</th>
+	                        <th style="width: 140px;">{{ tr(cs_ns, 'ui.qty', 'Qta') }}</th>
+	                        <th class="text-end">{{ tr(cs_ns, 'ui.total', 'Totale') }}</th>
+	                      </tr>
+	                    </thead>
+	                    <tbody>
+	                      {% for t in tagli %}
+	                        <tr>
+	                          <td class="text-nowrap">{{ t }} €</td>
+	                          <td>
+	                            <input class="form-control form-control-sm distinta-qta" type="number" min="0" step="1" id="d2_qta_{{ t }}" inputmode="numeric" {% if locked_distinte %}disabled{% endif %}>
+	                          </td>
+	                          <td class="text-end text-nowrap"><span id="d2_line_{{ t }}">0,00</span> €</td>
+	                        </tr>
+	                      {% endfor %}
+	                    </tbody>
+	                  </table>
+	                </div>
+	                <div class="row g-2 align-items-end">
+	                  <div class="col-8">
+	                    <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.coins_total', 'Monete totali') }}</label>
+	                    <div class="input-group">
+	                      <span class="input-group-text">€</span>
+	                      <input class="form-control money-input" name="d2_monete" id="d2_monete" value="{{ init.d2_monete }}" inputmode="decimal" placeholder="0,00" {% if locked_distinte %}disabled{% endif %}>
+	                    </div>
+	                  </div>
+	                </div>
+	              </div>
+	            </div>
+	          </div>
+	        </div>
+	      </div>
+
+      <div class="row g-3">
+        <div class="col-12 col-lg-4">
+          <div class="card h-100">
+            <div class="card-header fw-semibold">{{ cash_statement_labels.sections.get('ticket', 'Ticket') }}</div>
+            <div class="card-body">
+              <div class="row g-2">
+                <div class="col-12">
+                  <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.type', 'Tipo') }}</label>
+                  <select class="form-select" id="ticket_sel">
+                    <option value="" selected disabled>{{ tr(cs_ns, 'ui.select', 'Seleziona...') }}</option>
+                    {% for o in options.tickets %}
+                      <option value="{{ o.value }}">{{ o.value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.amount', 'Importo') }}</label>
+                  <div class="input-group">
+                    <span class="input-group-text">€</span>
+                    <input class="form-control money-input" id="ticket_val" inputmode="decimal" placeholder="0,00">
+                    <button type="button" class="btn btn-primary" id="ticket_add">+</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-3">
+                <table class="table table-sm align-middle" id="ticket_table">
+                  <thead>
+                    <tr>
+                      <th>{{ tr(cs_ns, 'ui.item', 'Voce') }}</th>
+                      <th class="text-end">{{ tr(cs_ns, 'ui.value', 'Valore') }}</th>
+	                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+	                  <tfoot>
+	                    <tr class="table-light">
+	                      <th>{{ tr(cs_ns, 'ui.total', 'Totale') }}</th>
+	                      <th class="text-end"><span id="ticket_total">0,00</span> €</th>
+	                      <th></th>
+	                    </tr>
+	                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+          <div class="card h-100">
+            <div class="card-header fw-semibold">{{ cash_statement_labels.sections.get('delivery', 'Delivery') }}</div>
+            <div class="card-body">
+              <div class="row g-2">
+                <div class="col-12">
+                  <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.type', 'Tipo') }}</label>
+                  <select class="form-select" id="delivery_sel">
+                    <option value="" selected disabled>{{ tr(cs_ns, 'ui.select', 'Seleziona...') }}</option>
+                    {% for o in options.deliveries %}
+                      <option value="{{ o.value }}">{{ o.value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.amount', 'Importo') }}</label>
+                  <div class="input-group">
+                    <span class="input-group-text">€</span>
+                    <input class="form-control money-input" id="delivery_val" inputmode="decimal" placeholder="0,00">
+                    <button type="button" class="btn btn-primary" id="delivery_add">+</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-3">
+                <table class="table table-sm align-middle" id="delivery_table">
+                  <thead>
+                    <tr>
+                      <th>{{ tr(cs_ns, 'ui.item', 'Voce') }}</th>
+                      <th class="text-end">{{ tr(cs_ns, 'ui.value', 'Valore') }}</th>
+	                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+	                  <tfoot>
+	                    <tr class="table-light">
+	                      <th>{{ tr(cs_ns, 'ui.total', 'Totale') }}</th>
+	                      <th class="text-end"><span id="delivery_total">0,00</span> €</th>
+	                      <th></th>
+	                    </tr>
+	                  </tfoot>
+                </table>
+	                <div class="small mt-2 d-flex flex-column gap-1">
+	                  <div>{{ tr(cs_ns, 'ui.online', 'ONLINE') }}: <strong id="delivery_online">0,00</strong> €</div>
+	                  <div>{{ tr(cs_ns, 'ui.cash', 'CONTANTI') }}: <strong id="delivery_contanti">0,00</strong> €</div>
+	                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+          <div class="card h-100">
+            <div class="card-header fw-semibold">{{ cash_statement_labels.sections.get('coupon', 'Coupon') }}</div>
+            <div class="card-body">
+              <div class="row g-2">
+                <div class="col-12">
+                  <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.type', 'Tipo') }}</label>
+                  <select class="form-select" id="coupon_sel">
+                    <option value="" selected disabled>{{ tr(cs_ns, 'ui.select', 'Seleziona...') }}</option>
+                    {% for o in options.coupons %}
+                      <option value="{{ o.value }}">{{ o.value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.amount', 'Importo') }}</label>
+                  <div class="input-group">
+                    <span class="input-group-text">€</span>
+                    <input class="form-control money-input" id="coupon_val" inputmode="decimal" placeholder="0,00">
+                    <button type="button" class="btn btn-primary" id="coupon_add">+</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-3">
+                <table class="table table-sm align-middle" id="coupon_table">
+                  <thead>
+                    <tr>
+                      <th>{{ tr(cs_ns, 'ui.item', 'Voce') }}</th>
+                      <th class="text-end">{{ tr(cs_ns, 'ui.value', 'Valore') }}</th>
+	                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+	                  <tfoot>
+	                    <tr class="table-light">
+	                      <th>{{ tr(cs_ns, 'ui.total', 'Totale') }}</th>
+	                      <th class="text-end"><span id="coupon_total">0,00</span> €</th>
+	                      <th></th>
+	                    </tr>
+	                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if custom_option_lists %}
+        <div class="row g-3 mt-1">
+          {% for section in custom_option_lists %}
+            <div class="col-12 col-lg-4">
+              <div class="card h-100 custom-option-list-card" data-section-key="{{ section.section_key }}">
+                <div class="card-header fw-semibold">{{ section.label }}</div>
+                <div class="card-body">
+                  <div class="row g-2">
+                    <div class="col-12">
+                      <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.type', 'Tipo') }}</label>
+                      <select class="form-select" data-custom-list-voce="{{ section.section_key }}">
+                        <option value="" selected disabled>{{ tr(cs_ns, 'ui.select', 'Seleziona...') }}</option>
+                        {% for opt in section.options %}
+                          <option value="{{ opt.value }}" data-tipo="{{ opt.tipo }}" data-cash-difference-sign="{{ opt.cash_difference_sign or 0 }}">{{ opt.value }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label small mb-1">{{ tr(cs_ns, 'ui.amount', 'Importo') }}</label>
+                      <div class="input-group">
+                        <span class="input-group-text">&euro;</span>
+                        <input class="form-control money-input" data-custom-list-valore="{{ section.section_key }}" inputmode="decimal" placeholder="0,00">
+                        <button type="button" class="btn btn-primary" data-custom-list-add="{{ section.section_key }}">+</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="table-responsive mt-3">
+                    <table class="table table-sm align-middle mb-0">
+                      <thead>
+                        <tr>
+                          <th>{{ tr(cs_ns, 'ui.item', 'Voce') }}</th>
+                          <th class="text-end">{{ tr(cs_ns, 'ui.value', 'Valore') }}</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody data-custom-list-body="{{ section.section_key }}"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% set can_delete = store_code and has_saved_data and (not locked_distinte) and (not locked_validated) %}
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <button
+          type="button"
+          class="btn btn-outline-danger"
+          data-bs-toggle="modal"
+          data-bs-target="#deleteDistintaModal"
+          {% if not can_delete %}disabled{% endif %}>
+          {{ tr(cs_ns, 'ui.delete_statement', 'Elimina distinta') }}
+        </button>
+
+        <button class="btn btn-success" {% if not store_code or locked_validated %}disabled{% endif %}>{{ tr(cs_ns, 'ui.save', 'Salva') }}</button>
+      </div>
+
+      {% if store_code and (not has_saved_data) %}
+        <div class="text-muted small mt-2 text-end">{{ tr(cs_ns, 'ui.no_statement', 'Nessuna distinta salvata per questa data.') }}</div>
+      {% endif %}
+      {% if locked_distinte %}
+        <div class="text-muted small mt-2 text-end">{{ tr(cs_ns, 'ui.locked_deposit_delete', 'Giornata bloccata da versamento: non e possibile eliminare la distinta.') }}</div>
+      {% endif %}
+      {% if locked_validated %}
+        <div class="text-muted small mt-2 text-end">{{ tr(cs_ns, 'ui.locked_validated_changes', "Giornata convalidata: modifiche consentite solo all'amministratore.") }}</div>
+      {% endif %}
+    </form>
+
+</div>
+
+<form method="post" action="{{ url_for('rendiconto.distinta_cassa_photo_delete') }}" id="deleteDistintaPhotoForm" onsubmit="return window.confirm({{ tr(cs_ns, 'ui.confirm_delete_photo', 'Eliminare la foto associata a questa giornata?')|tojson }});">
+  <input type="hidden" name="d" value="{{ d }}">
+</form>
+
+<div class="modal fade" id="photoDistintaModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ cash_statement_labels.sections.get('foto', 'Foto') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr(cs_ns, 'ui.close', 'Chiudi') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center">
+          <div id="photoDistintaLoading" class="text-muted small mb-2" style="display:none;">{{ tr(cs_ns, 'ui.loading', 'Caricamento...') }}</div>
+          <img id="photoDistintaImg" src="" alt="{{ tr(cs_ns, 'ui.closing_photo', 'Foto chiusure') }}" style="max-width:100%; height:auto; display:none; border-radius:8px;">
+          <div id="photoDistintaError" class="text-danger small" style="display:none;">{{ tr(cs_ns, 'ui.photo_load_error', 'Impossibile caricare la foto.') }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal conferma eliminazione Distinta -->
+<div class="modal fade" id="deleteDistintaModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ tr(cs_ns, 'ui.delete_statement', 'Elimina distinta') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr(cs_ns, 'ui.close', 'Chiudi') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          {{ tr(cs_ns, 'ui.delete_intro', 'Stai per eliminare tutti i dati della distinta del giorno') }} <strong>{{ d }}</strong>.
+        </div>
+        {% if distinta_photo_file %}
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" value="1" id="deletePhotoToo" name="delete_photo" form="deleteDistintaForm">
+            <label class="form-check-label" for="deletePhotoToo">{{ tr(cs_ns, 'ui.delete_photo_too', 'Elimina anche la foto associata') }}</label>
+          </div>
+        {% endif %}
+        <div class="alert alert-warning mb-0">
+          {{ tr(cs_ns, 'ui.irreversible', 'Operazione irreversibile.') }}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ tr(cs_ns, 'ui.cancel', 'Annulla') }}</button>
+        <form method="post" action="{{ url_for('rendiconto.distinta_cassa_delete') }}" id="deleteDistintaForm">
+          <input type="hidden" name="d" value="{{ d }}">
+          <button type="submit" class="btn btn-danger">{{ tr(cs_ns, 'ui.delete', 'Elimina') }}</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <script>
+  (function(){
+    const initial = {{ init|tojson }};
+    const options = {{ options|tojson }};
+    const ipraticoSnapshot = {{ ((ipratico_snapshot or {}).get('chiusura') or {})|tojson }};
+    const speseNet = Number({{ (spese_info.net or 0)|tojson }});
+    const i18n = {
+      importOverwriteConfirm: {{ tr(cs_ns, 'ui.import_overwrite_confirm', "L'import iPratico sovrascrivera i campi chiusura importabili e sostituira Delivery/Coupon gia presenti. Continuare?")|tojson }},
+      importDoneWarnings: {{ tr(cs_ns, 'ui.import_done_warnings', 'Import iPratico completato con avvisi')|tojson }},
+      moreWarnings: {{ tr(cs_ns, 'ui.more_warnings', 'altri avvisi')|tojson }},
+      importError: {{ tr(cs_ns, 'ui.import_error', 'Errore import iPratico')|tojson }}
+    };
+    const TAGLI = [5,10,20,50,100,200,500];
+    const IPRATICO_COMPARE_FIELDS = ['vendite_lorde', 'annullati', 'scontrini', 'pos', 'contanti', 'ticket'];
+
+    function parseNum(v){
+      if (v === null || v === undefined) return 0;
+      if (typeof v === 'number') return isFinite(v) ? v : 0;
+      let s = String(v).trim();
+      if (!s) return 0;
+      if (s.includes(',') && s.includes('.')){
+        s = s.replace(/\./g,'').replace(',', '.');
+      } else if (s.includes(',') && !s.includes('.')){
+        s = s.replace(',', '.');
+      }
+      const n = Number(s);
+      return isFinite(n) ? n : 0;
+    }
+
+    function fmt(n){
+      const v = (Math.round((parseNum(n) + Number.EPSILON) * 100) / 100);
+      return v.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function fmtInt(n){
+      let v = Math.trunc(parseNum(n));
+      if (!isFinite(v)) v = 0;
+      return String(v);
+    }
+
+    function formatInputsNow(){
+      // money
+      document.querySelectorAll('input.money-input').forEach(inp => {
+        if (inp.hasAttribute('readonly')) return;
+        const s = String(inp.value || '').trim();
+        if (!s) return;
+        inp.value = fmt(parseNum(s));
+      });
+
+      // int
+      document.querySelectorAll('input.int-input').forEach(inp => {
+        if (inp.hasAttribute('readonly')) return;
+        const s = String(inp.value || '').trim();
+        if (!s) return;
+        let v = Math.trunc(parseNum(s));
+        if (!isFinite(v)) v = 0;
+        if (v < 0) v = 0;
+        inp.value = String(v);
+      });
+    }
+
+    function escapeHtml(s){
+      return String(s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
+
+    const ticketTipo = Object.fromEntries((options.tickets||[]).map(o => [o.value, (o.tipo||'SI')]));
+    const deliveryTipo = Object.fromEntries((options.deliveries||[]).map(o => [o.value, (o.tipo||'SI')]));
+    const couponTipo = Object.fromEntries((options.coupons||[]).map(o => [o.value, (o.tipo||'SI')]));
+
+    let tickets = Array.isArray(initial.tickets) ? initial.tickets.slice() : [];
+    let deliveries = Array.isArray(initial.deliveries) ? initial.deliveries.slice() : [];
+    let coupons = Array.isArray(initial.coupons) ? initial.coupons.slice() : [];
+    const customLists = {{ (init.custom_lists or {})|tojson }};
+
+    const el = (id) => document.getElementById(id);
+    const photoModalEl = el('photoDistintaModal');
+    const photoImgEl = el('photoDistintaImg');
+    const photoLoadingEl = el('photoDistintaLoading');
+    const photoErrorEl = el('photoDistintaError');
+
+    function openDistintaPhoto(url){
+      if (!photoModalEl || !photoImgEl || !url) return;
+      if (photoErrorEl) photoErrorEl.style.display = 'none';
+      if (photoLoadingEl) photoLoadingEl.style.display = '';
+      photoImgEl.style.display = 'none';
+      photoImgEl.onload = function(){
+        if (photoLoadingEl) photoLoadingEl.style.display = 'none';
+        if (photoErrorEl) photoErrorEl.style.display = 'none';
+        photoImgEl.style.display = '';
+      };
+      photoImgEl.onerror = function(){
+        if (photoLoadingEl) photoLoadingEl.style.display = 'none';
+        photoImgEl.style.display = 'none';
+        if (photoErrorEl) photoErrorEl.style.display = '';
+      };
+      photoImgEl.src = url;
+    }
+
+    function fillDistinta(which){
+      const arr = Array.isArray(which===1 ? initial.distinte1 : initial.distinte2) ? (which===1 ? initial.distinte1 : initial.distinte2) : [];
+      const mp = {};
+      arr.forEach(it => {
+        const t = parseNum(it.taglio);
+        const q = Math.trunc(parseNum(it.qta));
+        if (!t || !q) return;
+        mp[t] = (mp[t] || 0) + q;
+      });
+      const pref = which===1 ? 'd1' : 'd2';
+      TAGLI.forEach(t => {
+        const v = mp[t] || 0;
+        const inp = el(`${pref}_qta_${t}`);
+        if (inp) inp.value = v ? String(v) : '';
+      });
+    }
+
+    function readDistinta(which){
+      const pref = which===1 ? 'd1' : 'd2';
+      const items = [];
+      let total = 0;
+      TAGLI.forEach(t => {
+        const q = Math.trunc(parseNum(el(`${pref}_qta_${t}`).value));
+        const line = (q > 0) ? (t * q) : 0;
+        el(`${pref}_line_${t}`).textContent = fmt(line);
+        if (q > 0) items.push({ taglio: t, qta: q });
+        total += line;
+      });
+      const monete = parseNum(el(`${pref}_monete`).value);
+      total += monete;
+      el(`${pref}_total`).textContent = fmt(total);
+      return { items, total };
+    }
+
+    function renderList(kind){
+      const isTicket = kind === 'ticket';
+      const isDelivery = kind === 'delivery';
+      const isCoupon = kind === 'coupon';
+      const arr = isTicket ? tickets : (isDelivery ? deliveries : coupons);
+      const tipoMap = isTicket ? ticketTipo : (isDelivery ? deliveryTipo : couponTipo);
+
+      const tbl = el(isTicket ? 'ticket_table' : (isDelivery ? 'delivery_table' : 'coupon_table'));
+      const tbody = tbl.querySelector('tbody');
+      tbody.innerHTML = '';
+
+      let total = 0;
+      let included = 0;
+      let si = 0;
+      let no = 0;
+
+      arr.forEach((it, idx) => {
+        const voce = String(it.voce || '').trim();
+        const val = parseNum(it.valore);
+        const tRaw = (tipoMap[voce] || String(it.tipo || 'SI')).toUpperCase();
+        const tipo = tRaw.startsWith('N') ? 'NO' : 'SI';
+
+        total += val;
+        if (tipo === 'SI') included += val;
+        if (isDelivery){
+          if (tipo === 'SI') si += val;
+          else no += val;
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(voce)}</td>
+          <td class="text-end text-nowrap">${fmt(val)} €</td>
+          <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" data-idx="${idx}">x</button></td>
+        `;
+        tr.querySelector('button').addEventListener('click', () => {
+          arr.splice(idx, 1);
+          renderAll();
+        });
+        tbody.appendChild(tr);
+      });
+
+      if (isTicket) el('ticket_total').textContent = fmt(total);
+      if (isCoupon) el('coupon_total').textContent = fmt(total);
+      if (isDelivery){
+        el('delivery_total').textContent = fmt(total);
+        el('delivery_online').textContent = fmt(si);
+        el('delivery_contanti').textContent = fmt(no);
+      }
+      return { total, included, si, no };
+    }
+
+    function renderCustomList(sectionKey){
+      const rows = Array.isArray(customLists[sectionKey]) ? customLists[sectionKey] : [];
+      customLists[sectionKey] = rows;
+      const tbody = document.querySelector(`[data-custom-list-body="${sectionKey}"]`);
+      const hidden = el(`custom_list__${sectionKey}_json`);
+      if (!tbody || !hidden) return;
+      tbody.innerHTML = '';
+      rows.forEach((row, idx) => {
+        const meta = getCustomListOptionMeta(sectionKey, row.voce || '');
+        if (row.cash_difference_sign === undefined || row.cash_difference_sign === null){
+          row.cash_difference_sign = meta.cashDifferenceSign;
+        }
+        if (!row.tipo){
+          row.tipo = meta.tipo;
+        }
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(row.voce || '')}</td>
+          <td class="text-end text-nowrap">${fmt(row.valore || 0)} &euro;</td>
+          <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" data-idx="${idx}">x</button></td>
+        `;
+        tr.querySelector('button').addEventListener('click', () => {
+          rows.splice(idx, 1);
+          renderAll();
+        });
+        tbody.appendChild(tr);
+      });
+      hidden.value = JSON.stringify(rows);
+    }
+
+    function getCustomListOptionMeta(sectionKey, voce){
+      const sel = document.querySelector(`[data-custom-list-voce="${sectionKey}"]`);
+      if (!sel) return { tipo: 'SI', cashDifferenceSign: 0 };
+      const wanted = String(voce || '').trim();
+      const opt = Array.from(sel.options || []).find((o) => String(o.value || '').trim() === wanted);
+      return {
+        tipo: String(opt?.dataset?.tipo || 'SI').trim().toUpperCase() || 'SI',
+        cashDifferenceSign: parseNum(opt?.dataset?.cashDifferenceSign || '0')
+      };
+    }
+
+    function renderCustomLists(){
+      document.querySelectorAll('[data-custom-list-body]').forEach((body) => {
+        renderCustomList(body.dataset.customListBody || '');
+      });
+    }
+
+    function calcGiroAffari(){
+      const vendite = parseNum(document.querySelector('input[name="vendite_lorde"]')?.value);
+      const ann = parseNum(document.querySelector('input[name="annullati"]')?.value);
+      return vendite - ann;
+    }
+
+    function formulaContext(){
+      const ctx = {};
+      document.querySelectorAll('.chiusura-input[name]').forEach((inp) => {
+        ctx[inp.name] = parseNum(inp.value);
+      });
+      document.querySelectorAll('.custom-distinta-field[data-field-key]').forEach((inp) => {
+        const key = inp.dataset.fieldKey || '';
+        if (!key) return;
+        ctx[key] = parseNum(inp.value);
+      });
+      ctx.giro_affari = calcGiroAffari();
+      ctx.gross_revenue = ctx.giro_affari;
+      ctx.business_volume = ctx.giro_affari;
+      ctx.spese_net = speseNet;
+      ctx.expenses_net = speseNet;
+      return ctx;
+    }
+
+    function evalFormulaExpression(expr, ctx){
+      const source = String(expr || '').trim();
+      if (!source) return 0;
+      if (!/^[A-Za-z0-9_+\-*/().,\s]+$/.test(source)) return 0;
+      const normalized = source.replace(/,/g, '.').replace(/[A-Za-z_][A-Za-z0-9_]*/g, (name) => {
+        return Object.prototype.hasOwnProperty.call(ctx, name) ? String(parseNum(ctx[name])) : '0';
+      });
+      if (!/^[0-9+\-*/().\s]+$/.test(normalized)) return 0;
+      try {
+        const value = Function(`"use strict"; return (${normalized});`)();
+        return Number.isFinite(Number(value)) ? Number(value) : 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    function updateCalculatedCustomFields(){
+      let ctx = formulaContext();
+      document.querySelectorAll('.custom-calculated-field[data-formula]').forEach((inp) => {
+        const value = evalFormulaExpression(inp.dataset.formula || '', ctx);
+        inp.value = fmt(value);
+        const key = inp.dataset.fieldKey || '';
+        if (key) {
+          ctx[key] = value;
+        }
+      });
+    }
+
+    function customCashDifferenceEffect(){
+      let total = 0;
+      document.querySelectorAll('.custom-distinta-field[data-cash-difference-sign]').forEach((inp) => {
+        const sign = parseNum(inp.dataset.cashDifferenceSign || '0');
+        if (!sign) return;
+        total += parseNum(inp.value) * sign;
+      });
+      return total;
+    }
+
+    function customListCashDifferenceEffect(){
+      let total = 0;
+      Object.keys(customLists || {}).forEach((sectionKey) => {
+        const rows = Array.isArray(customLists[sectionKey]) ? customLists[sectionKey] : [];
+        rows.forEach((row) => {
+          const sign = row && row.cash_difference_sign !== undefined && row.cash_difference_sign !== null
+            ? parseNum(row.cash_difference_sign)
+            : getCustomListOptionMeta(sectionKey, row?.voce || '').cashDifferenceSign;
+          if (!sign) return;
+          total += parseNum(row?.valore) * sign;
+        });
+      });
+      return total;
+    }
+
+    function updateTicketMismatch(){
+      const totalInput = document.querySelector('input[name="ticket"]');
+      const hint = el('ticketMismatchHint');
+      if (!totalInput || !hint) return;
+      const importedTotal = parseNum(totalInput.value);
+      const detailTotal = tickets.reduce((sum, it) => sum + parseNum(it.valore), 0);
+      const diff = Math.round(((detailTotal - importedTotal) + Number.EPSILON) * 100) / 100;
+      if (Math.abs(diff) < 0.005){
+        hint.textContent = '';
+        hint.classList.add('d-none');
+        return;
+      }
+      hint.textContent = `Dettaglio Ticket ${fmt(detailTotal)} EUR, totale importato ${fmt(importedTotal)} EUR.`;
+      hint.classList.remove('d-none');
+    }
+
+    function applyIpraticoMismatch(){
+      IPRATICO_COMPARE_FIELDS.forEach((name) => {
+        const inp = document.querySelector(`input[name="${name}"]`);
+        if (!inp) return;
+        const group = inp.closest('.input-group');
+        inp.classList.remove('ipratico-mismatch');
+        if (group) group.classList.remove('ipratico-mismatch-group');
+
+        if (!Object.prototype.hasOwnProperty.call(ipraticoSnapshot, name)) return;
+
+        let mismatch = false;
+        if (name === 'scontrini'){
+          mismatch = Math.trunc(parseNum(inp.value)) !== Math.trunc(parseNum(ipraticoSnapshot[name]));
+        } else {
+          const formVal = Math.round((parseNum(inp.value) + Number.EPSILON) * 100) / 100;
+          const snapVal = Math.round((parseNum(ipraticoSnapshot[name]) + Number.EPSILON) * 100) / 100;
+          mismatch = Math.abs(formVal - snapVal) >= 0.005;
+        }
+        if (mismatch){
+          inp.classList.add('ipratico-mismatch');
+          if (group) group.classList.add('ipratico-mismatch-group');
+        }
+      });
+    }
+
+    function renderAll(){
+      updateCalculatedCustomFields();
+      const d1 = readDistinta(1);
+      const d2 = readDistinta(2);
+      const distTot = d1.total + d2.total;
+
+      const t = renderList('ticket');
+      const d = renderList('delivery');
+      const c = renderList('coupon');
+
+      const giro = calcGiroAffari();
+      el('giroAffari').value = fmt(giro);
+      el('speseNet').value = fmt(speseNet);
+      updateTicketMismatch();
+      applyIpraticoMismatch();
+
+      const pos = parseNum(document.querySelector('input[name="pos"]')?.value);
+      const diff = distTot + t.included + d.si + c.included + pos + speseNet - giro + customCashDifferenceEffect() + customListCashDifferenceEffect();
+
+      const diffEl = el('diffCassa');
+      diffEl.value = fmt(diff);
+      if (diff < 0){
+        diffEl.classList.add('text-danger','fw-semibold');
+      } else {
+        diffEl.classList.remove('text-danger','fw-semibold');
+      }
+
+      el('distinte1_json').value = JSON.stringify(d1.items);
+      el('distinte2_json').value = JSON.stringify(d2.items);
+      el('tickets_json').value = JSON.stringify(tickets);
+      el('deliveries_json').value = JSON.stringify(deliveries);
+      el('coupons_json').value = JSON.stringify(coupons);
+      renderCustomLists();
+    }
+
+    function addCustomList(sectionKey){
+      const voceEl = document.querySelector(`[data-custom-list-voce="${sectionKey}"]`);
+      const valEl = document.querySelector(`[data-custom-list-valore="${sectionKey}"]`);
+      const voce = String(voceEl?.value || '').trim();
+      const val = parseNum(valEl?.value);
+      if (!voce || !val) return;
+      const meta = getCustomListOptionMeta(sectionKey, voce);
+      const tipo = meta.tipo;
+      const cashDifferenceSign = meta.cashDifferenceSign;
+      customLists[sectionKey] = Array.isArray(customLists[sectionKey]) ? customLists[sectionKey] : [];
+      customLists[sectionKey].push({ voce, tipo, valore: val, cash_difference_sign: cashDifferenceSign });
+      if (voceEl) voceEl.value = '';
+      if (valEl) valEl.value = '';
+      renderAll();
+    }
+
+    function addList(kind){
+      const isTicket = kind === 'ticket';
+      const isDelivery = kind === 'delivery';
+
+      const sel = el(isTicket ? 'ticket_sel' : (isDelivery ? 'delivery_sel' : 'coupon_sel'));
+      const valEl = el(isTicket ? 'ticket_val' : (isDelivery ? 'delivery_val' : 'coupon_val'));
+      const voce = String(sel.value || '').trim();
+      const val = parseNum(valEl.value);
+
+      if (!voce || val === 0) return;
+
+      const tipoMap = isTicket ? ticketTipo : (isDelivery ? deliveryTipo : couponTipo);
+      const tipo = (tipoMap[voce] || 'SI');
+      const obj = { voce: voce, valore: val, tipo: tipo };
+
+      if (isTicket) tickets.push(obj);
+      else if (isDelivery) deliveries.push(obj);
+      else coupons.push(obj);
+
+      sel.value = '';
+      valEl.value = '';
+      renderAll();
+    }
+
+    async function importIpratico(){
+      const btn = el('btnImportIpratico');
+      if (!btn) return;
+      const d = el('distintaDatePicker')?.value || '{{ d }}';
+      const hasExisting = (
+        tickets.length > 0 || deliveries.length > 0 || coupons.length > 0 ||
+        parseNum(document.querySelector('input[name="vendite_lorde"]')?.value) !== 0 ||
+        parseNum(document.querySelector('input[name="annullati"]')?.value) !== 0 ||
+        parseNum(document.querySelector('input[name="contanti"]')?.value) !== 0 ||
+        parseNum(document.querySelector('input[name="pos"]')?.value) !== 0 ||
+        parseNum(document.querySelector('input[name="scontrini"]')?.value) !== 0
+      );
+      if (hasExisting){
+        const ok = window.confirm(i18n.importOverwriteConfirm);
+        if (!ok) return;
+      }
+
+      btn.disabled = true;
+      try {
+        const r = await fetch(`/rendiconto/api/distinta-cassa/import-ipratico?d=${encodeURIComponent(d)}`, {
+          headers: { 'Accept': 'application/json' }
+        });
+        const j = await r.json();
+        if (!r.ok || !j?.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+
+        const chiusura = j.chiusura || {};
+        const applyMoney = (name, value) => {
+          const inp = document.querySelector(`input[name="${name}"]`);
+          if (!inp) return;
+          inp.value = fmt(parseNum(value));
+        };
+        const applyInt = (name, value) => {
+          const inp = document.querySelector(`input[name="${name}"]`);
+          if (!inp) return;
+          inp.value = fmtInt(parseNum(value));
+        };
+
+        applyMoney('vendite_lorde', chiusura.vendite_lorde || 0);
+        applyMoney('annullati', chiusura.annullati || 0);
+        applyMoney('contanti', chiusura.contanti || 0);
+        applyMoney('pos', chiusura.pos || 0);
+        applyMoney('ticket', chiusura.ticket || 0);
+        applyInt('scontrini', chiusura.scontrini || 0);
+
+        tickets = Array.isArray(j.tickets) ? j.tickets.slice() : [];
+        deliveries = Array.isArray(j.deliveries) ? j.deliveries.slice() : [];
+        coupons = Array.isArray(j.coupons) ? j.coupons.slice() : [];
+        if (j.custom_lists && typeof j.custom_lists === 'object') {
+          Object.keys(j.custom_lists).forEach(sectionKey => {
+            customLists[sectionKey] = Array.isArray(j.custom_lists[sectionKey]) ? j.custom_lists[sectionKey].slice() : [];
+          });
+        }
+
+        renderAll();
+        if (Array.isArray(j.warnings) && j.warnings.length) {
+          const shown = j.warnings.slice(0, 8).join('\n');
+          const more = j.warnings.length > 8 ? `\n...${j.warnings.length - 8} ${i18n.moreWarnings}` : '';
+          window.alert(`${i18n.importDoneWarnings}:\n${shown}${more}`);
+        }
+
+      } catch (e) {
+        console.error(e);
+        window.alert(`${i18n.importError}: ${String(e.message || e)}`);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function bind(){
+      document.querySelectorAll('.chiusura-input').forEach(i => i.addEventListener('input', renderAll));
+      document.querySelectorAll('.custom-distinta-field').forEach(i => i.addEventListener('input', renderAll));
+
+      // formattazione in uscita: valuta (2 decimali) e interi (senza decimali)
+      document.querySelectorAll('input.money-input').forEach(inp => {
+        if (inp.hasAttribute('readonly')) return;
+        inp.addEventListener('blur', () => {
+          const s = String(inp.value || '').trim();
+          if (!s) return;
+          inp.value = fmt(parseNum(s));
+        });
+      });
+      document.querySelectorAll('input.int-input').forEach(inp => {
+        if (inp.hasAttribute('readonly')) return;
+        inp.addEventListener('blur', () => {
+          const s = String(inp.value || '').trim();
+          if (!s) return;
+          let v = Math.trunc(parseNum(s));
+          if (!isFinite(v)) v = 0;
+          if (v < 0) v = 0;
+          inp.value = String(v);
+        });
+      });
+
+      TAGLI.forEach(t => {
+        const a = el(`d1_qta_${t}`);
+        const b = el(`d2_qta_${t}`);
+        if (a) a.addEventListener('input', renderAll);
+        if (b) b.addEventListener('input', renderAll);
+      });
+
+      el('d1_monete').addEventListener('input', renderAll);
+      el('d2_monete').addEventListener('input', renderAll);
+
+      el('ticket_add').addEventListener('click', () => addList('ticket'));
+      el('delivery_add').addEventListener('click', () => addList('delivery'));
+      el('coupon_add').addEventListener('click', () => addList('coupon'));
+      document.querySelectorAll('[data-custom-list-add]').forEach((btn) => {
+        btn.addEventListener('click', () => addCustomList(btn.dataset.customListAdd || ''));
+      });
+      const ipBtn = el('btnImportIpratico');
+      if (ipBtn) ipBtn.addEventListener('click', importIpratico);
+
+      if (photoModalEl){
+        photoModalEl.addEventListener('show.bs.modal', (ev) => {
+          const trigger = ev.relatedTarget;
+          const url = trigger && trigger.getAttribute ? String(trigger.getAttribute('data-photo-url') || '').trim() : '';
+          openDistintaPhoto(url);
+        });
+      }
+
+      el('distintaForm').addEventListener('submit', () => {
+        [
+          ['ticket', addList],
+          ['delivery', addList],
+          ['coupon', addList],
+        ].forEach(([kind, fn]) => {
+          const isTicket = kind === 'ticket';
+          const isDelivery = kind === 'delivery';
+          const sel = el(isTicket ? 'ticket_sel' : (isDelivery ? 'delivery_sel' : 'coupon_sel'));
+          const valEl = el(isTicket ? 'ticket_val' : (isDelivery ? 'delivery_val' : 'coupon_val'));
+          if (String(sel?.value || '').trim() && parseNum(valEl?.value) !== 0) fn(kind);
+        });
+        document.querySelectorAll('[data-custom-list-voce]').forEach((sel) => {
+          const sectionKey = sel.dataset.customListVoce || '';
+          const valEl = document.querySelector(`[data-custom-list-valore="${sectionKey}"]`);
+          if (sectionKey && String(sel.value || '').trim() && parseNum(valEl?.value) !== 0){
+            addCustomList(sectionKey);
+          }
+        });
+        renderAll();
+      });
+    }
+
+    fillDistinta(1);
+    fillDistinta(2);
+    bind();
+    formatInputsNow();
+    renderAll();
+// Auto-caricamento al cambio data (senza tasto "Carica") + conferma se ci sono modifiche non salvate
+(function initDateAutoLoad(){
+  const dateForm = document.getElementById('distintaDateForm');
+  const datePicker = document.getElementById('distintaDatePicker');
+  const form = document.getElementById('distintaForm');
+  if (!dateForm || !datePicker) return;
+
+  let lastDate = datePicker.value || '';
+
+  const serialize = (f) => {
+    if (!f) return '';
+    const fd = new FormData(f);
+    const parts = [];
+    for (const [k, v] of fd.entries()){
+      parts.push(k + '=' + String(v));
+    }
+    return parts.join('&');
+  };
+
+  const baseline = serialize(form);
+
+  datePicker.addEventListener('change', () => {
+    const dirty = (form && serialize(form) !== baseline);
+    if (dirty){
+      const ok = confirm('Hai dati non salvati. Cambiando data li perderai. Continuare?');
+      if (!ok){
+        datePicker.value = lastDate;
+        return;
+      }
+    }
+    lastDate = datePicker.value || '';
+    dateForm.submit();
+  });
+})();
+  })();
+  </script>
+{% endblock %}

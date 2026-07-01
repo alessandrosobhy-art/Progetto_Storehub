@@ -1,0 +1,1460 @@
+﻿{% extends "base.html" %}
+{% block content %}
+{% include "_warehouse_toolbar.html" %}
+
+<div class="container py-4">
+  <h1 class="h4 mb-3">{{ tr('warehouse', 'inventory_new.title', 'Dati Inventario') }}</h1>
+
+  <style>
+    /* Multi-select fornitori (checkbox in dropdown) */
+    #supplierMultiBtn { position: relative; cursor: pointer; }
+    #supplierMultiBtn::after {
+      content: '';
+      position: absolute;
+      right: .85rem;
+      top: 50%;
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid #6c757d;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    .supplier-multi-menu { max-height: 340px; overflow: auto; }
+    /* Forza visibilità totali su mobile (evita eventuali override esterni) */
+    #invTotalsCard { display: block; }
+  </style>
+
+  <form method="post" class="mb-4" id="invLoadForm">
+  <div class="row g-3 align-items-end">
+    <div class="col-md-3">
+      <label for="data_mov" class="form-label">{{ tr('warehouse', 'inventory.movement_date', 'Data movimentazione') }}</label>
+      <input id="data_mov" name="data_mov" type="date" class="form-control" value="{{ header.data_mov if header else '' }}" required>
+    </div>
+
+    <div class="col-md-3">
+      <label for="mov_type" class="form-label">{{ tr('warehouse', 'search.movement_type', 'Tipo movimentazione') }}</label>
+      <select id="mov_type" name="mov_type" class="form-select" required>
+        {% set mt = header.mov_type if header else 'INV' %}
+        <option value="INV" {% if mt=='INV' %}selected{% endif %}>{{ tr('warehouse', 'warehouse.mov_type.inv', 'Inventario') }}</option>
+        <option value="TXIN" {% if mt=='TXIN' %}selected{% endif %}>{{ tr('warehouse', 'warehouse.mov_type.txin', 'Trasferimenti In') }}</option>
+        <option value="TXOUT" {% if mt=='TXOUT' %}selected{% endif %}>{{ tr('warehouse', 'warehouse.mov_type.txout', 'Trasferimenti Out') }}</option>
+        <option value="WASTE CRUDO" {% if mt=='WASTE CRUDO' %}selected{% endif %}>{{ tr('warehouse', 'warehouse.mov_type.waste_crudo', 'Waste Crudo') }}</option>
+      </select>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">{{ tr('warehouse', 'inventory.suppliers', 'Fornitori') }}</label>
+      <div class="dropdown w-100">
+        <button
+          class="form-select text-start"
+          type="button"
+          id="supplierMultiBtn"
+          data-bs-toggle="dropdown"
+          data-bs-auto-close="outside"
+          aria-expanded="false">
+          <span id="supplierMultiBtnText">{{ tr('warehouse', 'inventory.select_suppliers', 'Seleziona fornitori...') }}</span>
+        </button>
+        <div class="dropdown-menu supplier-multi-menu w-100 p-2" aria-labelledby="supplierMultiBtn">
+          <div class="d-flex gap-2 mb-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" id="supplierSelectAllBtn">{{ tr('warehouse', 'inventory.select_all', 'Seleziona tutto') }}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" id="supplierDeselectAllBtn">{{ tr('warehouse', 'inventory.deselect_all', 'Deseleziona tutto') }}</button>
+          </div>
+          <div class="small text-muted mb-2">{{ tr('warehouse', 'inventory.select_one_or_more_suppliers', 'Seleziona uno o più fornitori.') }}</div>
+          <div class="list-group list-group-flush">
+            {% for s in suppliers %}
+              <label class="list-group-item py-2 d-flex align-items-center gap-2">
+                <input
+                  class="form-check-input m-0 supplier-multi-check"
+                  type="checkbox"
+                  name="supplier_name"
+                  value="{{ s.name }}"
+                  {% if header and header.supplier_names and (s.name in header.supplier_names) %}checked{% endif %}>
+                <span class="small text-truncate">{{ s.name }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="text-danger small mt-1 d-none" id="supplierMultiError">{{ tr('warehouse', 'inventory.select_at_least_one_supplier', 'Seleziona almeno un fornitore.') }}</div>
+      {% if suppliers_error %}
+        <div class="text-danger small mt-1">{{ suppliers_error }}</div>
+      {% endif %}
+    </div>
+
+    <div class="col-md-2">
+      <button class="btn btn-primary w-100" type="submit">{{ tr('warehouse', 'delivery.load_price_list', 'Carica listino') }}</button>
+    </div>
+  </div>
+</form>
+
+<script>
+  window.WH_INVENTORY_I18N = {
+    selectSuppliers: {{ tr('warehouse', 'inventory.select_suppliers', 'Seleziona fornitori...')|tojson }},
+    suppliersSelected: {{ tr('warehouse', 'inventory.suppliers_selected', 'fornitori selezionati')|tojson }},
+    noAmount: {{ tr('warehouse', 'delivery.no_amount_entered', 'Nessun importo inserito')|tojson }},
+    noGroup: {{ tr('warehouse', 'delivery.no_group', '(Senza gruppo)')|tojson }},
+    showDetails: {{ tr('warehouse', 'consumi.show_details', 'Mostra dettagli')|tojson }},
+    hideDetails: {{ tr('warehouse', 'consumi.hide_details', 'Nascondi dettagli')|tojson }},
+    selectStore: {{ tr('warehouse', 'inventory.select_store', 'Seleziona store')|tojson }},
+    selectStoreFrom: {{ tr('warehouse', 'inventory.select_store_from', 'Seleziona lo store DA CUI arriva la merce (SITE2).')|tojson }},
+    selectStoreTo: {{ tr('warehouse', 'inventory.select_store_to', 'Seleziona lo store VERSO CUI va la merce (SITE2).')|tojson }},
+    selectStoreOption: {{ tr('warehouse', 'inventory.select_store_option', 'Seleziona uno store...')|tojson }},
+    loading: {{ tr('common', 'loading', 'Caricamento...')|tojson }},
+    loadingStoreError: {{ tr('warehouse', 'inventory.store_load_error', 'Errore caricamento store')|tojson }},
+    loadingError: {{ tr('warehouse', 'common.loading_error', 'Errore caricamento')|tojson }},
+    requiredSaveFields: {{ tr('warehouse', 'inventory.required_save_fields', 'Compila Data movimentazione, Tipo movimentazione e seleziona almeno un Fornitore.')|tojson }},
+    noRowsWithQty: {{ tr('warehouse', 'inventory.no_rows_with_qty', 'Nessuna riga con quantità inserite.')|tojson }},
+    storeSelectionCancelled: {{ tr('warehouse', 'inventory.store_selection_cancelled', 'Selezione store annullata: salvataggio non eseguito.')|tojson }},
+    saving: {{ tr('common', 'saving', 'Salvataggio in corso...')|tojson }},
+    saveError: {{ tr('common', 'save_error', 'Errore salvataggio.')|tojson }},
+    saved: {{ tr('warehouse', 'inventory.saved', 'Salvato.')|tojson }},
+    insertedInventoryRows: {{ tr('warehouse', 'inventory.inserted_inventory_rows', 'Righe inserite inventario')|tojson }},
+    insertedTxRows: {{ tr('warehouse', 'inventory.inserted_tx_rows', 'Righe inserite TX')|tojson }},
+    skippedRows: {{ tr('warehouse', 'inventory.skipped_rows', 'Righe ignorate')|tojson }},
+    requiredPdfFields: {{ tr('warehouse', 'inventory.required_pdf_fields', 'Per esportare in PDF compila Data movimentazione, Tipo movimentazione e seleziona almeno un Fornitore.')|tojson }},
+    noRowsToExport: {{ tr('warehouse', 'inventory.no_rows_to_export', 'Nessuna riga da esportare.')|tojson }},
+    pdfExportError: {{ tr('warehouse', 'inventory.pdf_export_error', 'Errore export PDF')|tojson }},
+    product: {{ tr('warehouse', 'delivery.product', 'Prodotto')|tojson }},
+    supplier: {{ tr('warehouse', 'analysis.supplier', 'Fornitore')|tojson }},
+    conversionKgPz: {{ tr('warehouse', 'inventory.conversion_kg_pz', 'Conv (KG -> PZ)')|tojson }},
+    accumulated: {{ tr('warehouse', 'inventory.accumulated', 'Accumulato')|tojson }}
+  };
+  // Helpers globali: selezione multi fornitori
+  function invGetSelectedSuppliers() {
+    return Array.from(document.querySelectorAll('input.supplier-multi-check[name="supplier_name"]:checked'))
+      .map(cb => (cb.value || '').trim())
+      .filter(Boolean);
+  }
+
+  function invUpdateSupplierMultiText() {
+    const textEl = document.getElementById('supplierMultiBtnText');
+    if (!textEl) return;
+    const sel = invGetSelectedSuppliers();
+    if (!sel.length) {
+      textEl.textContent = window.WH_INVENTORY_I18N.selectSuppliers;
+      return;
+    }
+    if (sel.length === 1) {
+      textEl.textContent = sel[0];
+      return;
+    }
+    textEl.textContent = sel.length + ' ' + window.WH_INVENTORY_I18N.suppliersSelected;
+  }
+
+  function invSetAllSuppliers(checked) {
+    document.querySelectorAll('input.supplier-multi-check[name="supplier_name"]').forEach(cb => {
+      cb.checked = !!checked;
+    });
+    invUpdateSupplierMultiText();
+    if (window.invScheduleTotals) window.invScheduleTotals();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    invUpdateSupplierMultiText();
+
+    const errEl = document.getElementById('supplierMultiError');
+    const form = document.getElementById('invLoadForm');
+    form?.addEventListener('submit', (e) => {
+      const sel = invGetSelectedSuppliers();
+      if (!sel.length) {
+        e.preventDefault();
+        if (errEl) errEl.classList.remove('d-none');
+      } else {
+        if (errEl) errEl.classList.add('d-none');
+      }
+    });
+
+    document.getElementById('supplierSelectAllBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      invSetAllSuppliers(true);
+    });
+    document.getElementById('supplierDeselectAllBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      invSetAllSuppliers(false);
+    });
+
+    document.querySelectorAll('input.supplier-multi-check[name="supplier_name"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        invUpdateSupplierMultiText();
+        if (errEl) errEl.classList.add('d-none');
+        if (window.invScheduleTotals) window.invScheduleTotals();
+      });
+    });
+  });
+</script>
+
+
+
+  {% if price_list and price_list.get('rows') %}
+    {% set cols = price_list.get('columns') or [] %}
+    {% set rows = price_list.get('rows') or [] %}
+
+    <style>
+      /* stile coerente con le pagine DDT: sticky descrizione + background solido */
+      .inv-table-wrap { overflow-x: auto; }
+
+      .inv-table { font-size: 0.80rem; width: max-content; min-width: 100%; }
+      .inv-table th, .inv-table td { padding: .25rem .35rem; vertical-align: middle; }
+      .inv-table thead th { white-space: normal; position: sticky; top: 0; background-color: #f8f9fa; z-index: 4; }
+      .inv-table td { white-space: nowrap; }
+
+      /* Colonna descrizione sticky */
+      .inv-sticky-desc {
+        position: sticky;
+        left: 0;
+        z-index: 5;
+        background: #fff;
+        min-width: 260px;
+        max-width: 420px;
+        white-space: normal;
+        box-shadow: 2px 0 0 rgba(0,0,0,.06);
+      }
+      .inv-table thead .inv-sticky-desc { background-color: #f8f9fa; z-index: 6; }
+
+      /* Stripe fix: evita testo “sotto” visibile quando scrolli */
+      .inv-table tbody .inv-sticky-desc { background-color: var(--bs-table-bg-type, var(--bs-table-bg)); }
+
+      .inv-desc { overflow: hidden; text-overflow: ellipsis; }
+      .inv-input { width: 88px; }
+      .inv-col-prezzo { min-width: 110px; }
+      .inv-col-toteuro { min-width: 120px; }
+      .inv-badge { font-size: 10px; vertical-align: middle; }
+      .inv-muted { color: #6c757d; }
+    
+      .inv-col-actions { width: 92px; white-space: nowrap; }
+      .inv-col-actions .btn { padding: .12rem .45rem; line-height: 1.1; }
+</style>
+
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+      <div class="flex-grow-1" style="max-width: 420px;">
+        <input type="text" class="form-control form-control-sm" id="invSearchInput" placeholder="{{ tr('warehouse', 'delivery.search_product_placeholder', 'Cerca prodotto (descrizione)...') }}">
+      </div>
+      <div class="d-flex gap-2 flex-wrap justify-content-end">
+        <button type="button" class="btn btn-success" id="invSaveBtn">
+          {{ tr('warehouse', 'common.save', 'Salva') }}
+        </button>
+        <button type="button" class="btn btn-outline-primary" id="invPdfBtn">PDF</button>
+        <button type="button" class="btn btn-outline-secondary d-none d-md-inline-block" id="invToggleDetailsBtn">{{ tr('warehouse', 'consumi.show_details', 'Mostra dettagli') }}</button>
+      </div>
+    </div>
+    <div class="small text-muted mb-2" id="invSaveHint"></div>
+    <div id="invAlertArea" class="mb-3"></div>
+
+
+    <div class="card border-0 shadow-sm mb-3 w-100 d-block" id="invTotalsCard">
+      <div class="card-body py-2">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="small text-muted">{{ tr('warehouse', 'inventory.partial_total', 'Totale parziale inventario') }}</div>
+          <div class="small">
+            <span class="text-muted">{{ tr('warehouse', 'analysis.supplier', 'Fornitore') }}:</span>
+            {% if loaded_suppliers and loaded_suppliers|length > 1 %}
+              <select id="invTotalsSupplierSelect" class="form-select form-select-sm d-inline-block align-middle ms-1" style="width:auto; min-width:220px;">
+                {% for sn in loaded_suppliers %}
+                  <option value="{{ sn }}" {% if header and header.totals_supplier == sn %}selected{% endif %}>{{ sn }}</option>
+                {% endfor %}
+              </select>
+              <strong id="invTotalsSupplierText" class="d-none">-</strong>
+            {% else %}
+              <strong id="invTotalsSupplierText">{{ (loaded_suppliers[0] if loaded_suppliers and loaded_suppliers|length==1 else (header.supplier_name if header else '')) or '-' }}</strong>
+            {% endif %}
+            <span class="ms-3 text-muted">{{ tr('warehouse', 'common.total_eur', 'Tot EUR') }}:</span>
+            <strong id="invTotalsGrand">0,00</strong>
+          </div>
+        </div>
+        <div class="table-responsive mt-2">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr class="text-muted small">
+                <th>{{ tr('warehouse', 'delivery.group', 'Gruppo') }}</th>
+                <th class="text-end">{{ tr('warehouse', 'common.total_eur', 'Tot EUR') }}</th>
+              </tr>
+            </thead>
+            <tbody id="invTotalsByGroup">
+              <tr><td class="text-muted" colspan="2">{{ tr('warehouse', 'delivery.no_amount_entered', 'Nessun importo inserito') }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    
+<!-- MOBILE: lista prodotti (solo descrizione) -->
+<div class="d-md-none mb-3" id="invMobileListWrap">
+  <div class="list-group shadow-sm" id="invMobileList"></div>
+  <div class="small text-muted mt-2 d-none" id="invMobileEmpty">{{ tr('warehouse', 'delivery.no_product_found', 'Nessun prodotto trovato') }}</div>
+</div>
+
+<div class="inv-table-wrap d-none d-md-block">
+      <table class="table table-sm table-striped table-bordered inv-table">
+        <thead>
+          <tr>
+            {% set base_cols = ['descrizione','gruppo'] %}
+            {% set detail_cols = ['prezzo','unita','unità','qtacar','qta car','qta_car','qtaint','qta int','qta_int'] %}
+            {% for col in cols %}
+              {% set col_lower = col|lower %}
+              {% set is_tipolistino = 'tipolistino' in col_lower %}
+              {% set is_base = col_lower in base_cols %}
+              {% set is_detail = col_lower in detail_cols %}
+              {% set hidden = ((not is_base) and (not is_detail)) or is_tipolistino %}
+              {% set col_label = col %}
+              {% if col_lower == 'descrizione' %}
+                {% set col_label = tr('warehouse', 'delivery.col_description', 'Descrizione') %}
+              {% elif col_lower == 'gruppo' %}
+                {% set col_label = tr('warehouse', 'delivery.group', 'Gruppo') %}
+              {% elif col_lower == 'prezzo' %}
+                {% set col_label = tr('warehouse', 'delivery.col_price', 'Prezzo') %}
+              {% elif col_lower in ('unita','unità','unitã ') %}
+                {% set col_label = tr('warehouse', 'delivery.unit', 'Unità') %}
+              {% elif col_lower in ('qtacar','qta car','qta_car') %}
+                {% set col_label = tr('warehouse', 'delivery.col_pack_qty', 'Qta car') %}
+              {% elif col_lower in ('qtaint','qta int','qta_int') %}
+                {% set col_label = tr('warehouse', 'delivery.col_inner_qty', 'Qta int') %}
+              {% endif %}
+              <th class="{% if col_lower == 'descrizione' %}inv-sticky-desc{% endif %}{% if is_detail %} wh-detail-col d-none{% endif %}{% if hidden %} d-none{% endif %}">
+                {{ col_label }}
+              </th>
+            {% endfor %}
+            <th>CAR</th>
+            <th>INT</th>
+            <th>PEZ</th>
+            <th>KG</th>
+            <th class="text-center inv-col-actions">+/-</th>
+            <th class="text-end">TOTPZ</th>
+            <th class="text-end">TOT €</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set ns = namespace(prev_type='') %}
+          {% for r in rows %}
+            {% set _t = (r.get('_TipoListino') or '') %}
+            {% if _t and _t != ns.prev_type %}
+              <tr class="inv-section-divider">
+                <td colspan="{{ cols|length + 7 }}" class="table-secondary fw-semibold py-1">{{ _t }}</td>
+              </tr>
+              {% set ns.prev_type = _t %}
+            {% endif %}
+            <tr class="inv-row" data-row-index="{{ loop.index0 }}" data-supplier="{{ r.get('__supplier__') or r.get('Fornitore') or r.get('fornitore') or '' }}">
+              {% for col in cols %}
+                {% set col_lower = col|lower %}
+                {% set is_tipolistino = 'tipolistino' in col_lower %}
+                {% set is_base = col_lower in base_cols %}
+                {% set is_detail = col_lower in detail_cols %}
+                {% set hidden = ((not is_base) and (not is_detail)) or is_tipolistino %}
+                {% set val = r.get(col) %}
+
+                {% set td_class = '' %}
+                {% if col_lower == 'descrizione' %}
+                  {% set td_class = 'inv-sticky-desc inv-col-desc' %}
+                {% elif col_lower in ['qtacar','qta car','qta_car'] %}
+                  {% set td_class = 'text-end inv-col-qtacar' %}
+                {% elif col_lower in ['qtaint','qta int','qta_int'] %}
+                  {% set td_class = 'text-end inv-col-qtaint' %}
+                {% elif col_lower == 'gruppo' %}
+                  {% set td_class = 'inv-col-gruppo' %}
+                {% elif col_lower == 'prezzo' %}
+                  {% set td_class = 'text-end inv-col-prezzo' %}
+                {% else %}
+                  {% set td_class = 'text-end' %}
+                {% endif %}
+
+                <td class="{{ td_class }}{% if is_detail %} wh-detail-col d-none{% endif %}{% if hidden %} d-none{% endif %}">
+                  {% if col_lower == 'descrizione' %}
+                    <span class="inv-desc">{{ val }}</span>
+                    {% if loaded_suppliers and loaded_suppliers|length > 1 %}
+                      <div class="small text-muted inv-supplier-label">{{ r.get('__supplier__') or r.get('Fornitore') or r.get('fornitore') }}</div>
+                    {% endif %}
+                  {% elif col_lower == 'prezzo' %}
+                    <span class="inv-price-text">{{ val }}</span>
+                    <span class="badge text-bg-warning inv-badge ms-1 d-none">AVG4W</span>
+                  {% else %}
+                    {{ val }}
+                  {% endif %}
+                </td>
+              {% endfor %}
+
+              <td><input type="text" inputmode="decimal" class="form-control form-control-sm inv-input inv-inp-car" value=""></td>
+              <td><input type="text" inputmode="decimal" class="form-control form-control-sm inv-input inv-inp-int" value=""></td>
+              <td><input type="text" inputmode="decimal" class="form-control form-control-sm inv-input inv-inp-pez" value=""></td>
+              <td><input type="text" inputmode="decimal" class="form-control form-control-sm inv-input inv-inp-kg" value=""></td>
+              <td class="text-center inv-col-actions">
+                <div class="btn-group btn-group-sm" role="group" aria-label="Quantità incrementale">
+                  <button type="button" class="btn btn-outline-primary inv-btn-plus" title="Aggiungi">+</button>
+                  <button type="button" class="btn btn-outline-danger inv-btn-minus" title="Rimuovi">-</button>
+                  <button type="button" class="btn btn-outline-secondary inv-btn-reset" title="Azzera">🗑</button>
+                </div>
+              </td>
+              <td class="text-end"><span class="inv-totpez">0</span></td>
+              <td class="text-end"><span class="inv-toteuro">0,00</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    </div>
+
+
+<!-- MOBILE: Modal prodotto -->
+<div class="modal fade" id="invMobileModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0" id="invMobileModalTitle">{{ tr('warehouse', 'delivery.product', 'Prodotto') }}</h5>
+          <div class="small text-muted" id="invMobileModalSubtitle"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('rendiconto', 'common.close', 'Chiudi') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <div class="small text-muted">{{ tr('warehouse', 'delivery.group', 'Gruppo') }}</div>
+            <div class="fw-semibold" id="invMobileInfoGroup">-</div>
+          </div>
+          <div class="col-6 text-end">
+            <div class="small text-muted">{{ tr('warehouse', 'delivery.col_price', 'Prezzo') }}</div>
+            <div class="fw-semibold" id="invMobileInfoPrice">-</div>
+          </div>
+          <div class="col-6">
+            <div class="small text-muted">QTA CAR</div>
+            <div class="fw-semibold" id="invMobileInfoQtaCar">-</div>
+          </div>
+          <div class="col-6 text-end">
+            <div class="small text-muted">QTA INT</div>
+            <div class="fw-semibold" id="invMobileInfoQtaInt">-</div>
+          </div>
+        </div>
+
+        <hr class="my-2">
+
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small mb-1">CAR</label>
+            <input type="text" inputmode="decimal" class="form-control form-control-sm" id="invMobileInpCar" placeholder="">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">INT</label>
+            <input type="text" inputmode="decimal" class="form-control form-control-sm" id="invMobileInpInt" placeholder="">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">PEZ</label>
+            <input type="text" inputmode="decimal" class="form-control form-control-sm" id="invMobileInpPez" placeholder="">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">KG</label>
+            <input type="text" inputmode="decimal" class="form-control form-control-sm" id="invMobileInpKg" placeholder="">
+          </div>
+
+          <div class="col-12">
+            <div class="d-flex gap-2 mt-1">
+              <button type="button" class="btn btn-outline-primary flex-fill" id="invMobileBtnPlus">+</button>
+              <button type="button" class="btn btn-outline-danger flex-fill" id="invMobileBtnMinus">-</button>
+              <button type="button" class="btn btn-outline-secondary flex-fill" id="invMobileBtnReset">🗑</button>
+            </div>
+            <div class="small text-muted mt-2" id="invMobileAccLabel"></div>
+          </div>
+
+          <div class="col-6">
+            <div class="small text-muted">TOTPZ</div>
+            <div class="fw-semibold" id="invMobileTotPz">0</div>
+          </div>
+          <div class="col-6 text-end">
+            <div class="small text-muted">TOT €</div>
+            <div class="fw-semibold" id="invMobileTotEuro">0,00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="invMobileBtnClose">{{ tr('rendiconto', 'common.close', 'Chiudi') }}</button>
+        <button type="button" class="btn btn-success" id="invMobileBtnSave">{{ tr('warehouse', 'common.save', 'Salva') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Modal selezione store per TXIN/TXOUT -->
+    <div class="modal fade" id="txStoreModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="txStoreModalTitle">{{ tr('warehouse', 'inventory.select_store', 'Seleziona store') }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr('rendiconto', 'common.close', 'Chiudi') }}"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-2 small text-muted" id="txStoreModalSubtitle"></div>
+            <select class="form-select" id="txStoreSelect">
+              <option value="" selected disabled>{{ tr('common', 'loading', 'Caricamento...') }}</option>
+            </select>
+            <div class="alert alert-danger d-none mt-3" id="txStoreModalError"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+            <button type="button" class="btn btn-primary" id="txStoreModalConfirm" disabled>Conferma</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const PRICELIST_COLS = {{ cols|tojson }};
+      const PRICELIST_ROWS = {{ rows|tojson }};
+
+// Ricerca per descrizione (solo filtro visuale)
+function invUpdateSectionDividers() {
+  const table = document.querySelector('.inv-table');
+  if (!table) return;
+  const dividers = Array.from(table.querySelectorAll('tr.inv-section-divider'));
+  dividers.forEach(d => { d.style.display = ''; });
+
+  dividers.forEach((div, i) => {
+    const nextDiv = (i + 1 < dividers.length) ? dividers[i + 1] : null;
+    let el = div.nextElementSibling;
+    let hasVisible = false;
+    while (el && el !== nextDiv) {
+      if (el.classList && el.classList.contains('inv-row')) {
+        if (el.style.display !== 'none') { hasVisible = true; break; }
+      }
+      el = el.nextElementSibling;
+    }
+    if (!hasVisible) div.style.display = 'none';
+  });
+}
+
+function invApplySearchFilter() {
+  const input = document.getElementById('invSearchInput');
+  if (!input) return;
+  const q = (input.value || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('tr.inv-row');
+  rows.forEach((row) => {
+    const descCell = row.querySelector('.inv-col-desc');
+    const desc = descCell ? (descCell.textContent || '').toLowerCase() : '';
+    row.style.display = (!q || desc.indexOf(q) !== -1) ? '' : 'none';
+  });
+  invUpdateSectionDividers();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('invSearchInput');
+  if (input) {
+    input.addEventListener('input', invApplySearchFilter);
+    invApplySearchFilter();
+  }
+});
+      const I18N = window.WH_INVENTORY_I18N || {};
+      const CONV_MAP = {{ conv_map|tojson }};
+      const AVG_PRICE_MAP = {{ avg_price_map|tojson }};
+
+      function parseNumberEU(value) {
+        if (value === null || value === undefined) return 0;
+        let s = String(value).trim();
+        if (!s) return 0;
+        s = s.replace(/€|\s/g, '');
+        // if both '.' and ',' -> remove thousands and keep decimal
+        if (s.includes('.') && s.includes(',')) {
+          s = s.replace(/\./g, '').replace(',', '.');
+        } else {
+          s = s.replace(',', '.');
+        }
+        const n = Number(s);
+        return isNaN(n) ? 0 : n;
+      }
+
+      function formatNumberEU(n, decimals=2) {
+        const x = Number(n);
+        if (!isFinite(x)) return '';
+        return x.toFixed(decimals).replace('.', ',');
+      }
+
+      function formatEuroEU(n) {
+        return formatNumberEU(n, 2);
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, function(ch) {
+          return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+        });
+      }
+
+      let _invTotalsScheduled = false;
+      function scheduleInvTotals() {
+        if (_invTotalsScheduled) return;
+        _invTotalsScheduled = true;
+        window.requestAnimationFrame(() => {
+          _invTotalsScheduled = false;
+          updateInvTotals();
+        });
+      }
+
+      // Espone la funzione per poterla richiamare anche dallo script globale (selezione fornitori)
+      window.invScheduleTotals = scheduleInvTotals;
+
+      function updateInvTotals() {
+        const totalsSel = document.getElementById('invTotalsSupplierSelect');
+        let supplierName = '-';
+        let supplierKey = '';
+
+        if (totalsSel) {
+          supplierName = totalsSel.value || '-';
+          supplierKey = normKey(totalsSel.value || '');
+        } else {
+          const selected = (typeof invGetSelectedSuppliers === 'function') ? invGetSelectedSuppliers() : [];
+          supplierName = selected[0] || '-';
+          supplierKey = normKey(supplierName);
+        }
+
+        const supplierTextEl = document.getElementById('invTotalsSupplierText');
+        if (supplierTextEl) supplierTextEl.textContent = supplierName || '-';
+
+        const groupMap = {};
+        let grand = 0;
+
+        document.querySelectorAll('tr.inv-row').forEach(tr => {
+          const rowSup = normKey((tr.dataset && tr.dataset.supplier) ? tr.dataset.supplier : '');
+          if (supplierKey && rowSup && rowSup !== supplierKey) return;
+
+          const tot = parseNumberEU(tr.querySelector('.inv-toteuro')?.textContent);
+          if (!tot) return;
+
+          let grp = (tr.querySelector('.inv-col-gruppo')?.textContent || '').trim();
+          if (!grp) grp = '(Senza gruppo)';
+
+          groupMap[grp] = (groupMap[grp] || 0) + tot;
+          grand += tot;
+        });
+
+const grandEl = document.getElementById('invTotalsGrand');
+        if (grandEl) grandEl.textContent = formatEuroEU(grand);
+
+        const body = document.getElementById('invTotalsByGroup');
+        if (!body) return;
+
+        body.innerHTML = '';
+        const keys = Object.keys(groupMap);
+        if (keys.length === 0) {
+          body.innerHTML = '<tr><td class="text-muted" colspan="2">' + escapeHtml(I18N.noAmount || 'Nessun importo inserito') + '</td></tr>';
+          return;
+        }
+
+        const rows = keys.map(k => [k, groupMap[k]]);
+        rows.sort((a,b) => b[1] - a[1]);
+
+        rows.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + escapeHtml(item[0]) + '</td>' +
+                         '<td class="text-end fw-semibold">' + formatEuroEU(item[1]) + '</td>';
+          body.appendChild(tr);
+        });
+      }
+
+
+      function normKey(s) {
+        return (s || '').trim().toLowerCase();
+      }
+
+      function rowKeyFromDesc(descText) {
+        return normKey(descText);
+      }
+
+      function mapKeyForRow(tr, descText) {
+        const sup = (tr && tr.dataset) ? normKey(tr.dataset.supplier || '') : '';
+        const desc = rowKeyFromDesc(descText);
+        return sup ? (sup + '||' + desc) : desc;
+      }
+
+function _invIsInt(n) {
+        return isFinite(n) && Math.abs(n - Math.round(n)) < 1e-9;
+      }
+
+      function formatQtyEU(n) {
+        if (!isFinite(n) || Number(n) === 0) return '';
+        const dec = _invIsInt(n) ? 0 : 2;
+        return formatNumberEU(n, dec);
+      }
+
+      function invGetAcc(tr) {
+        return {
+          car: Number(tr.dataset.accCar || 0),
+          interno: Number(tr.dataset.accInt || 0),
+          pez: Number(tr.dataset.accPez || 0),
+          kg: Number(tr.dataset.accKg || 0)
+        };
+      }
+
+      function invSetAcc(tr, a) {
+        tr.dataset.accCar = String(a?.car || 0);
+        tr.dataset.accInt = String(a?.interno || 0);
+        tr.dataset.accPez = String(a?.pez || 0);
+        tr.dataset.accKg = String(a?.kg || 0);
+      }
+
+      function invReadDelta(tr) {
+        const car = Math.max(0, parseNumberEU(tr.querySelector('.inv-inp-car')?.value));
+        const interno = Math.max(0, parseNumberEU(tr.querySelector('.inv-inp-int')?.value));
+        const pez = Math.max(0, parseNumberEU(tr.querySelector('.inv-inp-pez')?.value));
+        const kg = Math.max(0, parseNumberEU(tr.querySelector('.inv-inp-kg')?.value));
+        return { car, interno, pez, kg };
+      }
+
+      function invClearDelta(tr) {
+        tr.querySelectorAll('input.inv-input').forEach(inp => { inp.value = ''; });
+      }
+
+      function invApplyDelta(tr, sign) {
+        const d = invReadDelta(tr);
+        const any = (d.car || d.interno || d.pez || d.kg);
+        if (!any) return false;
+
+        const acc = invGetAcc(tr);
+
+        const next = {
+          car: Math.max(0, acc.car + sign * d.car),
+          interno: Math.max(0, acc.interno + sign * d.interno),
+          pez: Math.max(0, acc.pez + sign * d.pez),
+          kg: Math.max(0, acc.kg + sign * d.kg)
+        };
+
+        invSetAcc(tr, next);
+        invClearDelta(tr);
+        updateRow(tr);
+        return true;
+      }
+
+
+      function invResetRow(tr) {
+        // azzera quantità accumulate + delta per la singola riga
+        invSetAcc(tr, { car: 0, interno: 0, pez: 0, kg: 0 });
+        invClearDelta(tr);
+        updateRow(tr);
+      }
+
+      function invCommitAllPendingDeltas() {
+        // Per evitare che qualche quantità inserita ma non "committata" vada persa al salvataggio,
+        // sommiamo automaticamente i delta presenti in input alle quantità accumulate.
+        document.querySelectorAll('tr.inv-row').forEach(tr => {
+          const d = invReadDelta(tr);
+          if (!(d.car || d.interno || d.pez || d.kg)) return;
+          const acc = invGetAcc(tr);
+          invSetAcc(tr, {
+            car: acc.car + d.car,
+            interno: acc.interno + d.interno,
+            pez: acc.pez + d.pez,
+            kg: acc.kg + d.kg
+          });
+          invClearDelta(tr);
+          updateRow(tr);
+        });
+      }
+
+      function updateRow(tr) {
+        const descCell = tr.querySelector('.inv-col-desc');
+        const descText = (tr.querySelector('.inv-desc')?.textContent || (descCell ? descCell.textContent : '') || '').trim();
+        const descKey = rowKeyFromDesc(descText);
+        const mapKey = mapKeyForRow(tr, descText);
+const qtacarCell = tr.querySelector('.inv-col-qtacar');
+        const qtaintCell = tr.querySelector('.inv-col-qtaint');
+        const priceCell = tr.querySelector('.inv-col-prezzo .inv-price-text');
+        const badge = tr.querySelector('.inv-col-prezzo .inv-badge');
+
+        const qtacar = parseNumberEU(qtacarCell ? qtacarCell.textContent : 0);
+        const qtaint = parseNumberEU(qtaintCell ? qtaintCell.textContent : 0);
+
+        const listinoPrice = parseNumberEU(priceCell ? priceCell.textContent : 0);
+        const avgPrice = (AVG_PRICE_MAP && AVG_PRICE_MAP[mapKey] !== undefined) ? Number(AVG_PRICE_MAP[mapKey]) : 0;
+        const effectivePrice = (listinoPrice > 0) ? listinoPrice : (avgPrice > 0 ? avgPrice : 0);
+
+        // Show badge if using avg
+        if (badge) {
+          if (listinoPrice <= 0 && avgPrice > 0) badge.classList.remove('d-none');
+          else badge.classList.add('d-none');
+        }
+
+        // Render price as effective (so user sees what is used in TOT €)
+        if (priceCell) {
+          priceCell.textContent = formatEuroEU(effectivePrice);
+        }
+
+        const conv = (CONV_MAP && CONV_MAP[mapKey] !== undefined) ? Number(CONV_MAP[mapKey]) : 0;
+
+        const acc = invGetAcc(tr);
+
+        // input = delta (da committare con + / -), placeholder = quantità accumulata
+        const _inpCar = tr.querySelector('.inv-inp-car');
+        const _inpInt = tr.querySelector('.inv-inp-int');
+        const _inpPez = tr.querySelector('.inv-inp-pez');
+        const _inpKg = tr.querySelector('.inv-inp-kg');
+        if (_inpCar) _inpCar.placeholder = formatQtyEU(acc.car);
+        if (_inpInt) _inpInt.placeholder = formatQtyEU(acc.interno);
+        if (_inpPez) _inpPez.placeholder = formatQtyEU(acc.pez);
+        if (_inpKg) _inpKg.placeholder = formatQtyEU(acc.kg);
+
+        const d = invReadDelta(tr);
+        const eff = {
+          car: acc.car + d.car,
+          interno: acc.interno + d.interno,
+          pez: acc.pez + d.pez,
+          kg: acc.kg + d.kg
+        };
+
+        const car = eff.car;
+        const inte = eff.interno;
+        const pez = eff.pez;
+        const kg = eff.kg;
+
+        let totpz = 0;
+
+        // Formula: TOTPZ = CAR*QTACAR + INT*(QTACAR/QTAINT) + PEZ + KG/CONV
+        if (qtacar > 0) totpz += car * qtacar;
+        if (qtacar > 0 && qtaint > 0) totpz += inte * (qtacar / qtaint);
+        totpz += pez;
+        if (kg > 0 && conv > 0) totpz += kg / conv;
+
+        const toteuro = (qtacar > 0) ? (totpz / qtacar) * effectivePrice : 0;
+
+        tr.querySelector('.inv-totpez').textContent = formatNumberEU(totpz, 2);
+        tr.querySelector('.inv-toteuro').textContent = formatEuroEU(toteuro);
+        scheduleInvTotals();
+      }
+
+      function bindRow(tr) {
+  // quantità accumulate (committate) per riga
+  if (tr.dataset.accCar === undefined) {
+    invSetAcc(tr, { car: 0, interno: 0, pez: 0, kg: 0 });
+  }
+
+  tr.querySelector('.inv-btn-plus')?.addEventListener('click', () => invApplyDelta(tr, +1));
+  tr.querySelector('.inv-btn-minus')?.addEventListener('click', () => invApplyDelta(tr, -1));
+
+  tr.querySelector('.inv-btn-reset')?.addEventListener('click', () => invResetRow(tr));
+
+  // ENTER nei campi quantità = "+"
+  tr.querySelectorAll('input.inv-input').forEach(inp => {
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        invApplyDelta(tr, +1);
+      }
+    });
+    // Calcolo in tempo reale anche senza premere +/-
+    inp.addEventListener('input', () => updateRow(tr));
+  });
+
+  updateRow(tr);
+}
+
+document.querySelectorAll('tr.inv-row').forEach(bindRow);
+
+      // Totali parziali (per gruppo)
+      const totalsSupplierSel = document.getElementById('invTotalsSupplierSelect');
+      if (totalsSupplierSel) totalsSupplierSel.addEventListener('change', () => scheduleInvTotals());
+
+      scheduleInvTotals();
+
+// ---------- SAVE MOVEMENT ----------
+      const CURRENT_STORE_CODE = "{{ store_code }}";
+
+      function showInvAlert(kind, msg) {
+        const area = document.getElementById('invAlertArea');
+        if (!area) return;
+        const div = document.createElement('div');
+        div.className = `alert alert-${kind} alert-dismissible fade show`;
+        div.role = 'alert';
+        div.innerHTML = `
+          <div>${msg}</div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        area.prepend(div);
+      }
+
+      function findPriceColumnName() {
+        for (const c of (PRICELIST_COLS || [])) {
+          const cl = String(c || '').trim().toLowerCase();
+          if (cl === 'prezzo' || cl.includes('prezzo')) return c;
+        }
+        return null;
+      }
+
+      function gatherInventoryRows() {
+  const out = [];
+  const priceCol = findPriceColumnName();
+
+  document.querySelectorAll('tr.inv-row').forEach(tr => {
+    const idx = Number(tr.dataset.rowIndex || -1);
+    const anag = (idx >= 0 && PRICELIST_ROWS && PRICELIST_ROWS[idx]) ? PRICELIST_ROWS[idx] : {};
+
+    const acc = invGetAcc(tr);
+    const car = acc.car;
+    const inte = acc.interno;
+    const pez = acc.pez;
+    const kg = acc.kg;
+
+    if (car === 0 && inte === 0 && pez === 0 && kg === 0) return;
+
+    const totpz = parseNumberEU(tr.querySelector('.inv-totpez')?.textContent);
+    const toteuro = parseNumberEU(tr.querySelector('.inv-toteuro')?.textContent);
+
+    // Copia anagrafica e forza il prezzo "effettivo" (coerente con TOT €)
+    const anagCopy = Object.assign({}, anag || {});
+    const priceText = tr.querySelector('.inv-col-prezzo .inv-price-text')?.textContent;
+    if (priceCol && priceText) {
+      anagCopy[priceCol] = parseNumberEU(priceText);
+    }
+
+    out.push({
+      anag: anagCopy,
+      car: car,
+      interno: inte,
+      pez: pez,
+      kg: kg,
+      totpz: totpz,
+      toteuro: toteuro
+    });
+  });
+  return out;
+}
+
+      async function fetchStoresForTx() {
+        const res = await fetch("{{ url_for('warehouse.stores_json_all') }}", { credentials: 'same-origin' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || I18N.loadingStoreError || 'Errore caricamento store');
+        return (data?.stores || []).map(s => ({
+          code: String(s.code || ''),
+          name: String(s.name || '')
+        })).filter(s => s.code);
+      }
+
+      function askTxStore(movType) {
+        return new Promise(async (resolve) => {
+          const modalEl = document.getElementById('txStoreModal');
+          const titleEl = document.getElementById('txStoreModalTitle');
+          const subEl = document.getElementById('txStoreModalSubtitle');
+          const selectEl = document.getElementById('txStoreSelect');
+          const errEl = document.getElementById('txStoreModalError');
+          const confirmBtn = document.getElementById('txStoreModalConfirm');
+
+          if (!modalEl || !selectEl || !confirmBtn) return resolve('');
+
+          const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+
+          function setError(msg) {
+            if (!errEl) return;
+            if (msg) {
+              errEl.textContent = msg;
+              errEl.classList.remove('d-none');
+            } else {
+              errEl.textContent = '';
+              errEl.classList.add('d-none');
+            }
+          }
+
+          titleEl.textContent = I18N.selectStore || 'Seleziona store';
+          if (movType === 'TXIN') {
+            subEl.textContent = I18N.selectStoreFrom || 'Seleziona lo store DA CUI arriva la merce (SITE2).';
+          } else {
+            subEl.textContent = I18N.selectStoreTo || 'Seleziona lo store VERSO CUI va la merce (SITE2).';
+          }
+
+          confirmBtn.disabled = true;
+          selectEl.innerHTML = '<option value="" selected disabled>' + escapeHtml(I18N.loading || 'Caricamento...') + '</option>';
+          setError('');
+
+          try {
+            const stores = await fetchStoresForTx();
+            const filtered = stores.filter(s => s.code !== String(CURRENT_STORE_CODE));
+
+            selectEl.innerHTML = '';
+            const opt0 = document.createElement('option');
+            opt0.value = '';
+            opt0.textContent = I18N.selectStoreOption || 'Seleziona uno store...';
+            opt0.disabled = true;
+            opt0.selected = true;
+            selectEl.appendChild(opt0);
+
+            filtered.forEach(s => {
+              const opt = document.createElement('option');
+              opt.value = s.code;
+              opt.textContent = s.name ? (s.code + ' - ' + s.name) : s.code;
+              selectEl.appendChild(opt);
+            });
+
+            confirmBtn.disabled = true;
+          } catch (e) {
+            setError(String(e?.message || e));
+            selectEl.innerHTML = '<option value="" selected disabled>' + escapeHtml(I18N.loadingError || 'Errore caricamento') + '</option>';
+          }
+
+          function cleanupAndResolve(val) {
+            modalEl.removeEventListener('hidden.bs.modal', onHide);
+            confirmBtn.removeEventListener('click', onConfirm);
+            selectEl.removeEventListener('change', onChange);
+            resolve(val || '');
+          }
+
+          let chosen = '';
+
+          function onHide() { cleanupAndResolve(chosen); }
+          function onConfirm() {
+            chosen = selectEl.value || '';
+            modal.hide();
+          }
+          function onChange() { confirmBtn.disabled = !selectEl.value; }
+
+          modalEl.addEventListener('hidden.bs.modal', onHide, { once: true });
+          confirmBtn.addEventListener('click', onConfirm);
+          selectEl.addEventListener('change', onChange);
+
+          modal.show();
+        });
+      }
+
+      async function saveInventory() {
+        const btn = document.getElementById('invSaveBtn');
+        const hint = document.getElementById('invSaveHint');
+        if (!btn) return;
+
+        const supplierNames = (typeof invGetSelectedSuppliers === 'function') ? invGetSelectedSuppliers() : [];
+        const supplierName = supplierNames[0] || '';
+
+        const movType = document.getElementById('mov_type')?.value || '';
+        const dataMov = document.getElementById('data_mov')?.value || '';
+
+        if (!supplierNames.length || !movType || !dataMov) {
+          showInvAlert('danger', I18N.requiredSaveFields || 'Compila Data movimentazione, Tipo movimentazione e seleziona almeno un Fornitore.');
+          return;
+        }
+
+// Commit automatico di eventuali quantità inserite e non ancora aggiunte con + / -
+        invCommitAllPendingDeltas();
+
+        const rowsPayload = gatherInventoryRows();
+        if (!rowsPayload.length) {
+          showInvAlert('warning', I18N.noRowsWithQty || 'Nessuna riga con quantità inserite.');
+          return;
+        }
+
+        let site2 = '';
+        if (String(movType).toUpperCase() === 'TXIN' || String(movType).toUpperCase() === 'TXOUT') {
+          site2 = await askTxStore(String(movType).toUpperCase());
+          if (!site2) {
+            showInvAlert('warning', I18N.storeSelectionCancelled || 'Selezione store annullata: salvataggio non eseguito.');
+            return;
+          }
+        }
+
+        btn.disabled = true;
+        if (hint) hint.textContent = I18N.saving || 'Salvataggio in corso...';
+
+        try {
+          const payload = {
+            header: {
+              supplier_name: supplierName,
+              supplier_names: supplierNames,
+              mov_type: movType,
+              data_mov: dataMov,
+              site2: site2
+            },
+            rows: rowsPayload
+          };
+
+          const res = await fetch("{{ url_for('warehouse.inventory_save') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data?.success) {
+            throw new Error(data?.error || I18N.saveError || 'Errore salvataggio');
+          }
+
+          const msg = `${I18N.saved || 'Salvato.'} ${I18N.insertedInventoryRows || 'Righe inserite inventario'}: ${data.inserted_inventory || 0}` +
+                      (data.inserted_tx ? ` | ${I18N.insertedTxRows || 'Righe inserite TX'}: ${data.inserted_tx}` : '') +
+                      (data.skipped ? ` | ${I18N.skippedRows || 'Righe ignorate'}: ${data.skipped}` : '');
+          showInvAlert('success', msg);
+
+          // reset quantità (accumulate + delta)
+document.querySelectorAll('tr.inv-row').forEach(tr => {
+  invSetAcc(tr, { car: 0, interno: 0, pez: 0, kg: 0 });
+  invClearDelta(tr);
+  updateRow(tr);
+});
+
+        } catch (e) {
+          showInvAlert('danger', String(e?.message || e));
+        } finally {
+          btn.disabled = false;
+          if (hint) hint.textContent = '';
+        }
+      }
+
+      
+      // Toggle colonne dettaglio (da Prezzo a QtaInt) senza toccare i campi di inserimento/calcolo
+      let __detailsShown = false;
+      const __toggleBtn = document.getElementById('invToggleDetailsBtn');
+      function __setDetailsShown(v) {
+        __detailsShown = !!v;
+        document.querySelectorAll('.wh-detail-col').forEach(el => {
+          if (__detailsShown) el.classList.remove('d-none');
+          else el.classList.add('d-none');
+        });
+        if (__toggleBtn) __toggleBtn.textContent = __detailsShown ? (I18N.hideDetails || 'Nascondi dettagli') : (I18N.showDetails || 'Mostra dettagli');
+      }
+      __toggleBtn?.addEventListener('click', () => __setDetailsShown(!__detailsShown));
+      __setDetailsShown(false);
+
+      document.getElementById('invSaveBtn')?.addEventListener('click', saveInventory);
+
+      async function exportInventoryPdf() {
+        const btn = document.getElementById('invPdfBtn');
+        const dataMov = document.getElementById('data_mov')?.value || '';
+        const movType = document.getElementById('mov_type')?.value || '';
+        const supplierNames = (typeof invGetSelectedSuppliers === 'function') ? invGetSelectedSuppliers() : [];
+
+        if (!dataMov || !movType || !supplierNames.length) {
+          showInvAlert('warning', I18N.requiredPdfFields || 'Per esportare in PDF compila Data movimentazione, Tipo movimentazione e seleziona almeno un Fornitore.');
+          return;
+        }
+
+        // include eventuali delta non committati
+        invCommitAllPendingDeltas();
+
+        const outRows = [];
+        document.querySelectorAll('tr.inv-row').forEach(tr => {
+          // rispetta filtro ricerca (nasconde le righe via style.display)
+          if (tr && tr.style && tr.style.display === 'none') return;
+          const supplier = String(tr.dataset.supplier || '').trim();
+          const descr = String(tr.querySelector('.inv-desc')?.textContent || '').trim();
+          if (!descr) return;
+          const acc = (typeof invGetAcc === 'function') ? invGetAcc(tr) : { car: 0, interno: 0, pez: 0, kg: 0 };
+          outRows.push({
+            fornitore: supplier,
+            descrizione: descr,
+            car: acc.car || 0,
+            int: acc.interno || 0,
+            pez: acc.pez || 0,
+            kg: acc.kg || 0,
+          });
+        });
+
+        if (!outRows.length) {
+          showInvAlert('warning', I18N.noRowsToExport || 'Nessuna riga da esportare.');
+          return;
+        }
+
+        if (btn) btn.disabled = true;
+
+        try {
+          const payload = {
+            header: {
+              supplier_names: supplierNames,
+              mov_type: movType,
+              data_mov: dataMov,
+            },
+            rows: outRows,
+          };
+
+          const res = await fetch("{{ url_for('warehouse.inventory_pdf') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data?.error || I18N.pdfExportError || 'Errore export PDF');
+          }
+
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const safeMt = String(movType || 'INV').replace(/\s+/g, '_');
+          a.download = `Inventario_${safeMt}_${dataMov}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (e) {
+          showInvAlert('danger', String(e?.message || e));
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      document.getElementById('invPdfBtn')?.addEventListener('click', exportInventoryPdf);
+
+
+// ---------- MOBILE UI: lista descrizioni + popup ----------
+(function () {
+  const isMobile = () => window.matchMedia && window.matchMedia('(max-width: 767.98px)').matches;
+
+  const listWrap = document.getElementById('invMobileListWrap');
+  const listEl = document.getElementById('invMobileList');
+  const emptyEl = document.getElementById('invMobileEmpty');
+
+  if (!listWrap || !listEl) return;
+
+  let currentRow = null;
+  let stagedAcc = null; // {car, interno, pez, kg}
+  let effectivePrice = 0;
+  let qtaCar = 0;
+  let qtaInt = 0;
+  let conv = 0;
+  let descKey = '';
+
+  const modalEl = document.getElementById('invMobileModal');
+  let modal = null;
+  function ensureModal() {
+    if (modal) return modal;
+    if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+      modal = new window.bootstrap.Modal(modalEl);
+    }
+    return modal;
+  }
+
+  const $ = (id) => document.getElementById(id);
+
+  function readModalDelta() {
+    return {
+      car: Math.max(0, parseNumberEU(($('invMobileInpCar')?.value || ''))),
+      interno: Math.max(0, parseNumberEU(($('invMobileInpInt')?.value || ''))),
+      pez: Math.max(0, parseNumberEU(($('invMobileInpPez')?.value || ''))),
+      kg: Math.max(0, parseNumberEU(($('invMobileInpKg')?.value || '')))
+    };
+  }
+
+  function clearModalDelta() {
+    ['invMobileInpCar','invMobileInpInt','invMobileInpPez','invMobileInpKg'].forEach(id => {
+      const el = $(id);
+      if (el) el.value = '';
+    });
+  }
+
+  function setModalPlaceholders() {
+    $('invMobileInpCar') && ($('invMobileInpCar').placeholder = formatQtyEU(stagedAcc?.car || 0));
+    $('invMobileInpInt') && ($('invMobileInpInt').placeholder = formatQtyEU(stagedAcc?.interno || 0));
+    $('invMobileInpPez') && ($('invMobileInpPez').placeholder = formatQtyEU(stagedAcc?.pez || 0));
+    $('invMobileInpKg') && ($('invMobileInpKg').placeholder = formatQtyEU(stagedAcc?.kg || 0));
+  }
+
+  function computeTotals(eff) {
+    let totpz = 0;
+
+    if (qtaCar > 0) totpz += eff.car * qtaCar;
+    if (qtaCar > 0 && qtaInt > 0) totpz += eff.interno * (qtaCar / qtaInt);
+    totpz += eff.pez;
+    if (eff.kg > 0 && conv > 0) totpz += eff.kg / conv;
+
+    const toteuro = (qtaCar > 0) ? (totpz / qtaCar) * effectivePrice : 0;
+    return { totpz, toteuro };
+  }
+
+  function renderModal() {
+    if (!currentRow || !stagedAcc) return;
+
+    const d = readModalDelta();
+    const eff = {
+      car: (stagedAcc.car || 0) + d.car,
+      interno: (stagedAcc.interno || 0) + d.interno,
+      pez: (stagedAcc.pez || 0) + d.pez,
+      kg: (stagedAcc.kg || 0) + d.kg
+    };
+
+    const totals = computeTotals(eff);
+    $('invMobileTotPz') && ($('invMobileTotPz').textContent = formatNumberEU(totals.totpz, 2));
+    $('invMobileTotEuro') && ($('invMobileTotEuro').textContent = formatEuroEU(totals.toteuro));
+
+    setModalPlaceholders();
+
+    const lbl = $('invMobileAccLabel');
+    if (lbl) {
+      lbl.textContent = `${I18N.accumulated || 'Accumulato'}: CAR ${formatQtyEU(stagedAcc.car || 0)} | INT ${formatQtyEU(stagedAcc.interno || 0)} | PEZ ${formatQtyEU(stagedAcc.pez || 0)} | KG ${formatQtyEU(stagedAcc.kg || 0)}`;
+    }
+  }
+
+  function applyModalDelta(sign) {
+    const d = readModalDelta();
+    const any = (d.car || d.interno || d.pez || d.kg);
+    if (!any) return;
+
+    stagedAcc = {
+      car: Math.max(0, (stagedAcc.car || 0) + sign * d.car),
+      interno: Math.max(0, (stagedAcc.interno || 0) + sign * d.interno),
+      pez: Math.max(0, (stagedAcc.pez || 0) + sign * d.pez),
+      kg: Math.max(0, (stagedAcc.kg || 0) + sign * d.kg)
+    };
+
+    clearModalDelta();
+    renderModal();
+  }
+
+  function resetModalAcc() {
+    stagedAcc = { car: 0, interno: 0, pez: 0, kg: 0 };
+    clearModalDelta();
+    renderModal();
+  }
+
+  function commitPendingModalDeltaAsPlus() {
+    const d = readModalDelta();
+    if (!(d.car || d.interno || d.pez || d.kg)) return;
+
+    stagedAcc = {
+      car: Math.max(0, (stagedAcc.car || 0) + d.car),
+      interno: Math.max(0, (stagedAcc.interno || 0) + d.interno),
+      pez: Math.max(0, (stagedAcc.pez || 0) + d.pez),
+      kg: Math.max(0, (stagedAcc.kg || 0) + d.kg)
+    };
+    clearModalDelta();
+  }
+
+  function openModalForRow(tr) {
+    const m = ensureModal();
+    if (!m) return;
+    currentRow = tr;
+
+    // Evita delta "fantasma" dai campi (tabella nascosta su mobile)
+    invClearDelta(currentRow);
+    updateRow(currentRow);
+
+    stagedAcc = invGetAcc(currentRow);
+
+    const desc = (currentRow.querySelector('.inv-desc')?.textContent || '').trim();
+    descKey = rowKeyFromDesc(desc);
+
+    const mapKey = mapKeyForRow(currentRow, desc);
+    const supplierLabel = (currentRow.querySelector('.inv-supplier-label')?.textContent || '').trim();
+$('invMobileModalTitle') && ($('invMobileModalTitle').textContent = desc || I18N.product || 'Prodotto');
+
+    const grp = (currentRow.querySelector('.inv-col-gruppo')?.textContent || '').trim() || '-';
+    $('invMobileInfoGroup') && ($('invMobileInfoGroup').textContent = grp);
+
+    const priceText = currentRow.querySelector('.inv-col-prezzo .inv-price-text')?.textContent;
+    effectivePrice = parseNumberEU(priceText || 0);
+    $('invMobileInfoPrice') && ($('invMobileInfoPrice').textContent = formatEuroEU(effectivePrice));
+
+    qtaCar = parseNumberEU(currentRow.querySelector('.inv-col-qtacar')?.textContent || 0);
+    qtaInt = parseNumberEU(currentRow.querySelector('.inv-col-qtaint')?.textContent || 0);
+    $('invMobileInfoQtaCar') && ($('invMobileInfoQtaCar').textContent = formatNumberEU(qtaCar, 2));
+    $('invMobileInfoQtaInt') && ($('invMobileInfoQtaInt').textContent = formatNumberEU(qtaInt, 2));
+
+    conv = (CONV_MAP && CONV_MAP[mapKey] !== undefined) ? Number(CONV_MAP[mapKey]) : 0;
+    const sub = $('invMobileModalSubtitle');
+    if (sub) {
+      const parts = [];
+      if (supplierLabel) parts.push(`${I18N.supplier || 'Fornitore'}: ${supplierLabel}`);
+      if (conv > 0) parts.push(`${I18N.conversionKgPz || 'Conv (KG -> PZ)'}: ${formatNumberEU(conv, 3)}`);
+      sub.textContent = parts.join(' - ');
+    }
+
+    clearModalDelta();
+    renderModal();
+    m.show();
+  }
+
+  function saveModalIntoRow() {
+    if (!currentRow || !stagedAcc) return;
+
+    // Se l'utente ha scritto dei delta ma non ha premuto +/-, li consideriamo come aggiunta.
+    commitPendingModalDeltaAsPlus();
+
+    invSetAcc(currentRow, stagedAcc);
+    invClearDelta(currentRow);
+    updateRow(currentRow);
+
+    scheduleInvTotals();
+    syncMobileListVisibility();
+    const m = ensureModal();
+    if (m) m.hide();
+  }
+
+  function buildMobileList() {
+    listEl.innerHTML = '';
+    const rows = Array.from(document.querySelectorAll('tr.inv-row'));
+
+    rows.forEach(tr => {
+      const idx = tr.dataset.rowIndex;
+      const desc = (tr.querySelector('.inv-desc')?.textContent || '').trim();
+      if (!desc) return;
+
+      const supplierLabel = (tr.querySelector('.inv-supplier-label')?.textContent || '').trim();
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'list-group-item list-group-item-action py-3';
+      btn.dataset.rowIndex = idx;
+      btn.innerHTML = `<div class="fw-semibold">${escapeHtml(desc)}</div>` +
+                      (supplierLabel ? `<div class="small text-muted mt-1">${escapeHtml(supplierLabel)}</div>` : '');
+      btn.addEventListener('click', () => openModalForRow(tr));
+      listEl.appendChild(btn);
+    });
+
+    syncMobileListVisibility();
+  }
+
+  function syncMobileListVisibility() {
+
+    const items = Array.from(listEl.querySelectorAll('[data-row-index]'));
+    let shown = 0;
+
+    items.forEach(it => {
+      const idx = it.dataset.rowIndex;
+      const tr = document.querySelector(`tr.inv-row[data-row-index="${idx}"]`);
+      const visible = tr ? (tr.style.display !== 'none') : true;
+      it.style.display = visible ? '' : 'none';
+      if (visible) shown += 1;
+    });
+
+    if (emptyEl) {
+      if (shown === 0) emptyEl.classList.remove('d-none');
+      else emptyEl.classList.add('d-none');
+    }
+  }
+
+  // Hook: dopo il filtro ricerca (che agisce sulla tabella), allinea anche la lista mobile
+  const _origInvApplySearchFilter = invApplySearchFilter;
+  invApplySearchFilter = function () {
+    try { _origInvApplySearchFilter(); } catch (e) {}
+    syncMobileListVisibility();
+  };
+
+  // Bind pulsanti modal
+  $('invMobileBtnPlus')?.addEventListener('click', () => applyModalDelta(+1));
+  $('invMobileBtnMinus')?.addEventListener('click', () => applyModalDelta(-1));
+  $('invMobileBtnReset')?.addEventListener('click', () => resetModalAcc());
+  $('invMobileBtnSave')?.addEventListener('click', () => saveModalIntoRow());
+
+  // Realtime preview + ENTER = "+"
+  ['invMobileInpCar','invMobileInpInt','invMobileInpPez','invMobileInpKg'].forEach(id => {
+    $(id)?.addEventListener('input', renderModal);
+    $(id)?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyModalDelta(+1);
+      }
+    });
+  });
+
+  // Ricostruisci lista su load e su resize (rotazione)
+  document.addEventListener('DOMContentLoaded', () => {
+    buildMobileList();
+  });
+  window.addEventListener('resize', () => {
+    syncMobileListVisibility();
+  });
+})();
+
+
+
+    </script>
+  {% elif price_list and price_list.get('error') %}
+    <div class="alert alert-danger">Errore listino: {{ price_list.get('error') }}</div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+

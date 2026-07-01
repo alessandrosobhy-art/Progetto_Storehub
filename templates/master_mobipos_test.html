@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Master - Test Mobipos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Test Mobipos</h1>
+      <div class="text-muted small">Laboratorio Master per verificare API token, session token, impostazioni e venduto prima di creare l'integrazione tenant.</div>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ docs_url }}" target="_blank" rel="noopener">Documentazione</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white fw-semibold">Configurazione test</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3" id="mobiposForm">
+            <div>
+              <label class="form-label">Tenant</label>
+              <select class="form-select" name="tenant_key">
+                {% for t in tenants %}
+                  <option value="{{ t.tenant_key }}" {% if selected_tenant_key == t.tenant_key %}selected{% endif %}>
+                    {{ t.display_name or t.tenant_key }} ({{ t.tenant_key }})
+                  </option>
+                {% endfor %}
+              </select>
+              {% if tenant %}
+                <div class="form-text">Database: {{ tenant.database_name or '-' }}</div>
+              {% endif %}
+            </div>
+
+            <div>
+              <label class="form-label">API Token</label>
+              <input type="password" class="form-control" name="api_token" value="{{ form_state.api_token }}" autocomplete="off" placeholder="Incolla token Mobipos">
+              <div class="form-text">Per ora non viene salvato: serve solo per il test corrente.</div>
+            </div>
+
+            <div>
+              <label class="form-label">User-Agent</label>
+              <input class="form-control" name="user_agent" value="{{ form_state.user_agent }}">
+              <div class="form-text">La documentazione indica che viene assegnato da ESC Software insieme al token.</div>
+            </div>
+
+            <div>
+              <label class="form-label">Base endpoint</label>
+              <input class="form-control" name="base_endpoint" value="{{ form_state.base_endpoint }}" placeholder="https://mobipos.it">
+              <div class="form-text">Dopo la register viene restituito l'endpoint da usare per le chiamate successive.</div>
+            </div>
+
+            <div>
+              <label class="form-label">Session token X-Token</label>
+              <input class="form-control" name="session_token" value="{{ form_state.session_token }}" autocomplete="off" placeholder="Recuperalo con il bottone Session token">
+            </div>
+
+            <div class="row g-2">
+              <div class="col-12 col-md-4">
+                <label class="form-label">Shop id</label>
+                <input class="form-control" name="shop_id" value="{{ form_state.shop_id }}" placeholder="es. 1">
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label">Da</label>
+                <input type="date" class="form-control" name="from_date" value="{{ form_state.from_date }}">
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label">A</label>
+                <input type="date" class="form-control" name="to_date" value="{{ form_state.to_date }}">
+              </div>
+            </div>
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="groupedSales" name="grouped" value="1" {% if form_state.grouped %}checked{% endif %}>
+              <label class="form-check-label" for="groupedSales">Venduto raggruppato per prodotto</label>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button class="btn btn-outline-secondary" name="action" value="register" type="submit">1. Register API token</button>
+              <button class="btn btn-outline-primary" name="action" value="session_token" type="submit">2. Recupera session token</button>
+              <button class="btn btn-outline-primary" name="action" value="settings" type="submit">3. Test settings</button>
+              <button class="btn btn-outline-primary" name="action" value="settings_by_shop" type="submit">4. Test settings by shop</button>
+              <button class="btn btn-primary" name="action" value="sales" type="submit">5. Test venduto sales/list</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white fw-semibold">Flusso documentato</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="border rounded p-3 h-100">
+                <div class="fw-semibold">Autenticazione</div>
+                <ol class="small text-muted mb-0 mt-2">
+                  <li>GET register su <code>admin.mobipos.it</code> con API token.</li>
+                  <li>Recupero <code>{BaseEndpoint}/ws/auth.api.php/token</code>.</li>
+                  <li>Chiamate successive con header <code>ApiToken</code> e <code>X-Token</code>.</li>
+                </ol>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="border rounded p-3 h-100">
+                <div class="fw-semibold">Endpoint utili per StoreHub</div>
+                <ul class="small text-muted mb-0 mt-2">
+                  <li><code>settings</code>: punti vendita, listini e configurazioni base.</li>
+                  <li><code>settingsByShop/{shopId}</code>: pagamenti e causali del punto vendita.</li>
+                  <li><code>sales/list</code>: venduto, righe, pagamenti, cassa e cassiere.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="alert alert-info small mb-0 mt-3">
+            La documentazione indica rate limit di 30 letture/minuto e periodo massimo 7 giorni per <code>sales/list</code>.
+          </div>
+        </div>
+      </div>
+
+      {% if result %}
+        <div class="card shadow-sm mb-3">
+          <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="fw-semibold">Risultato chiamata</div>
+            <div class="d-flex flex-wrap gap-2">
+              <span class="badge {{ 'text-bg-success' if result.ok else 'text-bg-danger' }}">{{ 'OK' if result.ok else 'Errore' }}</span>
+              <span class="badge text-bg-light border">{{ result.method }}</span>
+              {% if result.status_code %}
+                <span class="badge text-bg-light border">HTTP {{ result.status_code }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="small text-muted mb-2 text-break">{{ result.url }}</div>
+            {% if result.error %}
+              <div class="alert alert-danger">{{ result.error }}</div>
+            {% endif %}
+            <pre class="bg-light border rounded p-3 small mb-0" style="max-height: 520px; overflow:auto;">{{ result.data|tojson(indent=2) if result.data is not string else result.data }}</pre>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if sales_summary %}
+        <div class="card shadow-sm">
+          <div class="card-header bg-white fw-semibold">Sintesi venduto per mapping futura distinta cassa</div>
+          <div class="card-body">
+            <div class="row g-2 mb-3">
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2">
+                  <div class="text-muted small">Documenti</div>
+                  <div class="fs-5 fw-bold">{{ sales_summary.sales_count }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2">
+                  <div class="text-muted small">Righe</div>
+                  <div class="fs-5 fw-bold">{{ sales_summary.rows_count }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2">
+                  <div class="text-muted small">Totale</div>
+                  <div class="fs-5 fw-bold">{{ '%.2f'|format(sales_summary.total_amount or 0)|replace('.', ',') }} &euro;</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2">
+                  <div class="text-muted small">Pezzi</div>
+                  <div class="fs-5 fw-bold">{{ '%.2f'|format(sales_summary.total_pieces or 0)|replace('.', ',') }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="fw-semibold mb-2">Pagamenti trovati</div>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle">
+                    <thead class="table-light"><tr><th>Metodo</th><th class="text-end">Importo</th></tr></thead>
+                    <tbody>
+                      {% for row in sales_summary.payment_totals %}
+                        <tr>
+                          <td>{{ row.method }}</td>
+                          <td class="text-end">{{ '%.2f'|format(row.amount or 0)|replace('.', ',') }}</td>
+                        </tr>
+                      {% else %}
+                        <tr><td colspan="2" class="text-muted">Nessun pagamento trovato.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="fw-semibold mb-2">Punti cassa</div>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle">
+                    <thead class="table-light"><tr><th>Punto cassa</th><th class="text-end">Documenti</th></tr></thead>
+                    <tbody>
+                      {% for row in sales_summary.cash_registers %}
+                        <tr>
+                          <td>{{ row.cash_register }}</td>
+                          <td class="text-end">{{ row.count }}</td>
+                        </tr>
+                      {% else %}
+                        <tr><td colspan="2" class="text-muted">Nessun punto cassa trovato.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

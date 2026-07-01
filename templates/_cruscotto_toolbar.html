@@ -1,0 +1,29 @@
+<div class="app-sectionbar">
+  <div class="container app-sectionbar__inner">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="app-sectionbar__label">{{ tr('cruscotto', 'toolbar.title', 'Cruscotto') }}</span>
+      {% set is_weekly = request.path.startswith('/cruscotto/analisi-settimanale') %}
+      {% set is_kpi_weekly = request.path.startswith('/cruscotto/analisi-kpi-settimanale') %}
+      {% set is_monthly = request.path.startswith('/cruscotto/analisi-mensile') %}
+      {% set is_pnl_store = request.path.startswith('/cruscotto/pnl-store') and not request.path.startswith('/cruscotto/pnl-store/visibilita') %}
+      <a class="btn btn-sm {{ 'btn-primary' if is_weekly else 'btn-outline-primary' }}"
+         href="{{ url_for('cruscotto.analisi_settimanale') }}">
+        {{ tr('cruscotto', 'toolbar.weekly_analysis', 'Analisi Settimanale') }}
+      </a>
+      <a class="btn btn-sm {{ 'btn-primary' if is_kpi_weekly else 'btn-outline-primary' }}"
+         href="{{ url_for('cruscotto.analisi_kpi_settimanale') }}">
+        {{ tr('cruscotto', 'toolbar.weekly_kpi_analysis', 'Analisi KPI Settimanale') }}
+      </a>
+      <a class="btn btn-sm {{ 'btn-primary' if is_monthly else 'btn-outline-primary' }}"
+         href="{{ url_for('cruscotto.analisi_mensile') }}">
+        {{ tr('cruscotto', 'toolbar.monthly_analysis', 'Analisi Mensile') }}
+      </a>
+      {% if user and user.mod_cruscotto_pnl_store %}
+        <a class="btn btn-sm {{ 'btn-primary' if is_pnl_store else 'btn-outline-primary' }}"
+           href="{{ url_for('cruscotto.pnl_store') }}">
+          {{ tr('cruscotto', 'toolbar.pnl_store', 'P&L store') }}
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</div>

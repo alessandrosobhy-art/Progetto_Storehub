@@ -1,0 +1,594 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "_estrazioni_toolbar.html" %}
+<style>
+  .delivery-export-card .form-label {
+    font-size: .82rem;
+  }
+  .delivery-export-table-wrap {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    overflow: auto;
+  }
+  .delivery-export-table {
+    font-size: .82rem;
+    white-space: nowrap;
+    margin-bottom: 0;
+  }
+  .delivery-export-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8f9fa;
+    border-bottom-width: 2px;
+  }
+  .delivery-export-table td,
+  .delivery-export-table th {
+    padding: .45rem .55rem;
+    vertical-align: middle;
+  }
+  .delivery-store-dropdown-menu {
+    max-height: 260px;
+    overflow: auto;
+    min-width: 320px;
+    padding: .5rem;
+  }
+  .delivery-store-actions {
+    position: sticky;
+    top: -.5rem;
+    background: #fff;
+    z-index: 2;
+    padding-bottom: .45rem;
+    margin-bottom: .35rem;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  .delivery-store-option {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .2rem 0;
+    font-size: .92rem;
+  }
+  .delivery-store-option .form-check-input {
+    margin-top: 0;
+    position: static;
+    margin-left: 0;
+    flex: 0 0 auto;
+  }
+  .delivery-summary-card {
+    min-width: 320px;
+    max-width: 420px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .6rem;
+    overflow: hidden;
+  }
+  .delivery-summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .95rem;
+    margin: 0;
+  }
+  .delivery-summary-table td {
+    padding: .38rem .6rem;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  .delivery-summary-table tr:last-child td {
+    border-bottom: 0;
+  }
+  .delivery-summary-label {
+    background: #ef9345;
+    color: #fff;
+    font-weight: 700;
+    width: 54%;
+  }
+  .delivery-summary-label.is-total {
+    text-align: right;
+  }
+  .delivery-summary-value {
+    background: #fff;
+    text-align: right;
+    font-weight: 600;
+  }
+  .delivery-summary-value .subpct {
+    display: block;
+    font-size: .78rem;
+    color: var(--bs-secondary-color);
+    font-weight: 500;
+  }
+  .delivery-analytics-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 420px) minmax(280px, 1fr) minmax(280px, 1fr);
+    gap: 1rem;
+    align-items: stretch;
+  }
+  .delivery-kpi-panel {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .85rem;
+    background: linear-gradient(180deg, #ffffff, #fafbfc);
+    padding: 1rem 1.05rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  }
+  .delivery-kpi-title {
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--bs-secondary-color);
+    font-weight: 700;
+    margin-bottom: .65rem;
+  }
+  .delivery-kpi-hero {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
+    margin-bottom: 1rem;
+  }
+  .delivery-kpi-tile {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+    background: #fff;
+    padding: .8rem .9rem;
+  }
+  .delivery-kpi-tile .label {
+    font-size: .76rem;
+    color: var(--bs-secondary-color);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-weight: 700;
+    margin-bottom: .3rem;
+  }
+  .delivery-kpi-tile .value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--bs-body-color);
+    line-height: 1.1;
+  }
+  .delivery-kpi-tile .meta {
+    font-size: .78rem;
+    color: var(--bs-secondary-color);
+    margin-top: .25rem;
+  }
+  .delivery-bar-group {
+    display: flex;
+    flex-direction: column;
+    gap: .8rem;
+  }
+  .delivery-bar-row .top {
+    display: flex;
+    justify-content: space-between;
+    gap: .75rem;
+    font-size: .88rem;
+    margin-bottom: .32rem;
+  }
+  .delivery-bar-row .name {
+    font-weight: 600;
+    color: var(--bs-body-color);
+  }
+  .delivery-bar-row .num {
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+  }
+  .delivery-bar-track {
+    height: 12px;
+    background: #eceff3;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .delivery-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+  }
+  .delivery-bar-fill.online { background: linear-gradient(90deg, #1f3a5f, #3b82f6); }
+  .delivery-bar-fill.cash { background: linear-gradient(90deg, #9a5b13, #ef9345); }
+  .delivery-bar-fill.refund { background: linear-gradient(90deg, #b42318, #f04438); }
+  .delivery-bar-fill.contested { background: linear-gradient(90deg, #6941c6, #9b8afb); }
+  .delivery-bar-fill.accepted { background: linear-gradient(90deg, #027a48, #12b76a); }
+  .delivery-bar-fill.recovered { background: linear-gradient(90deg, #0f766e, #14b8a6); }
+  .delivery-analysis-note {
+    margin-top: .85rem;
+    font-size: .8rem;
+    color: var(--bs-secondary-color);
+  }
+  .delivery-analysis-head {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .delivery-analysis-intro {
+    flex: 1 1 340px;
+  }
+  .delivery-analysis-intro h5 {
+    margin-bottom: .3rem;
+    font-weight: 700;
+  }
+  .delivery-analysis-intro p {
+    margin: 0;
+    color: var(--bs-secondary-color);
+    font-size: .92rem;
+  }
+  .delivery-analysis-meta {
+    display: flex;
+    gap: .7rem;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .delivery-meta-pill {
+    min-width: 150px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .8rem;
+    background: #fff;
+    padding: .8rem .95rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  }
+  .delivery-meta-pill .label {
+    display: block;
+    font-size: .72rem;
+    color: var(--bs-secondary-color);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-weight: 700;
+    margin-bottom: .2rem;
+  }
+  .delivery-meta-pill .value {
+    font-size: .98rem;
+    font-weight: 700;
+    color: var(--bs-body-color);
+  }
+  @media (max-width: 1200px) {
+    .delivery-analytics-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="container py-4">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <h3 class="mb-1">{{ tr('estrazioni', 'delivery_data.title', 'Dati Delivery') }}</h3>
+      <div class="text-muted small">
+        {{ tr('estrazioni', 'delivery_data.visible_stores', 'Store visibili') }}: <strong>{{ (stores or [])|length }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-3 delivery-export-card">
+    <div class="card-body">
+      <form method="get" action="{{ url_for('estrazioni.delivery_weekly') }}" data-no-overlay="1">
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-md-3">
+            <label class="form-label small text-muted mb-1">{{ tr('estrazioni', 'delivery_data.week_from', 'Settimana da') }}</label>
+            <input class="form-control" type="week" name="week_from" value="{{ week_from_value }}" required>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label small text-muted mb-1">{{ tr('estrazioni', 'delivery_data.week_to', 'Settimana a') }}</label>
+            <input class="form-control" type="week" name="week_to" value="{{ week_to_value }}" required>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label small text-muted mb-1">{{ tr('common', 'store', 'Store') }}</label>
+            <div class="dropdown">
+              <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="deliveryStoreDropdownBtn">
+                {{ tr('estrazioni', 'delivery_data.selected_stores', 'Store selezionati') }}
+              </button>
+              <div class="dropdown-menu delivery-store-dropdown-menu w-100">
+                <div class="delivery-store-actions d-flex gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" id="deliveryStoresAll">{{ tr('common', 'all', 'Tutti') }}</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" id="deliveryStoresNone">{{ tr('common', 'none', 'Nessuno') }}</button>
+                </div>
+                {% for s in (stores or []) %}
+                  {% set code = (s.code if s.code is defined else s.get('code')) %}
+                  {% set name = (s.name if s.name is defined else s.get('name')) %}
+                  {% if code %}
+                    <label class="delivery-store-option">
+                      <input class="form-check-input delivery-store-flag" type="checkbox" name="sites" value="{{ code }}" {{ 'checked' if code|string in (selected_sites or []) else '' }}>
+                      <span>{{ code }} - {{ name }}</span>
+                    </label>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label small text-muted mb-1">{{ tr('common', 'provider', 'Provider') }}</label>
+            <select class="form-select" name="provider">
+              <option value="ALL" {{ 'selected' if provider == 'ALL' else '' }}>{{ tr('common', 'all', 'Tutti') }}</option>
+              <option value="DELIVEROO" {{ 'selected' if provider == 'DELIVEROO' else '' }}>Deliveroo</option>
+              <option value="GLOVO" {{ 'selected' if provider == 'GLOVO' else '' }}>Glovo</option>
+            </select>
+          </div>
+
+          <div class="col-12 d-flex align-items-center gap-2 flex-wrap mt-3">
+            <button type="submit" class="btn btn-primary">{{ tr('common', 'search', 'Cerca') }}</button>
+            <button type="submit" class="btn btn-outline-success" formaction="{{ url_for('estrazioni.delivery_weekly_xlsx') }}" data-no-overlay="1">{{ tr('common', 'export_excel', 'Estrai Excel') }}</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('estrazioni.delivery_weekly') }}">{{ tr('common', 'reset', 'Reset') }}</a>
+            <div class="ms-auto text-muted small">
+              {{ tr('estrazioni', 'delivery_data.rows_found', 'Righe trovate') }}: <strong>{{ (rows or [])|length }}</strong>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm delivery-export-card">
+    <div class="card-body">
+      {% set payment_total = summary.payment_total or 0 %}
+      {% set payment_online_pct = ((summary.payment_online or 0) / payment_total * 100) if payment_total else 0 %}
+      {% set payment_cash_pct = ((summary.payment_cash or 0) / payment_total * 100) if payment_total else 0 %}
+      {% set complaints_received = summary.complaints_received or 0 %}
+      {% set contested_pct = ((summary.complaints_contested or 0) / complaints_received * 100) if complaints_received else 0 %}
+      {% set accepted_pct = summary.accepted_appeals_pct or 0 %}
+      {% set recovered_pct = summary.recovered_value_pct or 0 %}
+
+      <div class="delivery-analysis-head">
+        <div class="delivery-analysis-intro">
+          <h5>{{ tr('estrazioni', 'delivery_data.analysis_dashboard', 'Cruscotto di analisi delivery') }}</h5>
+          <p>{{ tr('estrazioni', 'delivery_data.analysis_help', 'Il riepilogo lavora sugli stessi dati filtrati nella tabella: incassi, rimborsi, recuperato e qualita del processo.') }}</p>
+        </div>
+        <div class="delivery-analysis-meta">
+          <div class="delivery-meta-pill">
+            <span class="label">{{ tr('common', 'period', 'Periodo') }}</span>
+            <span class="value">{{ week_from_value or 'N/D' }} &rarr; {{ week_to_value or 'N/D' }}</span>
+          </div>
+          <div class="delivery-meta-pill">
+            <span class="label">{{ tr('common', 'provider', 'Provider') }}</span>
+            <span class="value">{{ tr('common', 'all', 'Tutti') if provider == 'ALL' else provider.title() }}</span>
+          </div>
+          <div class="delivery-meta-pill">
+            <span class="label">{{ tr('estrazioni', 'delivery_data.analyzed_rows', 'Righe analizzate') }}</span>
+            <span class="value">{{ (rows or [])|length }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-3 delivery-analytics-grid">
+        <div class="delivery-summary-card">
+          <table class="delivery-summary-table">
+            <tbody>
+              <tr>
+                <td class="delivery-summary-label">{{ tr('estrazioni', 'delivery_data.payment_online', 'Pagamento Online') }}</td>
+                <td class="delivery-summary-value">{{ '%.2f'|format(summary.payment_online or 0)|replace('.', ',') }} €</td>
+              </tr>
+              <tr>
+                <td class="delivery-summary-label">{{ tr('estrazioni', 'delivery_data.payment_cash', 'Pagamento contanti') }}</td>
+                <td class="delivery-summary-value">{{ '%.2f'|format(summary.payment_cash or 0)|replace('.', ',') }} €</td>
+              </tr>
+              <tr>
+                <td class="delivery-summary-label is-total">{{ tr('common', 'total', 'Totale') }}</td>
+                <td class="delivery-summary-value">{{ '%.2f'|format(summary.payment_total or 0)|replace('.', ',') }} €</td>
+              </tr>
+              <tr>
+                <td class="delivery-summary-label">{{ tr('estrazioni', 'delivery_data.refunds_requested', 'Rimborsi richiesti') }}</td>
+                <td class="delivery-summary-value">{{ summary.complaints_received or 0 }}</td>
+              </tr>
+              <tr>
+                <td class="delivery-summary-label">{{ tr('estrazioni', 'delivery_data.refund_value', 'Valore rimborsi') }}</td>
+                <td class="delivery-summary-value">{{ '%.2f'|format(summary.refund_value or 0)|replace('.', ',') }} &euro;</td>
+              </tr>
+              <tr>
+                <td class="delivery-summary-label">{{ tr('estrazioni', 'delivery_data.refunds_disputed', 'Rimborsi contestati') }}</td>
+                <td class="delivery-summary-value">{{ summary.complaints_contested or 0 }}</td>
+              </tr>
+              <tr>
+                <td class="delivery-summary-label">{{ tr('estrazioni', 'delivery_data.accepted_disputes', 'Contestazioni accettate') }}</td>
+                <td class="delivery-summary-value">
+                  {{ summary.appeals_accepted or 0 }}
+                  {% if summary.accepted_appeals_pct is not none %}
+                    <span class="subpct">{{ '%.2f'|format(summary.accepted_appeals_pct)|replace('.', ',') }}%</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="delivery-summary-label">{{ tr('estrazioni', 'delivery_data.recovered_value', 'Valore recuperato') }}</td>
+                <td class="delivery-summary-value">
+                  {{ '%.2f'|format(summary.refunds_cancelled_value or 0)|replace('.', ',') }} &euro;
+                  {% if summary.recovered_value_pct is not none %}
+                    <span class="subpct">{{ '%.2f'|format(summary.recovered_value_pct)|replace('.', ',') }}%</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="delivery-summary-label">{{ tr('estrazioni', 'delivery_data.completed_stores', 'Negozi compilati') }}</td>
+                <td class="delivery-summary-value">{{ summary.stores_count or 0 }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="delivery-kpi-panel">
+          <div class="delivery-kpi-title">{{ tr('estrazioni', 'delivery_data.payment_composition', 'Composizione incassi') }}</div>
+          <div class="delivery-kpi-hero">
+            <div class="delivery-kpi-tile">
+              <div class="label">{{ tr('estrazioni', 'delivery_data.total_collected', 'Totale incassato') }}</div>
+              <div class="value">{{ '%.2f'|format(summary.payment_total or 0)|replace('.', ',') }} €</div>
+              <div class="meta">{{ summary.stores_count or 0 }} {{ tr('estrazioni', 'delivery_data.completed_stores_lower', 'negozi compilati') }}</div>
+            </div>
+            <div class="delivery-kpi-tile">
+              <div class="label">{{ tr('estrazioni', 'delivery_data.recovered_value', 'Valore recuperato') }}</div>
+              <div class="value">{{ '%.2f'|format(summary.refunds_cancelled_value or 0)|replace('.', ',') }} €</div>
+              <div class="meta">{% if summary.recovered_value_pct is not none %}{{ '%.2f'|format(summary.recovered_value_pct)|replace('.', ',') }}% dei rimborsi{% else %}N/D{% endif %}</div>
+            </div>
+          </div>
+          <div class="delivery-bar-group">
+            <div class="delivery-bar-row">
+              <div class="top">
+                <div class="name">{{ tr('estrazioni', 'delivery_data.payment_online', 'Pagamento Online') }}</div>
+                <div class="num">{{ '%.2f'|format(summary.payment_online or 0)|replace('.', ',') }} € · {{ '%.2f'|format(payment_online_pct)|replace('.', ',') }}%</div>
+              </div>
+              <div class="delivery-bar-track">
+                <div class="delivery-bar-fill online" style="width: {{ '%.2f'|format(payment_online_pct) }}%;"></div>
+              </div>
+            </div>
+            <div class="delivery-bar-row">
+              <div class="top">
+                <div class="name">{{ tr('estrazioni', 'delivery_data.payment_cash', 'Pagamento contanti') }}</div>
+                <div class="num">{{ '%.2f'|format(summary.payment_cash or 0)|replace('.', ',') }} € · {{ '%.2f'|format(payment_cash_pct)|replace('.', ',') }}%</div>
+              </div>
+              <div class="delivery-bar-track">
+                <div class="delivery-bar-fill cash" style="width: {{ '%.2f'|format(payment_cash_pct) }}%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="delivery-analysis-note">
+            {{ tr('estrazioni', 'delivery_data.percentages_note', 'Le percentuali sono calcolate sul totale dei dati filtrati e visualizzati nella tabella.') }}
+          </div>
+        </div>
+
+        <div class="delivery-kpi-panel">
+          <div class="delivery-kpi-title">{{ tr('estrazioni', 'delivery_data.refund_funnel', 'Funnel rimborsi') }}</div>
+          <div class="delivery-kpi-hero">
+            <div class="delivery-kpi-tile">
+              <div class="label">{{ tr('estrazioni', 'delivery_data.refunds_requested', 'Rimborsi richiesti') }}</div>
+              <div class="value">{{ summary.complaints_received or 0 }}</div>
+              <div class="meta">{{ tr('estrazioni', 'delivery_data.total_requests', 'Richieste complessive') }}</div>
+            </div>
+            <div class="delivery-kpi-tile">
+              <div class="label">{{ tr('estrazioni', 'delivery_data.accepted_disputes', 'Contestazioni accettate') }}</div>
+              <div class="value">{{ summary.appeals_accepted or 0 }}</div>
+              <div class="meta">{% if summary.accepted_appeals_pct is not none %}{{ '%.2f'|format(summary.accepted_appeals_pct)|replace('.', ',') }}% sulle richieste{% else %}N/D{% endif %}</div>
+            </div>
+          </div>
+          <div class="delivery-bar-group">
+            <div class="delivery-bar-row">
+              <div class="top">
+                <div class="name">{{ tr('estrazioni', 'delivery_data.refunds_disputed', 'Rimborsi contestati') }}</div>
+                <div class="num">{{ summary.complaints_contested or 0 }} · {{ '%.2f'|format(contested_pct)|replace('.', ',') }}%</div>
+              </div>
+              <div class="delivery-bar-track">
+                <div class="delivery-bar-fill contested" style="width: {{ '%.2f'|format(contested_pct) }}%;"></div>
+              </div>
+            </div>
+            <div class="delivery-bar-row">
+              <div class="top">
+                <div class="name">{{ tr('estrazioni', 'delivery_data.accepted_disputes', 'Contestazioni accettate') }}</div>
+                <div class="num">{{ summary.appeals_accepted or 0 }} · {{ '%.2f'|format(accepted_pct)|replace('.', ',') }}%</div>
+              </div>
+              <div class="delivery-bar-track">
+                <div class="delivery-bar-fill accepted" style="width: {{ '%.2f'|format(accepted_pct) }}%;"></div>
+              </div>
+            </div>
+            <div class="delivery-bar-row">
+              <div class="top">
+                <div class="name">{{ tr('estrazioni', 'delivery_data.recovered_value', 'Valore recuperato') }}</div>
+                <div class="num">{{ '%.2f'|format(summary.refunds_cancelled_value or 0)|replace('.', ',') }} € · {{ '%.2f'|format(recovered_pct)|replace('.', ',') }}%</div>
+              </div>
+              <div class="delivery-bar-track">
+                <div class="delivery-bar-fill recovered" style="width: {{ '%.2f'|format(recovered_pct) }}%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="delivery-analysis-note">
+            La % contestazioni accettate è calcolata su rimborsi richiesti. La % valore recuperato è calcolata sul valore rimborsi.
+          </div>
+        </div>
+      </div>
+      <div class="delivery-export-table-wrap">
+        <table class="table table-striped table-hover table-bordered delivery-export-table">
+          <thead>
+            <tr>
+              <th>{{ tr('estrazioni', 'delivery_data.week', 'Settimana') }}</th>
+              <th>{{ tr('common', 'store', 'Store') }}</th>
+              <th>{{ tr('common', 'provider', 'Provider') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.online', 'Online') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.cash', 'Contanti') }}</th>
+              <th class="text-end">{{ tr('common', 'total', 'Totale') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.orders', 'Ordini') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.cancelled', 'Cancellati') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.refunds', 'Rimborsi') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.refund_value', 'Valore rimborsi') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.disputed', 'Contestati') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.accepted', 'Accettati') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.cancelled_refunds', 'Rimb. annullati') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.opening_pct', 'Apertura %') }}</th>
+              <th class="text-end">{{ tr('estrazioni', 'delivery_data.rating', 'Rating') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in (rows or []) %}
+              <tr>
+                <td>{{ row.week_start }}</td>
+                <td>{{ row.store_name or row.store_code }}</td>
+                <td>{{ row.platform }}</td>
+                <td class="text-end">{{ '%.2f'|format(row.payment_online or 0) }}</td>
+                <td class="text-end">{{ '%.2f'|format(row.payment_cash or 0) }}</td>
+                <td class="text-end">{{ '%.2f'|format(row.payment_total or 0) }}</td>
+                <td class="text-end">{{ row.orders or 0 }}</td>
+                <td class="text-end">{{ row.cancelled_orders or 0 }}</td>
+                <td class="text-end">{{ row.complaints_received or 0 }}</td>
+                <td class="text-end">{{ '%.2f'|format(row.refund_value or 0) }}</td>
+                <td class="text-end">{{ row.complaints_contested or 0 }}</td>
+                <td class="text-end">{{ row.appeals_accepted or 0 }}</td>
+                <td class="text-end">{{ '%.2f'|format(row.refunds_cancelled_value or 0) }}</td>
+                <td class="text-end">{% if row.opening_pct is not none %}{{ '%.2f'|format(row.opening_pct) }}{% endif %}</td>
+                <td class="text-end">
+                  {% if row.rating_value is not none %}
+                    {{ '%.2f'|format(row.rating_value) }}{% if row.rating_unit == 'percent' %}%{% endif %}
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="15" class="text-center text-muted py-4">{{ tr('estrazioni', 'delivery_data.no_data', 'Nessun dato trovato con i filtri selezionati.') }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const i18n = {
+    allVisibleStores: {{ tr('estrazioni', 'delivery_data.all_visible_stores', 'Tutti gli store visibili')|tojson }},
+    oneStoreSelected: {{ tr('estrazioni', 'delivery_data.one_store_selected', '1 store selezionato')|tojson }},
+    storesSelected: {{ tr('estrazioni', 'delivery_data.stores_selected', 'store selezionati')|tojson }}
+  };
+  const btn = document.getElementById('deliveryStoreDropdownBtn');
+  const checks = Array.from(document.querySelectorAll('.delivery-store-flag'));
+  const btnAll = document.getElementById('deliveryStoresAll');
+  const btnNone = document.getElementById('deliveryStoresNone');
+  if (!btn || !checks.length) return;
+
+  function refreshLabel() {
+    const selected = checks.filter(x => x.checked);
+    if (!selected.length) {
+      btn.textContent = i18n.allVisibleStores;
+      return;
+    }
+    if (selected.length === 1) {
+      const label = selected[0].closest('label');
+      btn.textContent = label ? label.innerText.trim() : i18n.oneStoreSelected;
+      return;
+    }
+    btn.textContent = selected.length + ' ' + i18n.storesSelected;
+  }
+
+  checks.forEach(function (cb) {
+    cb.addEventListener('change', refreshLabel);
+  });
+  if (btnAll) {
+    btnAll.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      checks.forEach(function (cb) { cb.checked = true; });
+      refreshLabel();
+    });
+  }
+  if (btnNone) {
+    btnNone.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      checks.forEach(function (cb) { cb.checked = false; });
+      refreshLabel();
+    });
+  }
+  refreshLabel();
+});
+</script>
+{% endblock %}

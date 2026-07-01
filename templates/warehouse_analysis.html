@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tr('warehouse', 'analysis.title', 'Analisi') }}{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse_analysis_v1.css') }}">
+{% endblock %}
+
+{% block content %}
+  {% include "_warehouse_toolbar.html" %}
+
+  <div class="container py-4 warehouse-analysis">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">{{ tr('warehouse', 'analysis.title', 'Analisi') }}</h1>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-3">
+            <label class="form-label">{{ tr('warehouse', 'analysis.period_type', 'Tipo periodo') }}</label>
+            <select class="form-select" id="anaMode">
+              <option value="week">{{ tr('warehouse', 'analysis.week_option', 'Settimana') }}</option>
+              <option value="month" selected>{{ tr('warehouse', 'analysis.month_option', 'Mese') }}</option>
+              <option value="period">{{ tr('warehouse', 'analysis.period_option', 'Periodo') }}</option>
+            </select>
+          </div>
+
+          <div class="col-lg-9">
+            <div id="anaModeWeek" class="ana-mode-box d-none">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label">{{ tr('warehouse', 'analysis.select_date', 'Seleziona una data') }}</label>
+                  <input type="date" class="form-control" id="weekAnchor">
+                </div>
+                <div class="col-md-4">
+                  <div class="small text-muted">{{ tr('warehouse', 'analysis.range', 'Intervallo') }}</div>
+                  <div class="fw-semibold" id="weekRangeLabel">&mdash;</div>
+                </div>
+                <div class="col-md-4 d-flex gap-2 justify-content-md-end">
+                  <button class="btn btn-outline-secondary" type="button" id="weekPrev">&lsaquo;</button>
+                  <button class="btn btn-outline-secondary" type="button" id="weekNext">&rsaquo;</button>
+                  <button class="btn btn-primary" type="button" id="applyRange">{{ tr('warehouse', 'analysis.apply', 'Applica') }}</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="anaModeMonth" class="ana-mode-box">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label">{{ tr('warehouse', 'analysis.select_month', 'Seleziona mese') }}</label>
+                  <input type="month" class="form-control" id="monthPicker">
+                </div>
+                <div class="col-md-4">
+                  <div class="small text-muted">{{ tr('warehouse', 'analysis.range', 'Intervallo') }}</div>
+                  <div class="fw-semibold" id="monthRangeLabel">&mdash;</div>
+                </div>
+                <div class="col-md-4 d-flex gap-2 justify-content-md-end">
+                  <button class="btn btn-outline-secondary" type="button" id="monthPrev">&lsaquo;</button>
+                  <button class="btn btn-outline-secondary" type="button" id="monthNext">&rsaquo;</button>
+                  <button class="btn btn-primary" type="button" id="applyRange2">{{ tr('warehouse', 'analysis.apply', 'Applica') }}</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="anaModePeriod" class="ana-mode-box d-none">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label">{{ tr('common', 'from', 'Dal') }}</label>
+                  <input type="date" class="form-control" id="periodStart">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">{{ tr('common', 'to', 'Al') }}</label>
+                  <input type="date" class="form-control" id="periodEnd">
+                </div>
+                <div class="col-md-4 d-flex gap-2 justify-content-md-end">
+                  <button class="btn btn-primary" type="button" id="applyRange3">{{ tr('warehouse', 'analysis.apply', 'Applica') }}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {% if suppliers_error %}
+          <div class="alert alert-warning mt-3 mb-0">{{ suppliers_error }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">{{ tr('warehouse', 'analysis.total_store', 'Totale store') }}</div>
+                <div class="small text-muted" id="summaryPeriodLabel">&mdash;</div>
+              </div>
+              <div class="text-end">
+                <div class="small text-muted">{{ tr('warehouse', 'analysis.revenues_net', 'Revenues (net)') }}</div>
+                <div class="fw-semibold" id="summaryRevenues">&mdash;</div>
+              </div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-danger d-none" id="summaryError"></div>
+            <div class="alert alert-secondary d-none" id="summaryWarnings"></div>
+            <div id="summaryTableWrap" class="table-responsive"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div>
+                <div class="fw-semibold">{{ tr('warehouse', 'analysis.by_supplier', 'Per fornitore') }}</div>
+                <div class="small text-muted" id="supplierPeriodLabel">&mdash;</div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <label class="small text-muted mb-0" for="supplierSelect">{{ tr('warehouse', 'analysis.supplier', 'Fornitore') }}</label>
+                <select class="form-select form-select-sm" id="supplierSelect" style="min-width: 220px;">
+                  <option value="">{{ tr('warehouse', 'analysis.select_supplier', 'Seleziona...') }}</option>
+                  {% for f in suppliers or [] %}
+                    <option value="{{ f.code }}">{{ f.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-danger d-none" id="supplierError"></div>
+            <div class="alert alert-secondary d-none" id="supplierWarnings"></div>
+            <div id="supplierTableWrap" class="table-responsive"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.WH_ANALYSIS = {
+      apiUrl: "{{ url_for('warehouse.api_analysis_summary') }}",
+      suppliers: {{ (suppliers or []) | tojson }},
+      locale: {{ current_language|default('it')|tojson }},
+      i18n: {
+        item: {{ tr('warehouse', 'analysis.item', 'Voce')|tojson }},
+        foodpaper: {{ tr('warehouse', 'analysis.foodpaper', 'FoodPaper')|tojson }},
+        operating: {{ tr('warehouse', 'analysis.operating', 'Operating')|tojson }},
+        initialInventory: {{ tr('warehouse', 'analysis.initial_inventory', 'Inventario iniziale')|tojson }},
+        delivery: {{ tr('warehouse', 'analysis.delivery', 'Delivery')|tojson }},
+        transfersIn: {{ tr('warehouse', 'analysis.transfers_in', 'Trasferimenti In')|tojson }},
+        transfersOut: {{ tr('warehouse', 'analysis.transfers_out', 'Trasferimenti Out')|tojson }},
+        finalInventory: {{ tr('warehouse', 'analysis.final_inventory', 'Inventario finale')|tojson }},
+        rawWaste: {{ tr('warehouse', 'analysis.raw_waste', 'Waste (crudo)')|tojson }},
+        consumption: {{ tr('warehouse', 'analysis.consumption', 'Consumo')|tojson }},
+        consumptionPct: {{ tr('warehouse', 'analysis.consumption_pct', 'Consumo %')|tojson }},
+        wastePct: {{ tr('warehouse', 'analysis.waste_pct', 'Waste %')|tojson }},
+        loading: {{ tr('warehouse', 'analysis.loading', 'Caricamento...')|tojson }},
+        error: {{ tr('warehouse', 'analysis.error', 'Errore')|tojson }},
+        selectPeriod: {{ tr('warehouse', 'analysis.select_period', 'Seleziona un periodo e premi "Applica".')|tojson }},
+        selectSupplierHelp: {{ tr('warehouse', 'analysis.select_supplier_help', 'Seleziona un fornitore per vedere i KPI dedicati.')|tojson }},
+      },
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/warehouse_analysis_v1.js') }}"></script>
+{% endblock %}

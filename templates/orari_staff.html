@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Orari - Staff{% endblock %}
+
+{% block content %}
+  {% include "_orari_toolbar.html" with context %}
+
+  <div class="container mt-3 mb-5">
+    {% if error_msg %}
+      <div class="alert alert-danger">{{ error_msg }}</div>
+    {% endif %}
+
+    <div class="row g-3">
+      <div class="col-12 col-lg-5">
+        <div class="card shadow-sm">
+          <div class="card-header bg-white">
+            <div class="fw-semibold">Nuovo membro staff</div>
+            <div class="text-muted small">Compila e salva l'anagrafica.</div>
+          </div>
+          <div class="card-body">
+            <form method="post" action="{{ url_for('orari.staff_create') }}">
+              <div class="mb-3">
+                <label class="form-label">Nome e Cognome</label>
+                <input type="text" class="form-control" name="name" autocomplete="off" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Inquadramento</label>
+                <select class="form-select" name="role" required>
+                  <option value="" selected disabled>Seleziona...</option>
+                  {% for r in ruoli %}
+                    <option value="{{ r }}">{{ r }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Ore contrattuali (1-40)</label>
+                <input type="number" class="form-control" name="hours" min="1" max="40" step="1" required>
+              </div>
+
+              <div class="d-grid">
+                <button class="btn btn-primary" type="submit" {% if not store_code %}disabled{% endif %}>Salva</button>
+              </div>
+              {% if not store_code %}
+                <div class="text-muted small mt-2">Seleziona uno store per salvare.</div>
+              {% endif %}
+            </form>
+          </div>
+        </div>
+
+        {% if schema_info %}
+        <details class="mt-3">
+          <summary class="small text-muted">Dettagli tecnici STAFF (debug)</summary>
+          <div class="small text-muted mt-2">
+            <div><strong>Tabella:</strong> {{ schema_info.table }}</div>
+            <div><strong>Colonne:</strong> SITE={{ schema_info.site_col }}, Nome={{ schema_info.name_col }}, Ruolo={{ schema_info.role_col }}, Ore={{ schema_info.hours_col }}{% if schema_info.id_col %}, ID={{ schema_info.id_col }}{% endif %}</div>
+          </div>
+        </details>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-lg-7">
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold">Elenco staff</div>
+              <div class="text-muted small">Modifica un nominativo esistente.</div>
+            </div>
+            <div class="text-muted small">{{ staff_rows|length }} record</div>
+          </div>
+          <div class="card-body p-0">
+            {% if not store_code %}
+              <div class="p-3 text-muted">Seleziona uno store per visualizzare lo staff.</div>
+            {% elif staff_rows|length == 0 %}
+              <div class="p-3 text-muted">Nessun record trovato.</div>
+            {% else %}
+              <div class="list-group list-group-flush">
+                {% for row in staff_rows %}
+                  <div class="list-group-item d-flex justify-content-between align-items-start gap-2">
+                    <div class="me-2">
+                      <div class="fw-semibold">{{ row.name }}</div>
+                      <div class="small text-muted">
+                        {{ row.role }} • {{ row.hours }} ore
+                      </div>
+                    </div>
+                    <div class="text-end">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#staffEditModal"
+                        data-staff-id="{{ row.id or '' }}"
+                        data-staff-original-name="{{ row.name }}"
+                        data-staff-name="{{ row.name }}"
+                        data-staff-role="{{ row.role }}"
+                        data-staff-hours="{{ row.hours }}"
+                      >
+                        Modifica
+                      </button>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal modifica -->
+  <div class="modal fade" id="staffEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form method="post" action="{{ url_for('orari.staff_update') }}">
+          <div class="modal-header">
+            <h5 class="modal-title">Modifica staff</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" name="staff_id" id="staffEditId">
+            <input type="hidden" name="original_name" id="staffEditOriginalName">
+
+            <div class="mb-3">
+              <label class="form-label">Nome e Cognome</label>
+              <input type="text" class="form-control" name="name" id="staffEditName" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Inquadramento</label>
+              <select class="form-select" name="role" id="staffEditRole" required>
+                <option value="" disabled>Seleziona...</option>
+                {% for r in ruoli %}
+                  <option value="{{ r }}">{{ r }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Ore contrattuali (1-40)</label>
+              <input type="number" class="form-control" name="hours" id="staffEditHours" min="1" max="40" step="1" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-primary">Salva</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const modalEl = document.getElementById('staffEditModal');
+    if (!modalEl) return;
+
+    modalEl.addEventListener('show.bs.modal', function (event) {
+      const btn = event.relatedTarget;
+      if (!btn) return;
+      const id = btn.getAttribute('data-staff-id') || '';
+      const originalName = btn.getAttribute('data-staff-original-name') || '';
+      const name = btn.getAttribute('data-staff-name') || '';
+      const role = btn.getAttribute('data-staff-role') || '';
+      const hours = btn.getAttribute('data-staff-hours') || '';
+
+      const idEl = document.getElementById('staffEditId');
+      const origEl = document.getElementById('staffEditOriginalName');
+      const nameEl = document.getElementById('staffEditName');
+      const roleEl = document.getElementById('staffEditRole');
+      const hoursEl = document.getElementById('staffEditHours');
+
+      if (idEl) idEl.value = id;
+      if (origEl) origEl.value = originalName;
+      if (nameEl) nameEl.value = name;
+      if (hoursEl) hoursEl.value = hours;
+
+      if (roleEl) {
+        // seleziona l'opzione corrispondente
+        for (const opt of roleEl.options) {
+          if (opt.value === role) {
+            roleEl.value = role;
+            break;
+          }
+        }
+      }
+    });
+  });
+  </script>
+{% endblock %}

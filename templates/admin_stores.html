@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block title %}Admin - Store{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Store</h1>
+      <div class="text-muted small">Creazione, modifica e cancellazione degli store del tenant.</div>
+    </div>
+    <span class="badge text-bg-light border">Tenant: {{ tenant_key }}</span>
+  </div>
+  <div class="d-flex justify-content-end mb-3">
+    <form method="post" onsubmit="return confirm('Popolare o aggiornare i campi store usando la sorgente legacy ILP?');">
+      <input type="hidden" name="action" value="seed_legacy">
+      <button class="btn btn-outline-secondary">Popola da legacy ILP</button>
+    </form>
+  </div>
+  {% set address_fields = ['address_line1', 'address_line2', 'postal_code', 'city', 'province', 'country'] %}
+  {% set address_visible = visible_store_fields.intersection(address_fields)|length > 0 %}
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <h2 class="h6 mb-3">Nuovo store</h2>
+      <form method="post" class="row g-3">
+        <input type="hidden" name="action" value="save">
+        <div class="col-md-2">
+          <label class="form-label">Codice</label>
+          <input type="text" name="code" class="form-control" required>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Nome</label>
+          <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Ordine</label>
+          <input type="number" name="sort_order" class="form-control" value="0">
+        </div>
+        <div class="col-md-1">
+          <label class="form-label">Attivo</label>
+          <select name="is_active" class="form-select">
+            <option value="1" selected>Si</option>
+            <option value="0">No</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button class="btn btn-primary w-100">Salva</button>
+        </div>
+        {% if 'opening_date' in visible_store_fields %}
+        <div class="col-md-2">
+          <label class="form-label">Data apertura</label>
+          <input type="date" name="opening_date" class="form-control">
+        </div>
+        {% endif %}
+        {% if 'phone' in visible_store_fields %}
+        <div class="col-md-3">
+          <label class="form-label">Telefono</label>
+          <input type="text" name="phone" class="form-control">
+        </div>
+        {% endif %}
+        {% if 'email' in visible_store_fields %}
+        <div class="col-md-4">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-control">
+        </div>
+        {% endif %}
+        {% if address_visible %}
+        <div class="col-12">
+          <div class="border rounded p-3">
+            <div class="fw-semibold mb-2">Indirizzo</div>
+            <div class="row g-2">
+              {% if 'address_line1' in visible_store_fields %}
+              <div class="col-md-5">
+                <label class="form-label">Via</label>
+                <input type="text" name="address_line1" class="form-control">
+              </div>
+              {% endif %}
+              {% if 'address_line2' in visible_store_fields %}
+              <div class="col-md-3">
+                <label class="form-label">Dettaglio</label>
+                <input type="text" name="address_line2" class="form-control">
+              </div>
+              {% endif %}
+              {% if 'postal_code' in visible_store_fields %}
+              <div class="col-md-2">
+                <label class="form-label">CAP</label>
+                <input type="text" name="postal_code" class="form-control">
+              </div>
+              {% endif %}
+              {% if 'city' in visible_store_fields %}
+              <div class="col-md-3">
+                <label class="form-label">Citta</label>
+                <input type="text" name="city" class="form-control">
+              </div>
+              {% endif %}
+              {% if 'province' in visible_store_fields %}
+              <div class="col-md-2">
+                <label class="form-label">Provincia</label>
+                <input type="text" name="province" class="form-control">
+              </div>
+              {% endif %}
+              {% if 'country' in visible_store_fields %}
+              <div class="col-md-3">
+                <label class="form-label">Nazione</label>
+                <input type="text" name="country" class="form-control" value="Italia">
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        {% if 'closure_date' in visible_store_fields %}
+        <div class="col-md-2">
+          <label class="form-label">Chiusura</label>
+          <input type="date" name="closure_date" class="form-control">
+        </div>
+        {% endif %}
+        {% if 'yoobic_address' in visible_store_fields %}
+        <div class="col-md-4">
+          <label class="form-label">Yoobic address</label>
+          <input type="text" name="yoobic_address" class="form-control">
+        </div>
+        {% endif %}
+        {% if 'ipratico_api_key' in visible_store_fields %}
+        <div class="col-md-4">
+          <label class="form-label">API key iPratico</label>
+          <input type="text" name="ipratico_api_key" class="form-control">
+        </div>
+        {% endif %}
+        {% if 'google_location_id' in visible_store_fields %}
+        <div class="col-md-4">
+          <label class="form-label">Google location</label>
+          <input type="text" name="google_location_id" class="form-control">
+        </div>
+        {% endif %}
+        {% if 'glovo_store_id' in visible_store_fields %}
+        <div class="col-md-4">
+          <label class="form-label">Glovo store id</label>
+          <input type="text" name="glovo_store_id" class="form-control">
+        </div>
+        {% endif %}
+        {% if 'deliveroo_store_id' in visible_store_fields %}
+        <div class="col-md-4">
+          <label class="form-label">Deliveroo store id</label>
+          <input type="text" name="deliveroo_store_id" class="form-control">
+        </div>
+        {% endif %}
+        {% if 'notes' in visible_store_fields %}
+        <div class="col-md-8">
+          <label class="form-label">Note</label>
+          <input type="text" name="notes" class="form-control">
+        </div>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="width:140px;">Codice</th>
+            <th>Nome</th>
+            <th style="width:130px;">Ordine</th>
+            <th style="width:120px;">Attivo</th>
+            <th class="text-end" style="width:210px;">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in stores or [] %}
+          <tr>
+            <td>
+              <form id="store-form-{{ loop.index }}" method="post"></form>
+              <input type="hidden" name="action" value="save" form="store-form-{{ loop.index }}">
+              <input type="text" name="code" class="form-control form-control-sm" value="{{ s.code }}" form="store-form-{{ loop.index }}" readonly>
+            </td>
+            <td>
+              <input type="text" name="name" class="form-control form-control-sm" value="{{ s.name }}" form="store-form-{{ loop.index }}" required>
+            </td>
+            <td>
+              <input type="number" name="sort_order" class="form-control form-control-sm" value="{{ s.sort_order or 0 }}" form="store-form-{{ loop.index }}">
+            </td>
+            <td>
+              <select name="is_active" class="form-select form-select-sm" form="store-form-{{ loop.index }}">
+                <option value="1" {% if s.is_active %}selected{% endif %}>Si</option>
+                <option value="0" {% if not s.is_active %}selected{% endif %}>No</option>
+              </select>
+            </td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-primary" form="store-form-{{ loop.index }}">Salva</button>
+              <form method="post" class="d-inline" onsubmit="return confirm('Eliminare questo store?');">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="code" value="{{ s.code }}">
+                <button class="btn btn-sm btn-outline-danger">Elimina</button>
+              </form>
+            </td>
+          </tr>
+          {% if visible_store_fields %}
+          <tr class="table-light">
+            <td colspan="5">
+              <div class="row g-2 align-items-end">
+                {% if 'opening_date' in visible_store_fields %}
+                <div class="col-md-2">
+                  <label class="form-label small mb-1">Data apertura</label>
+                  <input type="date" name="opening_date" class="form-control form-control-sm" value="{{ s.opening_date or '' }}" form="store-form-{{ loop.index }}">
+                </div>
+                {% endif %}
+                {% if 'phone' in visible_store_fields %}
+                <div class="col-md-3">
+                  <label class="form-label small mb-1">Telefono</label>
+                  <input type="text" name="phone" class="form-control form-control-sm" value="{{ s.phone or '' }}" form="store-form-{{ loop.index }}">
+                </div>
+                {% endif %}
+                {% if 'email' in visible_store_fields %}
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Email</label>
+                  <input type="email" name="email" class="form-control form-control-sm" value="{{ s.email or '' }}" form="store-form-{{ loop.index }}">
+                </div>
+                {% endif %}
+                {% if address_visible %}
+                <div class="col-12">
+                  <div class="row g-2">
+                    {% if 'address_line1' in visible_store_fields %}
+                    <div class="col-md-5">
+                      <label class="form-label small mb-1">Via</label>
+                      <input type="text" name="address_line1" class="form-control form-control-sm" value="{{ s.address_line1 or '' }}" form="store-form-{{ loop.index }}">
+                    </div>
+                    {% endif %}
+                    {% if 'address_line2' in visible_store_fields %}
+                    <div class="col-md-3">
+                      <label class="form-label small mb-1">Dettaglio</label>
+                      <input type="text" name="address_line2" class="form-control form-control-sm" value="{{ s.address_line2 or '' }}" form="store-form-{{ loop.index }}">
+                    </div>
+                    {% endif %}
+                    {% if 'postal_code' in visible_store_fields %}
+                    <div class="col-md-2">
+                      <label class="form-label small mb-1">CAP</label>
+                      <input type="text" name="postal_code" class="form-control form-control-sm" value="{{ s.postal_code or '' }}" form="store-form-{{ loop.index }}">
+                    </div>
+                    {% endif %}
+                    {% if 'city' in visible_store_fields %}
+                    <div class="col-md-3">
+                      <label class="form-label small mb-1">Citta</label>
+                      <input type="text" name="city" class="form-control form-control-sm" value="{{ s.city or '' }}" form="store-form-{{ loop.index }}">
+                    </div>
+                    {% endif %}
+                    {% if 'province' in visible_store_fields %}
+                    <div class="col-md-2">
+                      <label class="form-label small mb-1">Provincia</label>
+                      <input type="text" name="province" class="form-control form-control-sm" value="{{ s.province or '' }}" form="store-form-{{ loop.index }}">
+                    </div>
+                    {% endif %}
+                    {% if 'country' in visible_store_fields %}
+                    <div class="col-md-3">
+                      <label class="form-label small mb-1">Nazione</label>
+                      <input type="text" name="country" class="form-control form-control-sm" value="{{ s.country or '' }}" form="store-form-{{ loop.index }}">
+                    </div>
+                    {% endif %}
+                  </div>
+                </div>
+                {% endif %}
+                {% if 'closure_date' in visible_store_fields %}
+                <div class="col-md-2">
+                  <label class="form-label small mb-1">Chiusura</label>
+                  <input type="date" name="closure_date" class="form-control form-control-sm" value="{{ s.closure_date or '' }}" form="store-form-{{ loop.index }}">
+                </div>
+                {% endif %}
+                {% if 'yoobic_address' in visible_store_fields %}
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Yoobic address</label>
+                  <input type="text" name="yoobic_address" class="form-control form-control-sm" value="{{ s.yoobic_address or '' }}" form="store-form-{{ loop.index }}">
+                </div>
+                {% endif %}
+                {% if 'ipratico_api_key' in visible_store_fields %}
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">API key iPratico</label>
+                  <input type="text" name="ipratico_api_key" class="form-control form-control-sm" value="{{ s.ipratico_api_key or '' }}" form="store-form-{{ loop.index }}">
+                </div>
+                {% endif %}
+                {% if 'google_location_id' in visible_store_fields %}
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Google location</label>
+                  <input type="text" name="google_location_id" class="form-control form-control-sm" value="{{ s.google_location_id or '' }}" form="store-form-{{ loop.index }}">
+                </div>
+                {% endif %}
+                {% if 'glovo_store_id' in visible_store_fields %}
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Glovo store id</label>
+                  <input type="text" name="glovo_store_id" class="form-control form-control-sm" value="{{ s.glovo_store_id or '' }}" form="store-form-{{ loop.index }}">
+                </div>
+                {% endif %}
+                {% if 'deliveroo_store_id' in visible_store_fields %}
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Deliveroo store id</label>
+                  <input type="text" name="deliveroo_store_id" class="form-control form-control-sm" value="{{ s.deliveroo_store_id or '' }}" form="store-form-{{ loop.index }}">
+                </div>
+                {% endif %}
+                {% if 'notes' in visible_store_fields %}
+                <div class="col-md-8">
+                  <label class="form-label small mb-1">Note</label>
+                  <input type="text" name="notes" class="form-control form-control-sm" value="{{ s.notes or '' }}" form="store-form-{{ loop.index }}">
+                </div>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted py-4">Nessuno store configurato.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Admin – Link{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/links_v1.css') }}?v=1.0.0">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Link</h1>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin_link_categories') }}">Categorie</a>
+      <a class="btn btn-primary" href="{{ url_for('admin_links_new') }}">Nuovo link</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="width:72px;">Img</th>
+            <th>Titolo</th>
+            <th>Categoria</th>
+            <th>URL</th>
+            <th>Ordine</th>
+            <th>Attivo</th>
+            <th class="text-end">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in links %}
+          <tr>
+            <td>
+              {% if l.image_url %}
+                <img src="{{ l.image_url }}" class="admin-link-thumb" alt="img">
+              {% else %}
+                <div class="admin-link-thumb admin-link-thumb--empty"></div>
+              {% endif %}
+            </td>
+            <td>{{ l.title or '' }}</td>
+            <td>{{ l.category_name or '—' }}</td>
+            <td class="text-truncate" style="max-width: 420px;">
+              <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.url }}</a>
+            </td>
+            <td>{{ l.sort_order }}</td>
+            <td>
+              <span class="badge {{ 'bg-success' if l.is_active else 'bg-secondary' }}">
+                {{ 'SI' if l.is_active else 'NO' }}
+              </span>
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin_links_edit', link_id=l.id) }}">Modifica</a>
+              <form class="d-inline" method="post" action="{{ url_for('admin_links_delete', link_id=l.id) }}"
+                    onsubmit="return confirm('Confermi l\'eliminazione del link?');">
+                <button class="btn btn-sm btn-outline-danger ms-1">Elimina</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-muted text-center">Nessun link.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="alert alert-info mt-3 mb-0">
+    Le immagini vengono salvate su Supabase Storage (bucket pubblico <code>{{ bucket_name }}</code>).<br>
+    Se il bucket non è pubblico, le immagini non saranno visibili nella pagina Link.
+  </div>
+</div>
+{% endblock %}

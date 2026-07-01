@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+{% block title %}MBO - Impostazioni{% endblock %}
+{% block head_extra %}
+<style>
+  .mbo-settings-page {
+    max-width: 1680px;
+  }
+
+  .mbo-page-head,
+  .mbo-panel,
+  .mbo-summary-strip {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+  }
+
+  .mbo-page-head {
+    padding: 1rem 1.125rem;
+  }
+
+  .mbo-panel {
+    padding: 1rem;
+  }
+
+  .mbo-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .875rem;
+  }
+
+  .mbo-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(280px, 2fr);
+    gap: .75rem;
+    padding: .75rem;
+    align-items: center;
+  }
+
+  .mbo-summary-item {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .625rem .75rem;
+    min-height: 68px;
+  }
+
+  .mbo-summary-item span {
+    display: block;
+    color: var(--bs-secondary-color);
+    font-size: .82rem;
+  }
+
+  .mbo-summary-item strong {
+    display: block;
+    font-size: 1.45rem;
+    line-height: 1.15;
+  }
+
+  .mbo-summary-note {
+    color: var(--bs-secondary-color);
+    font-size: .9rem;
+    line-height: 1.35;
+  }
+
+  .mbo-am-create {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.3fr) minmax(260px, 1.5fr) 90px auto auto;
+    gap: .75rem;
+    align-items: end;
+    padding: .875rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .625rem;
+    background: var(--bs-tertiary-bg);
+    margin-bottom: 1rem;
+  }
+
+  .mbo-am-create .form-label {
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+  }
+
+  .mbo-active-inline {
+    display: flex;
+    align-items: center;
+    min-height: 38px;
+    white-space: nowrap;
+  }
+
+  .mbo-am-table {
+    min-width: 920px;
+  }
+
+  .mbo-am-table th {
+    color: var(--bs-secondary-color);
+    font-size: .76rem;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+
+  .mbo-am-name,
+  .mbo-am-ilp {
+    min-width: 260px;
+  }
+
+  .mbo-am-order {
+    width: 86px;
+  }
+
+  .mbo-am-actions {
+    width: 150px;
+    white-space: nowrap;
+  }
+
+  .mbo-month-grid {
+    min-width: 1500px;
+  }
+
+  .mbo-reward-grid {
+    min-width: 1500px;
+  }
+
+  .mbo-reward-cell {
+    display: grid;
+    grid-template-columns: minmax(86px, 1fr) auto;
+    gap: .35rem;
+    align-items: center;
+  }
+
+  .mbo-reward-cell .form-control {
+    min-width: 86px;
+  }
+
+  .mbo-weight-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: .75rem;
+  }
+
+  .mbo-weight-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .625rem;
+    padding: .75rem;
+    background: var(--bs-tertiary-bg);
+  }
+
+  @media (max-width: 1199.98px) {
+    .mbo-summary-strip {
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+    }
+
+    .mbo-summary-note {
+      grid-column: 1 / -1;
+    }
+
+    .mbo-am-create {
+      grid-template-columns: repeat(2, minmax(220px, 1fr)) 90px auto auto;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .mbo-summary-strip,
+    .mbo-am-create {
+      grid-template-columns: 1fr;
+    }
+
+    .mbo-panel-head {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .mbo-weight-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+{% block content %}
+{% include "_mbo_toolbar.html" %}
+
+<div class="container-fluid mbo-settings-page py-4">
+  <div class="mbo-page-head d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+      <h1 class="mb-1">Impostazioni MBO</h1>
+      <div class="text-muted">Gestione area manager e override mensili per store.</div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label mb-1">Anno</label>
+        <select name="year" class="form-select">
+          {% for y in mbo_year_options %}
+          <option value="{{ y }}" {% if y == mbo_year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline-primary">Carica</button>
+    </form>
+  </div>
+
+  <div class="mbo-summary-strip mb-3">
+    <div class="mbo-summary-item">
+      <span>Store</span>
+      <strong>{{ mbo_matrix.store_count }}</strong>
+    </div>
+    <div class="mbo-summary-item">
+      <span>Default matchati</span>
+      <strong class="text-success">{{ mbo_matrix.default_count }}</strong>
+    </div>
+    <div class="mbo-summary-item">
+      <span>Override</span>
+      <strong class="text-primary">{{ mbo_matrix.override_count }}</strong>
+    </div>
+    <div class="mbo-summary-item">
+      <span>Senza match</span>
+      <strong class="text-danger">{{ mbo_matrix.unmatched_count }}</strong>
+    </div>
+    <div class="mbo-summary-note">
+      Riepilogo anno {{ mbo_year }}. Se per uno store non esiste override mensile, viene usato il default derivato dall'anagrafica store tenant.
+    </div>
+  </div>
+
+  <section class="mbo-panel mb-3">
+    <div class="mbo-panel-head">
+      <div>
+        <h2 class="h5 mb-1">Area manager</h2>
+        <div class="text-muted small">Crea, ordina e abbina i nomi AM ai valori provenienti da ILP.</div>
+      </div>
+      <form method="post" class="m-0">
+        <input type="hidden" name="action" value="sync_managers">
+        <input type="hidden" name="year" value="{{ mbo_year }}">
+        <button class="btn btn-sm btn-outline-secondary">Sincronizza da ILP</button>
+      </form>
+    </div>
+
+    <form method="post" class="mbo-am-create">
+      <input type="hidden" name="action" value="save_manager">
+      <input type="hidden" name="year" value="{{ mbo_year }}">
+      <div>
+        <label class="form-label">Nome area manager</label>
+        <input type="text" name="manager_name" class="form-control" required>
+      </div>
+      <div>
+        <label class="form-label">Valore ILP (match AM)</label>
+        <input type="text" name="ilp_am_value" class="form-control" placeholder="Es. Rossi Mario">
+      </div>
+      <div>
+        <label class="form-label">Ordine</label>
+        <input type="number" name="sort_order" class="form-control" value="0">
+      </div>
+      <div class="form-check mbo-active-inline">
+        <input class="form-check-input" type="checkbox" name="is_active" id="new_manager_active" checked>
+        <label class="form-check-label ms-2" for="new_manager_active">Attivo</label>
+      </div>
+      <button class="btn btn-primary">Aggiungi</button>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mbo-am-table mb-0">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Valore ILP</th>
+            <th>Ord.</th>
+            <th>Stato</th>
+            <th class="text-end">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for am in area_managers %}
+          <tr>
+            <td>
+              <form id="save_manager_{{ loop.index }}" method="post" class="m-0">
+                <input type="hidden" name="action" value="save_manager">
+                <input type="hidden" name="row_uuid" value="{{ am.row_uuid }}">
+                <input type="hidden" name="year" value="{{ mbo_year }}">
+              </form>
+              <input form="save_manager_{{ loop.index }}" type="text" name="manager_name" class="form-control form-control-sm mbo-am-name" value="{{ am.manager_name }}" required>
+            </td>
+            <td>
+              <input form="save_manager_{{ loop.index }}" type="text" name="ilp_am_value" class="form-control form-control-sm mbo-am-ilp" value="{{ am.ilp_am_value or '' }}">
+            </td>
+            <td>
+              <input form="save_manager_{{ loop.index }}" type="number" name="sort_order" class="form-control form-control-sm mbo-am-order" value="{{ am.sort_order or 0 }}">
+            </td>
+            <td>
+              <div class="form-check mbo-active-inline">
+                <input form="save_manager_{{ loop.index }}" class="form-check-input" type="checkbox" name="is_active" id="active_{{ loop.index }}" {% if am.is_active %}checked{% endif %}>
+                <label class="form-check-label ms-2" for="active_{{ loop.index }}">Attivo</label>
+              </div>
+            </td>
+            <td class="text-end mbo-am-actions">
+              <button form="save_manager_{{ loop.index }}" class="btn btn-sm btn-outline-primary">Salva</button>
+              <form method="post" class="d-inline" onsubmit="return confirm('Eliminare questo area manager?');">
+                <input type="hidden" name="action" value="delete_manager">
+                <input type="hidden" name="row_uuid" value="{{ am.row_uuid }}">
+                <input type="hidden" name="year" value="{{ mbo_year }}">
+                <button class="btn btn-sm btn-outline-danger">Elimina</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">Nessun area manager presente.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="mbo-panel mb-3">
+    <div class="mbo-panel-head">
+      <div>
+        <h2 class="h5 mb-1">Premi Area Manager</h2>
+        <div class="text-muted small">Attivazione mensile e premio finale mensile in euro. Il pulsante freccia propaga il valore dal mese scelto fino a dicembre.</div>
+      </div>
+      <button form="amMonthlyForm" class="btn btn-sm btn-primary">Salva Area Manager mensile</button>
+    </div>
+
+    <form id="amMonthlyForm" method="post">
+      <input type="hidden" name="action" value="save_am_monthly">
+      <input type="hidden" name="year" value="{{ mbo_year }}">
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mbo-reward-grid mb-0">
+        <thead>
+          <tr>
+            <th style="min-width: 240px;">Area manager</th>
+            {% for month in reward_settings.month_labels %}
+            <th style="min-width: 160px;">{{ month.month_label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for am in reward_settings.area_managers %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ am.manager_name }}</div>
+              <div class="text-muted small">{{ am.ilp_am_value or '' }}</div>
+            </td>
+            {% for month in am.months %}
+            <td>
+              <div class="mbo-reward-cell">
+                <input form="amMonthlyForm" class="form-control form-control-sm" name="am_reward__{{ am.row_uuid }}__{{ month.year_month }}" value="{% if month.reward_eur is not none %}{{ '%.2f'|format(month.reward_eur) }}{% endif %}" placeholder="€">
+                <div class="form-check m-0">
+                  <input form="amMonthlyForm" class="form-check-input" type="checkbox" name="am_active__{{ am.row_uuid }}__{{ month.year_month }}" id="am_active_{{ loop.index }}_{{ am.row_uuid }}" {% if month.is_active %}checked{% endif %}>
+                </div>
+              </div>
+              <form method="post" class="mt-1 js-propagate-am">
+                <input type="hidden" name="action" value="propagate_am_monthly">
+                <input type="hidden" name="year" value="{{ mbo_year }}">
+                <input type="hidden" name="area_manager_row_uuid" value="{{ am.row_uuid }}">
+                <input type="hidden" name="year_month" value="{{ month.year_month }}">
+                <input type="hidden" name="reward_eur" value="{% if month.reward_eur is not none %}{{ '%.2f'|format(month.reward_eur) }}{% endif %}">
+                {% if month.is_active %}<input type="hidden" name="is_active" value="1">{% endif %}
+                <button class="btn btn-sm btn-outline-secondary w-100" title="Propaga sui mesi successivi">→</button>
+              </form>
+            </td>
+            {% endfor %}
+          </tr>
+          {% else %}
+          <tr><td colspan="13" class="text-center text-muted py-4">Nessun area manager presente.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="mbo-panel mb-3">
+    <div class="mbo-panel-head">
+      <div>
+        <h2 class="h5 mb-1">Premi ruoli Soft skills</h2>
+        <div class="text-muted small">Premio mensile per Store Manager, Assistant e Multistore. Il pulsante freccia propaga dal mese scelto fino a dicembre.</div>
+      </div>
+      <button form="roleRewardsForm" class="btn btn-sm btn-primary">Salva premi ruoli</button>
+    </div>
+
+    <form id="roleRewardsForm" method="post">
+      <input type="hidden" name="action" value="save_role_rewards">
+      <input type="hidden" name="year" value="{{ mbo_year }}">
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mbo-reward-grid mb-0">
+        <thead>
+          <tr>
+            <th style="min-width: 180px;">Ruolo</th>
+            {% for month in reward_settings.month_labels %}
+            <th style="min-width: 140px;">{{ month.month_label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for role in reward_settings.roles %}
+          <tr>
+            <td class="fw-semibold">{{ role.label }}</td>
+            {% for month in role.months %}
+            <td>
+              <input form="roleRewardsForm" class="form-control form-control-sm" name="role_reward__{{ role.key }}__{{ month.year_month }}" value="{% if month.reward_eur is not none %}{{ '%.2f'|format(month.reward_eur) }}{% endif %}" placeholder="€">
+              <form method="post" class="mt-1 js-propagate-role">
+                <input type="hidden" name="action" value="propagate_role_reward">
+                <input type="hidden" name="year" value="{{ mbo_year }}">
+                <input type="hidden" name="role_name" value="{{ role.key }}">
+                <input type="hidden" name="year_month" value="{{ month.year_month }}">
+                <input type="hidden" name="reward_eur" value="{% if month.reward_eur is not none %}{{ '%.2f'|format(month.reward_eur) }}{% endif %}">
+                <button class="btn btn-sm btn-outline-secondary w-100" title="Propaga sui mesi successivi">→</button>
+              </form>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="mbo-panel mb-3">
+    <div class="mbo-panel-head">
+      <div>
+        <h2 class="h5 mb-1">Pesi % premio</h2>
+        <div class="text-muted small">Configura quanto pesa ogni categoria nel calcolo premio. Il totale può essere verificato prima dei calcoli finali.</div>
+      </div>
+      <button form="rewardWeightsForm" class="btn btn-sm btn-primary">Salva pesi</button>
+    </div>
+    <form id="rewardWeightsForm" method="post">
+      <input type="hidden" name="action" value="save_reward_weights">
+      <input type="hidden" name="year" value="{{ mbo_year }}">
+      <div class="mbo-weight-grid">
+        {% for profile in reward_settings.weights %}
+        <div class="mbo-weight-card">
+          <h3 class="h6 mb-3">{{ profile.label }}</h3>
+          {% for category in profile.categories %}
+          <label class="form-label small mb-1">{{ category.label }}</label>
+          <div class="input-group input-group-sm mb-2">
+            <input class="form-control" type="number" step="0.01" min="0" max="100" name="weight__{{ profile.key }}__{{ category.key }}" value="{{ '%.2f'|format(category.weight_pct or 0) }}">
+            <span class="input-group-text">%</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </form>
+  </section>
+
+  <section class="mbo-panel">
+    <div class="mbo-panel-head">
+      <div>
+        <h2 class="h5 mb-1">Associazione store - area manager</h2>
+        <div class="text-muted small">Una riga per store, una colonna per mese. Seleziona un valore solo quando vuoi sovrascrivere il default.</div>
+      </div>
+    </div>
+
+    <form method="post">
+      <input type="hidden" name="action" value="save_matrix">
+      <input type="hidden" name="year" value="{{ mbo_year }}">
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mbo-month-grid">
+          <thead>
+            <tr>
+              <th style="min-width: 240px;">Store</th>
+              {% for month in mbo_matrix.month_labels %}
+              <th style="min-width: 150px;">{{ month.month_label }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in mbo_matrix.rows %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ row.store_name }}</div>
+                <div class="text-muted small">{{ row.store_code }}</div>
+                <div class="small mt-1">
+                  {% if row.default_manager_row_uuid %}
+                  <span class="badge text-bg-success">Default: {{ row.months[0].default_label }}</span>
+                  {% elif row.ilp_am_value %}
+                  <span class="badge text-bg-warning">AM ILP non matchato: {{ row.ilp_am_value }}</span>
+                  {% else %}
+                  <span class="badge text-bg-secondary">Nessun default ILP</span>
+                  {% endif %}
+                </div>
+              </td>
+              {% for month in row.months %}
+              <td>
+                <select class="form-select form-select-sm" name="assign__{{ row.store_code }}__{{ month.year_month }}">
+                  <option value="">Default{% if month.default_label %} ({{ month.default_label }}){% endif %}</option>
+                  {% for am in area_managers if am.is_active %}
+                  <option value="{{ am.row_uuid }}" {% if am.row_uuid == month.selected_row_uuid %}selected{% endif %}>{{ am.manager_name }}</option>
+                  {% endfor %}
+                </select>
+                {% if month.is_override %}
+                <div class="text-primary small mt-1">Override</div>
+                {% endif %}
+              </td>
+              {% endfor %}
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="13" class="text-center text-muted py-4">Nessuno store disponibile.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="d-flex justify-content-end mt-3">
+        <button class="btn btn-primary">Salva associazioni annuali</button>
+      </div>
+    </form>
+  </section>
+</div>
+<script>
+(function () {
+  document.querySelectorAll('.js-propagate-am').forEach(function (form) {
+    form.addEventListener('submit', function () {
+      const td = form.closest('td');
+      const reward = td ? td.querySelector('input[name^="am_reward__"]') : null;
+      const active = td ? td.querySelector('input[name^="am_active__"]') : null;
+      const hiddenReward = form.querySelector('input[name="reward_eur"]');
+      let hiddenActive = form.querySelector('input[name="is_active"]');
+      if (hiddenReward && reward) hiddenReward.value = reward.value || '';
+      if (active && active.checked && !hiddenActive) {
+        hiddenActive = document.createElement('input');
+        hiddenActive.type = 'hidden';
+        hiddenActive.name = 'is_active';
+        hiddenActive.value = '1';
+        form.appendChild(hiddenActive);
+      }
+      if (hiddenActive && active && !active.checked) hiddenActive.remove();
+    });
+  });
+  document.querySelectorAll('.js-propagate-role').forEach(function (form) {
+    form.addEventListener('submit', function () {
+      const td = form.closest('td');
+      const reward = td ? td.querySelector('input[name^="role_reward__"]') : null;
+      const hiddenReward = form.querySelector('input[name="reward_eur"]');
+      if (hiddenReward && reward) hiddenReward.value = reward.value || '';
+    });
+  });
+})();
+</script>
+{% endblock %}

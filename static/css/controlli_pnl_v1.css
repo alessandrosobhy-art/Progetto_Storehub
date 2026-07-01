@@ -1,0 +1,207 @@
+.pnl-table-wrap {
+  overflow: auto;
+  max-height: 70vh;
+  position: relative;
+  /* ensure sticky header never shows content underneath */
+  background-color: var(--bs-body-bg, #fff);
+}
+
+/* Force colors even if theme overrides bootstrap utility classes */
+.pnl-neg { color: var(--bs-danger) !important; }
+.pnl-red { color: var(--bs-danger) !important; }
+
+.pnl-col-voice {
+  min-width: 220px;
+}
+
+.pnl-num {
+  white-space: nowrap;
+}
+
+@media (max-width: 576px) {
+  .pnl-col-voice { min-width: 180px; }
+  #pnlTable { font-size: 0.875rem; }
+}
+
+/* ---- Sticky header / first column / REVENUES row ---- */
+#pnlTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: var(--bs-body-bg, #fff);
+  background-clip: padding-box;
+}
+
+#pnlTable thead th.pnl-col-voice {
+  position: sticky;
+  left: 0;
+  z-index: 60;
+  background-color: var(--bs-body-bg, #fff);
+  background-clip: padding-box;
+}
+
+/* Default cell background (so sticky cells don't become transparent) */
+#pnlTable tbody td {
+  background-color: var(--bs-body-bg, #fff);
+  background-clip: padding-box;
+}
+
+/* Freeze first column */
+#pnlTable tbody td.pnl-col-voice {
+  position: sticky;
+  left: 0;
+  z-index: 25;
+}
+
+/* Freeze REVENUES row (below header). Top is set via JS measuring thead height */
+#pnlTable tbody tr.pnl-sticky-row td {
+  position: sticky;
+  top: var(--pnl-sticky-top, 2.3rem);
+  z-index: 20;
+  /* ensure row stays opaque while scrolling */
+  background-color: var(--bs-body-bg, #fff);
+  background-clip: padding-box;
+}
+
+#pnlTable tbody tr.pnl-sticky-row td.pnl-col-voice {
+  z-index: 55; /* intersection: sticky row + sticky col */
+}
+
+/* ---- Column group highlighting (Budget / Actual / Delta / LY / Delta LY) ----
+   Use base background + overlay so headers and sticky cells are NEVER transparent.
+*/
+#pnlTable .pnl-col-group-budget {
+  background-color: var(--bs-body-bg, #fff) !important;
+  background-image: linear-gradient(rgba(13, 110, 253, 0.06), rgba(13, 110, 253, 0.06));
+}
+
+#pnlTable .pnl-col-group-actual {
+  background-color: var(--bs-body-bg, #fff) !important;
+  background-image: linear-gradient(rgba(25, 135, 84, 0.06), rgba(25, 135, 84, 0.06));
+}
+
+#pnlTable .pnl-col-group-delta {
+  background-color: var(--bs-body-bg, #fff) !important;
+  background-image: linear-gradient(rgba(255, 193, 7, 0.10), rgba(255, 193, 7, 0.10));
+}
+
+#pnlTable .pnl-col-group-ly {
+  background-color: var(--bs-body-bg, #fff) !important;
+  background-image: linear-gradient(rgba(108, 117, 125, 0.07), rgba(108, 117, 125, 0.07));
+}
+
+#pnlTable .pnl-col-group-delta-ly {
+  background-color: var(--bs-body-bg, #fff) !important;
+  background-image: linear-gradient(rgba(255, 193, 7, 0.08), rgba(255, 193, 7, 0.08));
+}
+
+/* Visual separators between blocks */
+#pnlTable thead th:nth-child(2),
+#pnlTable tbody td:nth-child(2) { border-left: 2px solid rgba(0,0,0,0.08); }
+
+#pnlTable thead th:nth-child(4),
+#pnlTable tbody td:nth-child(4) { border-left: 2px solid rgba(0,0,0,0.08); }
+
+#pnlTable thead th:nth-child(6),
+#pnlTable tbody td:nth-child(6) { border-left: 2px solid rgba(0,0,0,0.08); }
+
+#pnlTable thead th:nth-child(8),
+#pnlTable tbody td:nth-child(8) { border-left: 2px solid rgba(0,0,0,0.08); }
+
+/* ---- Rows formatting ----
+   Evidenzia le macro-voci (incl. REVENUES) senza rompere i colori dei blocchi colonna.
+   Usiamo un overlay (box-shadow) così resta visibile anche con background-image dei gruppi.
+*/
+
+/* Macro-voci (REVENUES, COGS, ecc.) */
+#pnlTable tbody tr.pnl-macrovoice td {
+  font-weight: 700;
+  box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.03);
+  border-top: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+/* REVENUES (riga sticky): overlay leggermente diverso così è immediatamente riconoscibile */
+#pnlTable tbody tr.pnl-sticky-row td {
+  box-shadow: inset 0 0 0 9999px rgba(13, 110, 253, 0.04);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+/* Sotto-voci di Other G&A */
+.pnl-subvoice td.pnl-col-voice {
+  font-style: italic;
+  text-align: right;
+  padding-right: 1.25rem;
+  color: var(--bs-secondary-color);
+}
+
+/* Hide LY columns by default */
+#pnlTableWrap.pnl-hide-prev .pnl-col-prev {
+  display: none;
+}
+
+/* ---- Mobile macro view ---- */
+.pnl-mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.pnl-macro-card {
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 14px;
+  padding: .75rem;
+  background: var(--bs-body-bg, #fff);
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  cursor: pointer;
+}
+
+.pnl-macro-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.pnl-macro-name {
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+
+.pnl-macro-delta {
+  font-weight: 700;
+}
+
+.pnl-macro-grid {
+  margin-top: .5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .5rem;
+}
+
+.pnl-macro-box {
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 12px;
+  padding: .5rem .6rem;
+  background: rgba(0,0,0,.02);
+}
+
+.pnl-macro-label {
+  font-size: .75rem;
+  color: var(--bs-secondary-color);
+}
+
+.pnl-macro-value {
+  margin-top: .1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#pnlDetailBody table {
+  font-size: .9rem;
+}
+
+#pnlDetailBody .pnl-detail-note {
+  margin-top: .5rem;
+  color: var(--bs-secondary-color);
+  font-size: .8rem;
+}

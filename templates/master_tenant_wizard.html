@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Master - Wizard tenant{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 1180px;">
+  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+    <div>
+      <h1 class="h4 mb-1">Wizard nuovo tenant</h1>
+      <div class="text-muted small">Percorso guidato per creare e rendere operativo un tenant.</div>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('master_tenants') }}">Dashboard tenant</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white fw-semibold">Seleziona tenant</div>
+        <div class="card-body">
+          <form method="get" class="row g-2">
+            <div class="col-12">
+              <select class="form-select" name="tenant_key">
+                <option value="">Nuovo tenant</option>
+                {% for t in tenants or [] %}
+                  <option value="{{ t.tenant_key }}" {% if selected_tenant_key == t.tenant_key %}selected{% endif %}>
+                    {{ t.display_name }} - {{ t.tenant_key }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-outline-primary w-100">Apri checklist</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold">Crea tenant</div>
+        <div class="card-body">
+          <form method="post" class="row g-3">
+            <input type="hidden" name="action" value="create_tenant">
+            <div class="col-md-5">
+              <label class="form-label">Chiave tecnica</label>
+              <input class="form-control" name="tenant_key" placeholder="es. demo" required>
+            </div>
+            <div class="col-md-7">
+              <label class="form-label">Nome visibile</label>
+              <input class="form-control" name="display_name" placeholder="Demo StoreHub" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Database SQL</label>
+              <input class="form-control" name="database_name" placeholder="APP_STOREHUB_DEMO">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Limite utenti</label>
+              <input class="form-control" type="number" min="0" name="max_users">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Limite store</label>
+              <input class="form-control" type="number" min="0" name="max_stores">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Storage</label>
+              <select class="form-select" name="storage_type">
+                <option value="local_vm">Cartella VM</option>
+                <option value="sharepoint">SharePoint</option>
+                <option value="supabase_storage">Supabase Storage</option>
+                <option value="s3">S3 compatibile</option>
+                <option value="azure_blob">Azure Blob</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Percorso storage</label>
+              <input class="form-control" name="storage_base_path" placeholder="C:\StoreHubData\tenants\demo">
+            </div>
+            <div class="col-12">
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="wizTenantAdmin" name="tenant_admin_enabled" value="1" checked>
+                    <label class="form-check-label" for="wizTenantAdmin">Admin tenant</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="wizMasterAdmin" name="master_can_admin" value="1">
+                    <label class="form-check-label" for="wizMasterAdmin">Master fa admin</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="wizScheduling" name="scheduling_enabled" value="1">
+                    <label class="form-check-label" for="wizScheduling">Scheduling</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="wizAi" name="ai_enabled" value="1">
+                    <label class="form-check-label" for="wizAi">Support AI</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="wizMultilanguage" name="multilanguage_enabled" value="1">
+                    <label class="form-check-label" for="wizMultilanguage">Multi lingua</label>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small mb-1">Lingue abilitate</label>
+                  <div class="d-flex flex-wrap gap-3 border rounded p-2 bg-white">
+                    {% for lang in all_ui_languages or [] %}
+                      {% set code = lang.code %}
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="wizLang{{ code }}" name="enabled_language_codes" value="{{ code }}" {% if code == 'it' %}checked disabled{% endif %}>
+                        <label class="form-check-label" for="wizLang{{ code }}">{{ lang.label }}</label>
+                        {% if code == 'it' %}
+                          <input type="hidden" name="enabled_language_codes" value="it">
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 border rounded p-3 bg-light" id="wizFirstAdminBox">
+              <div class="fw-semibold mb-2">Primo admin tenant</div>
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <input class="form-control" type="email" name="first_admin_email" placeholder="email">
+                </div>
+                <div class="col-md-4">
+                  <input class="form-control" name="first_admin_name" placeholder="nome">
+                </div>
+                <div class="col-md-4">
+                  <input class="form-control" type="password" name="first_admin_password" placeholder="password">
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary w-100">Crea e apri checklist</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span class="fw-semibold">Checklist operativa</span>
+          {% if tenant %}
+            <span class="badge text-bg-light border">{{ tenant.display_name }} - {{ tenant.tenant_key }}</span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          {% if not tenant %}
+            <div class="text-muted">Crea un tenant o selezionane uno per vedere la checklist.</div>
+          {% else %}
+            {% set check_map = {} %}
+            {% if status %}
+              {% for c in status.checks or [] %}
+                {% set _ = check_map.update({c.key: c}) %}
+              {% endfor %}
+            {% endif %}
+            {% set steps = [
+              ('identity', 'Identita tenant', 'Database, storage, limiti, admin e AI.', 'master_tenants', 'identity', true),
+              ('schema', 'Schema base', 'Inizializza le tabelle del database tenant.', 'master_tenants', 'status', (check_map.get('schema') and check_map.get('schema').ok)),
+              ('admin', 'Primo admin', 'Associa un admin tenant oppure abilita Master fa admin.', 'master_tenants', 'users', (check_map.get('admin') and check_map.get('admin').ok)),
+              ('stores', 'Store', 'Crea o associa almeno uno store attivo.', 'master_tenants', 'stores', (check_map.get('stores') and check_map.get('stores').ok)),
+              ('default_price_list', 'Listino default', 'Verifica Listino DOS/default e assegnazioni.', 'warehouse.listini_anagrafica', '', (check_map.get('default_price_list') and check_map.get('default_price_list').ok)),
+              ('modules', 'Moduli', 'Accendi solo i moduli previsti per il tenant.', 'master_tenants', 'modules', true),
+              ('storage_rules', 'Storage categorie', 'Controlla le categorie storage base.', 'master_tenants', 'storage', (check_map.get('storage_rules') and check_map.get('storage_rules').ok)),
+              ('fields', 'Campi store', 'Personalizza i campi anagrafici visibili.', 'master_tenants', 'fields', true)
+            ] %}
+            <div class="vstack gap-2">
+              {% for key, title, text, endpoint, section, ok in steps %}
+                <div class="border rounded p-3 d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                  <div>
+                    <div class="fw-semibold">{{ loop.index }}. {{ title }}</div>
+                    <div class="text-muted small">{{ text }}</div>
+                    {% if check_map.get(key) and check_map.get(key).detail %}
+                      <div class="small mt-1">{{ check_map.get(key).detail }}</div>
+                    {% endif %}
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    {% if ok %}
+                      <span class="badge text-bg-success">OK</span>
+                    {% else %}
+                      <span class="badge text-bg-warning">Da completare</span>
+                    {% endif %}
+                    {% if endpoint == 'master_tenants' %}
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for(endpoint, tenant_key=selected_tenant_key, section=section) }}">Apri</a>
+                    {% else %}
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for(endpoint) }}">Apri</a>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const adminToggle = document.getElementById('wizTenantAdmin');
+  const adminBox = document.getElementById('wizFirstAdminBox');
+  function sync(){
+    if(!adminToggle || !adminBox) return;
+    adminBox.hidden = !adminToggle.checked;
+  }
+  if(adminToggle){
+    adminToggle.addEventListener('change', sync);
+    sync();
+  }
+})();
+</script>
+{% endblock %}

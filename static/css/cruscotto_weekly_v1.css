@@ -1,0 +1,235 @@
+/* Cruscotto - Analisi Settimanale (v1)
+   Layout a sezioni, con tabella e grafici ordinati.
+*/
+
+.cruscotto-weekly {
+  --cr-card-bg: #ffffff;
+  --cr-border: rgba(0, 0, 0, 0.08);
+  --cr-muted: rgba(0, 0, 0, 0.55);
+  --cr-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.cr-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.cr-week-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cr-week-picker .form-select {
+  min-width: 140px;
+}
+
+.cr-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.cr-subtitle {
+  font-size: 0.875rem;
+  color: var(--cr-muted);
+}
+
+.cr-sep {
+  padding: 0 0.4rem;
+  color: var(--cr-muted);
+}
+
+.cr-section {
+  margin-top: 18px;
+}
+
+.cr-section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.cr-section__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.cr-card {
+  background: var(--cr-card-bg);
+  border: 1px solid var(--cr-border);
+  border-radius: 14px;
+  box-shadow: var(--cr-shadow);
+  overflow: hidden;
+}
+
+.cr-card__head {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--cr-border);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.cr-card__body {
+  padding: 0.85rem 0.9rem;
+}
+
+/* KPI */
+.cr-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1199.98px) {
+  .cr-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .cr-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 479.98px) {
+  .cr-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cr-kpi {
+  height: 100%;
+  padding: 0.8rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid var(--cr-border);
+  box-shadow: var(--cr-shadow);
+  background: var(--cr-card-bg);
+}
+
+.cr-kpi__label {
+  font-size: 0.78rem;
+  color: var(--cr-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cr-kpi__value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.cr-kpi__sub {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--cr-muted);
+}
+
+.cr-badge {
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--cr-border);
+  background: rgba(0, 0, 0, 0.02);
+  white-space: nowrap;
+}
+
+/* Table */
+.weekly-table-wrap {
+  border-radius: 14px;
+}
+
+.weekly-table {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.weekly-table th,
+.weekly-table td {
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
+.weekly-table thead th {
+  background: #f8f9fa;
+  vertical-align: bottom;
+}
+
+.weekly-table .sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #ffffff;
+}
+
+.weekly-table thead .sticky-col {
+  z-index: 5;
+  background: #f8f9fa;
+}
+
+.weekly-table tr.weekly-total-row th,
+.weekly-table tr.weekly-total-row td {
+  background: #eef2f5;
+  font-weight: 800;
+}
+
+.weekly-table tr:nth-child(even) td {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.num {
+  text-align: right;
+}
+
+.pct-pos {
+  color: #0f6b2f;
+  font-weight: 700;
+}
+
+.pct-neg {
+  color: #b02a37;
+  font-weight: 700;
+}
+
+.pct-zero {
+  color: rgba(0, 0, 0, 0.55);
+  font-weight: 700;
+}
+
+.muted {
+  color: var(--cr-muted);
+}
+
+/* Charts */
+.chart-box {
+  height: 260px;
+}
+
+.chart-box canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 991.98px) {
+  .cr-header {
+    align-items: stretch;
+  }
+
+  .cr-week-picker .form-select {
+    width: 100%;
+    min-width: 0;
+  }
+}

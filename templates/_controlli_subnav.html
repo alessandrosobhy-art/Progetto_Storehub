@@ -1,0 +1,12 @@
+<div class="mb-2">
+  <ul class="nav nav-pills">
+    <li class="nav-item">
+      <a class="nav-link{% if request.endpoint == 'controlli.pnl' %} active{% endif %}"
+         href="{{ url_for('controlli.pnl') }}">P&amp;L</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link{% if request.endpoint == 'controlli.andamento' %} active{% endif %}"
+         href="{{ url_for('controlli.andamento') }}">Andamento</a>
+    </li>
+  </ul>
+</div>

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tr('warehouse', 'search.title', 'Ricerca Magazzino') }}{% endblock %}
+
+{% block content %}
+  {% include "_warehouse_toolbar.html" %}
+
+  <div class="container py-4">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">{{ tr('warehouse', 'search.heading', 'Ricerca movimentazioni') }}</h1>
+        {% if store_code %}
+          <div class="text-muted small">{{ tr('warehouse', 'common.store', 'Store') }}: {{ store_name or store_code }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <form method="get" action="{{ url_for('warehouse.ricerca') }}" class="row g-3 align-items-end" id="warehouseSearchForm">
+          <div class="col-md-3">
+            <label class="form-label">{{ tr('warehouse', 'search.from', 'Da') }}</label>
+            <input type="date" class="form-control" name="start" id="start" value="{{ start }}" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ tr('warehouse', 'search.to', 'A') }}</label>
+            <input type="date" class="form-control" name="end" id="end" value="{{ end }}" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ tr('warehouse', 'search.movement_type', 'Tipo movimentazione') }}</label>
+            <select class="form-select" name="kind" required>
+              <option value="ALL" {{ 'selected' if (kind|upper) in ['ALL', 'TUTTO', ''] else '' }}>{{ tr('warehouse', 'search.all', 'Tutte') }}</option>
+              <option value="DDT" {{ 'selected' if (kind|upper) == 'DDT' else '' }}>DDT</option>
+              <option value="INV" {{ 'selected' if (kind|upper) == 'INV' else '' }}>{{ tr('warehouse', 'search.inventory', 'Inventario') }}</option>
+              <option value="WASTE CRUDO" {{ 'selected' if (kind|upper) == 'WASTE CRUDO' else '' }}>{{ tr('warehouse', 'search.raw_waste', 'Waste crudo') }}</option>
+              <option value="TXIN" {{ 'selected' if (kind|upper) == 'TXIN' else '' }}>{{ tr('warehouse', 'search.transfer_in', 'Trasferimento IN') }}</option>
+              <option value="TXOUT" {{ 'selected' if (kind|upper) == 'TXOUT' else '' }}>{{ tr('warehouse', 'search.transfer_out', 'Trasferimento OUT') }}</option>
+            </select>
+          </div>
+          <div class="col-md-2 d-grid">
+            <button type="submit" class="btn btn-primary">{{ tr('warehouse', 'search.search', 'Cerca') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        {% if results and results|length > 0 %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>{{ tr('warehouse', 'search.type', 'Tipo') }}</th>
+                  <th>{{ tr('warehouse', 'search.date', 'Data') }}</th>
+                  <th>{{ tr('warehouse', 'search.supplier', 'Fornitore') }}</th>
+                  <th class="text-nowrap">{{ tr('warehouse', 'search.details', 'Dettagli') }}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in results %}
+                  {% set k = (r.kind or r.get('kind')) %}
+                  {% set dt = (r.date or r.get('date')) %}
+                  {% set sup = (r.supplier_label or r.get('supplier_label') or r.supplier or r.get('supplier')) %}
+                  <tr>
+                    <td class="fw-semibold">{{ k }}</td>
+                    <td class="text-nowrap">{{ dt }}</td>
+                    <td>{{ sup }}</td>
+                    <td class="text-muted small">
+                      {% if k == 'DDT' %}
+                        doc: {{ r.data_doc or r.get('data_doc') }}
+                      {% else %}
+                        {% if (r.site2 or r.get('site2')) %}SITE2: {{ r.site2 or r.get('site2') }}{% endif %}
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      {% if k == 'DDT' %}
+                        <a class="btn btn-sm btn-outline-primary"
+                           href="{{ url_for('warehouse.delivery_edit', supplier_code=(r.supplier_code or r.get('supplier_code') or r.supplier or r.get('supplier')), data_doc=(r.data_doc or r.get('data_doc')), data_rif=(r.data_rif or r.get('data_rif')), autoload=1) }}">
+                          {{ tr('warehouse', 'search.open', 'Apri') }}
+                        </a>
+                      {% else %}
+                        <a class="btn btn-sm btn-outline-primary"
+                           href="{{ url_for('warehouse.inventory_edit', supplier_name=(r.supplier or r.get('supplier')), mov_type=(r.mov_type or r.get('mov_type') or k), data_mov=(r.data_mov or r.get('data_mov') or dt), site2=(r.site2 or r.get('site2')), autoload=1) }}">
+                          {{ tr('warehouse', 'search.open', 'Apri') }}
+                        </a>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-muted">{{ tr('warehouse', 'search.empty', 'Nessun risultato.') }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    const form = document.getElementById('warehouseSearchForm');
+    if (!form) return;
+    const invalidRange = {{ tr('warehouse', 'search.invalid_range', 'Intervallo non valido: la data di fine e precedente alla data di inizio.')|tojson }};
+    const rangeTooLarge = {{ tr('warehouse', 'search.range_too_large', 'Intervallo troppo ampio: la ricerca e limitata a massimo 1 mese.')|tojson }};
+
+    function parseISO(d) {
+      if (!d) return null;
+      const parts = d.split('-');
+      if (parts.length !== 3) return null;
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const dd = parseInt(parts[2], 10);
+      const dt = new Date(y, m, dd);
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    form.addEventListener('submit', function(ev) {
+      const s = (document.getElementById('start') || {}).value || '';
+      const e = (document.getElementById('end') || {}).value || '';
+      if (!s || !e) return;
+
+      const sd = parseISO(s);
+      const ed = parseISO(e);
+      if (!sd || !ed) return;
+
+      if (ed < sd) {
+        alert(invalidRange);
+        ev.preventDefault();
+        return;
+      }
+
+      const diffDays = Math.floor((ed - sd) / (1000 * 60 * 60 * 24));
+      if (diffDays > 31) {
+        alert(rangeTooLarge);
+        ev.preventDefault();
+      }
+    });
+  })();
+  </script>
+{% endblock %}

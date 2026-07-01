@@ -1,0 +1,128 @@
+
+.admin-listini-table-wrap {
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 12px;
+  overflow: auto;
+  max-height: 70vh;
+  background: #fff;
+}
+
+.admin-listini-table {
+  width: 100%;
+  min-width: 980px;
+}
+
+.admin-listini-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8f9fa;
+  font-size: 12px;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.admin-listini-row-idx {
+  width: 44px;
+  text-align: right;
+  color: rgba(0,0,0,.55);
+  background: #f8f9fa;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+}
+
+.admin-listini-table tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #fff;
+}
+
+.admin-listini-input {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,.10);
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.admin-listini-input:focus {
+  outline: none;
+  border-color: rgba(13,110,253,.35);
+  box-shadow: 0 0 0 .15rem rgba(13,110,253,.12);
+}
+
+.admin-listini-key {
+  background: #fffdf0;
+}
+
+.admin-listini-log {
+  background: #0b0f16;
+  color: #e7eefc;
+  border-radius: 10px;
+  padding: 10px;
+  max-height: 240px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+
+/* Nuovo prodotto */
+#newProdCard .form-label {
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.admin-listini-newprod-input {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,.10);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.admin-listini-newprod-input:focus {
+  outline: none;
+  border-color: rgba(13,110,253,.35);
+  box-shadow: 0 0 0 .15rem rgba(13,110,253,.12);
+}
+
+
+/* Selezione righe */
+.admin-listini-row-sel {
+  width: 38px;
+  text-align: center;
+  background: #f8f9fa;
+  position: sticky;
+  left: 0;
+  z-index: 4;
+}
+
+.admin-listini-table tbody td.admin-listini-row-sel {
+  background: #fff;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.admin-listini-table tbody td.admin-listini-row-idx {
+  position: sticky;
+  left: 38px;
+  z-index: 1;
+  background: #fff;
+}
+
+/* Disattiva sticky generico sul primo td (ora gestito da classi) */
+.admin-listini-table tbody td:first-child {
+  position: static;
+  left: auto;
+  z-index: auto;
+  background: inherit;
+}
+
+.admin-listini-row-sel .form-check-input {
+  margin: 0;
+}

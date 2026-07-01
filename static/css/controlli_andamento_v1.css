@@ -1,0 +1,43 @@
+/* Andamento (Controlli di Gestione) */
+
+.trend-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 992px) {
+  .trend-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.trend-card .card-header {
+  padding: .5rem .75rem;
+}
+
+.trend-card .card-body {
+  padding: .5rem .75rem;
+}
+
+.trend-canvas {
+  width: 100% !important;
+  height: 220px !important;
+}
+
+@media (min-width: 992px) {
+  .trend-canvas {
+    height: 200px !important;
+  }
+}
+
+.trend-legend-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.trend-legend-bar .badge {
+  font-weight: 500;
+}

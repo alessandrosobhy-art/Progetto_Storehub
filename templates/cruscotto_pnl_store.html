@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}P&amp;L store{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/controlli_pnl_v1.css') }}?v=1.1.7">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/controlli_kpi_v1.css') }}?v=1.0.4">
+  <style>
+    .pnl-store-filter-card { border-radius: .5rem; }
+    .pnl-store-muted { color: var(--bs-secondary-color); }
+    .pnl-store-kpi-wrap { margin-bottom: 1rem; }
+    .pnl-store-empty { min-height: 7rem; display: grid; place-items: center; }
+  </style>
+{% endblock %}
+
+{% block content %}
+{% include "_cruscotto_toolbar.html" %}
+
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <h2 class="h5 mb-0">P&amp;L store</h2>
+      <div class="small pnl-store-muted">Periodo: <span id="pnlStorePeriodLabel">-</span></div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm pnl-store-filter-card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-lg-4">
+          <label class="form-label">Store</label>
+          <div class="input-group">
+            <input class="form-control" id="pnlStoreStoresLabel" value="Caricamento..." readonly>
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#pnlStoreStoresModal">Seleziona</button>
+          </div>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Anno</label>
+          <select class="form-select" id="pnlStoreYear"></select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Dal mese</label>
+          <select class="form-select" id="pnlStoreMonthFrom"></select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Al mese</label>
+          <select class="form-select" id="pnlStoreMonthTo"></select>
+        </div>
+        <div class="col-12 col-md-2">
+          <button class="btn btn-primary w-100" id="pnlStoreApply">Applica</button>
+        </div>
+      </div>
+      <div class="small pnl-store-muted mt-2" id="pnlStoreHint"></div>
+      <div class="alert alert-danger d-none mt-2 mb-0" id="pnlStoreError"></div>
+    </div>
+  </div>
+
+  <div class="pnl-store-kpi-wrap">
+    <div class="row g-3" id="pnlStoreKpiCards"></div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="pnl-table-wrap pnl-hide-prev d-none d-md-block" id="pnlTableWrap">
+        <table class="table table-sm table-hover align-middle mb-0" id="pnlTable">
+          <thead>
+            <tr>
+              <th class="pnl-col-voice">Voce</th>
+              <th class="text-end pnl-col-group-budget">Budget</th>
+              <th class="text-end pnl-col-group-budget">Inc.%</th>
+              <th class="text-end pnl-col-group-actual">Actual</th>
+              <th class="text-end pnl-col-group-actual">Inc.%</th>
+              <th class="text-end pnl-col-group-delta">Delta EUR</th>
+              <th class="text-end pnl-col-group-delta">Delta %</th>
+              <th class="text-end pnl-col-prev pnl-col-group-ly">A.P.</th>
+              <th class="text-end pnl-col-prev pnl-col-group-ly">Inc.%</th>
+              <th class="text-end pnl-col-prev pnl-col-group-delta-ly">Delta EUR</th>
+              <th class="text-end pnl-col-prev pnl-col-group-delta-ly">Delta %</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="11" class="text-muted">Seleziona un periodo visibile e premi Applica.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="d-md-none" id="pnlStoreMobileList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="pnlStoreStoresModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Seleziona store</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" class="form-control mb-2" id="pnlStoreStoresSearch" placeholder="Cerca store">
+        <div class="d-flex gap-2 mb-2">
+          <button class="btn btn-sm btn-outline-secondary" type="button" id="pnlStoreStoresAll">Tutti</button>
+          <button class="btn btn-sm btn-outline-secondary" type="button" id="pnlStoreStoresNone">Nessuno</button>
+        </div>
+        <div id="pnlStoreStoresList" class="kpi-stores-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" type="button" id="pnlStoreStoresSave" data-bs-dismiss="modal">Conferma</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.__PnlStoreCfg = {
+  apiUrl: "{{ url_for('cruscotto.api_pnl_store') }}",
+  optionsUrl: "{{ url_for('cruscotto.api_pnl_store_options') }}",
+  defaultYear: {{ default_year|int }},
+  defaultMonth: {{ default_month|int }}
+};
+</script>
+<script src="{{ url_for('static', filename='js/cruscotto_pnl_store_v1.js') }}?v=1.0.0"></script>
+{% endblock %}

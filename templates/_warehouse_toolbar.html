@@ -1,0 +1,63 @@
+<div class="app-sectionbar">
+  <div class="container app-sectionbar__inner">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="app-sectionbar__label">{{ tr('warehouse', 'toolbar.title', 'Magazzino') }}</span>
+
+      {% set is_delivery_new = request.path.startswith('/magazzino/delivery/nuovo') %}
+      {% set is_spesa_new = request.path.startswith('/magazzino/spesa') %}
+      {% set is_delivery_edit = request.path.startswith('/magazzino/delivery/modifica') %}
+      {% set is_inventory_new = request.path.startswith('/magazzino/inventario/nuovo') %}
+      {% set is_inventory_edit = request.path.startswith('/magazzino/inventario/modifica') %}
+      {% set is_search = request.path.startswith('/magazzino/ricerca') %}
+      {% set is_analysis = request.path.startswith('/magazzino/analisi') %}
+      {% set is_consumi = request.path.startswith('/magazzino/consumi') %}
+      {% set is_ordini = request.path.startswith('/magazzino/ordini') %}
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_analysis else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.analysis') }}">
+        {{ tr('warehouse', 'toolbar.analysis', 'Analisi') }}
+      </a>
+
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_consumi else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.consumi') }}">
+        {{ tr('warehouse', 'toolbar.consumption', 'Consumi') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_delivery_new else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.delivery_new') }}">
+        {{ tr('warehouse', 'toolbar.delivery_entry', 'Inserimento DDT') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_spesa_new else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.spesa_new') }}">
+        {{ tr('warehouse', 'toolbar.expense', 'Spesa') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_delivery_edit else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.delivery_edit') }}">
+        {{ tr('warehouse', 'toolbar.delivery_edit', 'Modifica DDT') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_inventory_new else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.inventory_new') }}">
+        {{ tr('warehouse', 'toolbar.inventory_data', 'Dati Inventario') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_inventory_edit else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.inventory_edit') }}">
+        {{ tr('warehouse', 'toolbar.inventory_edit', 'Modifica Dati Inventario') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_search else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.ricerca') }}">
+        {{ tr('warehouse', 'toolbar.search', 'Ricerca') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_ordini else 'btn-outline-primary' }}"
+         href="{{ url_for('warehouse.ordini') }}">
+        {{ tr('warehouse', 'toolbar.orders', 'Ordini') }}
+      </a>
+    </div>
+  </div>
+</div>

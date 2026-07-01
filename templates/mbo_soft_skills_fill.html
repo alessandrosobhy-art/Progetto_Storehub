@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MBO - Compila Soft skills</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body {
+    min-height: 100vh;
+    background: #f6f8fb;
+  }
+  .mbo-survey-page { max-width: 1180px; }
+  .mbo-survey-band {
+    background: #fff;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+    padding: 1rem;
+  }
+  .mbo-survey-section {
+    border-top: 1px solid var(--bs-border-color);
+    padding-top: 1rem;
+    margin-top: 1rem;
+  }
+  .mbo-survey-grid {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+  }
+  .mbo-survey-question {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .75rem;
+  }
+  .mbo-survey-score {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(58px, 1fr));
+    gap: .5rem;
+  }
+  .mbo-survey-score input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .mbo-survey-score label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    font-weight: 800;
+    cursor: pointer;
+    background: var(--bs-tertiary-bg);
+  }
+  .mbo-survey-score label:nth-of-type(1) { border-color: rgba(220, 53, 69, .45); color: #b02a37; }
+  .mbo-survey-score label:nth-of-type(2) { border-color: rgba(253, 126, 20, .55); color: #a84f00; }
+  .mbo-survey-score label:nth-of-type(3) { border-color: rgba(255, 193, 7, .7); color: #8a5a00; }
+  .mbo-survey-score label:nth-of-type(4) { border-color: rgba(25, 135, 84, .55); color: var(--bs-success); }
+  .mbo-survey-score input:checked + label {
+    color: #fff;
+    box-shadow: 0 0 0 .18rem rgba(13, 110, 253, .14);
+  }
+  .mbo-survey-score input[value="1"]:checked + label { background: var(--bs-danger); border-color: var(--bs-danger); }
+  .mbo-survey-score input[value="2"]:checked + label { background: #fd7e14; border-color: #fd7e14; }
+  .mbo-survey-score input[value="3"]:checked + label { background: #ffc107; border-color: #ffc107; color: #212529; }
+  .mbo-survey-score input[value="4"]:checked + label { background: var(--bs-success); border-color: var(--bs-success); }
+  .mbo-survey-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .mbo-extra-store {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .5rem;
+    align-items: center;
+    margin-top: .5rem;
+  }
+  .mbo-extra-store button {
+    min-width: 42px;
+  }
+  .mbo-multistore-help {
+    display: none;
+  }
+  .mbo-multistore-help.is-visible {
+    display: block;
+  }
+  @media (max-width: 575.98px) {
+    .mbo-survey-score { grid-template-columns: repeat(4, 1fr); }
+    .mbo-survey-top { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="container-fluid mbo-survey-page py-4">
+  <section class="mbo-survey-band mb-3">
+    <div class="mbo-survey-top">
+      <div>
+        <h1 class="mb-1">Soft skills</h1>
+        <div class="text-muted">{{ period.period_label }} | {{ period.start_year_month }} / {{ period.end_year_month }}</div>
+      </div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('logout') }}">Logout</a>
+    </div>
+  </section>
+
+  {% set flashes = get_flashed_messages(with_categories=true) %}
+  {% if flashes %}
+    {% for category, message in flashes %}
+    <div class="alert alert-{{ 'danger' if category == 'error' else category }} mb-3" role="alert">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" class="mbo-survey-band">
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <label class="form-label">Nome e cognome</label>
+        <input class="form-control" name="full_name" value="{{ form_values.get('full_name', '') }}" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Ruolo</label>
+        <select class="form-select" name="role" id="softRole" required>
+          <option value="">Seleziona</option>
+          {% for role in roles %}
+          <option value="{{ role }}" {% if form_values.get('role') == role %}selected{% endif %}>{{ role }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Store</label>
+        <select class="form-select" name="store_code" required>
+          <option value="">Seleziona</option>
+          {% for store in stores %}
+          <option value="{{ store.store_code }}" {% if form_values.get('store_code') == store.store_code %}selected{% endif %}>{{ store.store_name }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-text mbo-multistore-help" id="multiStoreHelp">Per Multistore puoi aggiungere altri store: appena ne selezioni uno compare il successivo.</div>
+        <div id="extraStores"></div>
+      </div>
+    </div>
+
+    <div class="mbo-survey-section">
+      <h2 class="h5">Controlli di gestione - COGS</h2>
+      <div class="mbo-survey-grid">
+        {% for q in questions if q.group == 'cogs' %}
+        <div class="mbo-survey-question">
+          <div class="form-label fw-semibold">{{ q.text }}</div>
+          <div class="mbo-survey-score">
+            {% for n in [1,2,3,4] %}
+            <input type="radio" id="{{ q.id }}_{{ n }}" name="{{ q.id }}" value="{{ n }}" {% if form_values.get(q.id)|int == n %}checked{% endif %} required>
+            <label for="{{ q.id }}_{{ n }}">{{ n }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="mbo-survey-section">
+      <h2 class="h5">Controlli di gestione - Labour cost</h2>
+      <div class="mbo-survey-grid">
+        {% for q in questions if q.group == 'labour' %}
+        <div class="mbo-survey-question">
+          <div class="form-label fw-semibold">{{ q.text }}</div>
+          <div class="mbo-survey-score">
+            {% for n in [1,2,3,4] %}
+            <input type="radio" id="{{ q.id }}_{{ n }}" name="{{ q.id }}" value="{{ n }}" {% if form_values.get(q.id)|int == n %}checked{% endif %} required>
+            <label for="{{ q.id }}_{{ n }}">{{ n }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="mbo-survey-section">
+      <h2 class="h5">Business</h2>
+      <div class="mbo-survey-grid">
+        {% for q in questions if q.group == 'business' %}
+        <div class="mbo-survey-question">
+          <div class="form-label fw-semibold">{{ q.text }}</div>
+          <div class="mbo-survey-score">
+            {% for n in [1,2,3,4] %}
+            <input type="radio" id="{{ q.id }}_{{ n }}" name="{{ q.id }}" value="{{ n }}" {% if form_values.get(q.id)|int == n %}checked{% endif %} required>
+            <label for="{{ q.id }}_{{ n }}">{{ n }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="mbo-survey-section">
+      <h2 class="h5">People</h2>
+      <div class="mbo-survey-grid">
+        {% for q in questions if q.group == 'people' %}
+        <div class="mbo-survey-question">
+          <div class="form-label fw-semibold">{{ q.text }}</div>
+          <div class="mbo-survey-score">
+            {% for n in [1,2,3,4] %}
+            <input type="radio" id="{{ q.id }}_{{ n }}" name="{{ q.id }}" value="{{ n }}" {% if form_values.get(q.id)|int == n %}checked{% endif %} required>
+            <label for="{{ q.id }}_{{ n }}">{{ n }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end mt-4">
+      <button class="btn btn-primary btn-lg">Invia compilazione</button>
+    </div>
+  </form>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+  const roleEl = document.getElementById('softRole');
+  const firstStoreEl = document.querySelector('select[name="store_code"]');
+  const extraWrap = document.getElementById('extraStores');
+  const helpEl = document.getElementById('multiStoreHelp');
+  const stores = {{ stores|tojson }};
+  const initialExtraStores = {{ (selected_extra_store_codes or [])|tojson }};
+  if (!roleEl || !firstStoreEl || !extraWrap) return;
+
+  function isMulti() {
+    return String(roleEl.value || '').trim().toUpperCase() === 'MULTISTORE';
+  }
+
+  function selectedCodes() {
+    const out = new Set();
+    if (firstStoreEl.value) out.add(firstStoreEl.value);
+    extraWrap.querySelectorAll('select[name="store_codes"]').forEach(function (sel) {
+      if (sel.value) out.add(sel.value);
+    });
+    return out;
+  }
+
+  function makeSelect(value) {
+    const row = document.createElement('div');
+    row.className = 'mbo-extra-store';
+    const sel = document.createElement('select');
+    sel.className = 'form-select';
+    sel.name = 'store_codes';
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = 'Altro store...';
+    sel.appendChild(opt0);
+    (stores || []).forEach(function (store) {
+      const opt = document.createElement('option');
+      opt.value = String(store.store_code || '');
+      opt.textContent = String(store.store_name || store.store_code || '');
+      if (value && opt.value === value) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-outline-secondary';
+    btn.textContent = 'x';
+    btn.setAttribute('aria-label', 'Rimuovi store');
+    btn.addEventListener('click', function () {
+      row.remove();
+      normalizeRows();
+    });
+    sel.addEventListener('change', normalizeRows);
+    row.appendChild(sel);
+    row.appendChild(btn);
+    return row;
+  }
+
+  function normalizeRows() {
+    const multi = isMulti();
+    if (helpEl) helpEl.classList.toggle('is-visible', multi);
+    if (!multi) {
+      extraWrap.innerHTML = '';
+      return;
+    }
+
+    const rows = Array.from(extraWrap.querySelectorAll('.mbo-extra-store'));
+    const last = rows[rows.length - 1];
+    const lastSel = last ? last.querySelector('select[name="store_codes"]') : null;
+    if (!lastSel || lastSel.value) {
+      extraWrap.appendChild(makeSelect(''));
+    }
+
+    const allRows = Array.from(extraWrap.querySelectorAll('.mbo-extra-store'));
+    allRows.forEach(function (row, idx) {
+      const sel = row.querySelector('select[name="store_codes"]');
+      if (!sel) return;
+      if (!sel.value && idx < allRows.length - 1) row.remove();
+    });
+
+    const picked = selectedCodes();
+    extraWrap.querySelectorAll('select[name="store_codes"]').forEach(function (sel) {
+      Array.from(sel.options).forEach(function (opt) {
+        if (!opt.value || opt.value === sel.value) {
+          opt.disabled = false;
+        } else {
+          opt.disabled = picked.has(opt.value);
+        }
+      });
+    });
+  }
+
+  roleEl.addEventListener('change', normalizeRows);
+  firstStoreEl.addEventListener('change', normalizeRows);
+  if (isMulti()) {
+    (initialExtraStores || []).forEach(function (code) {
+      if (code) extraWrap.appendChild(makeSelect(code));
+    });
+  }
+  normalizeRows();
+})();
+</script>
+</body>
+</html>

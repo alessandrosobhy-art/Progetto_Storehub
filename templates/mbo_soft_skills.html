@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+{% block title %}MBO - Soft skills{% endblock %}
+{% block head_extra %}
+<style>
+  .mbo-soft-page { max-width: 1680px; }
+  .mbo-soft-band {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+    padding: 1rem;
+  }
+  .mbo-soft-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
+    gap: .75rem;
+  }
+  .mbo-soft-kpi {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .625rem .75rem;
+  }
+  .mbo-soft-kpi span { display: block; color: var(--bs-secondary-color); font-size: .8rem; }
+  .mbo-soft-kpi strong { display: block; font-size: 1.35rem; line-height: 1.15; }
+  .mbo-soft-pill {
+    display: inline-flex;
+    border-radius: 999px;
+    padding: .15rem .5rem;
+    font-size: .72rem;
+    font-weight: 700;
+    background: var(--bs-tertiary-bg);
+  }
+  .mbo-soft-pill-active { background: rgba(25, 135, 84, .14); color: var(--bs-success); }
+  .mbo-soft-pill-off { background: rgba(108, 117, 125, .14); color: var(--bs-secondary-color); }
+  .mbo-soft-edit-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+    gap: .75rem;
+  }
+  .mbo-soft-question {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .625rem;
+  }
+  .mbo-soft-calc {
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .75rem;
+  }
+  .mbo-soft-calc summary {
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .mbo-soft-calc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(130px, 1fr));
+    gap: .5rem;
+  }
+  .mbo-soft-calc-box {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .5rem .625rem;
+  }
+  .mbo-soft-calc-box span {
+    display: block;
+    color: var(--bs-secondary-color);
+    font-size: .75rem;
+  }
+  .mbo-soft-calc-box strong {
+    display: block;
+    font-size: 1rem;
+  }
+  .mbo-soft-calc-note {
+    color: var(--bs-secondary-color);
+    font-size: .84rem;
+  }
+  .mbo-soft-calc-table th,
+  .mbo-soft-calc-table td {
+    white-space: nowrap;
+  }
+  @media (max-width: 991.98px) {
+    .mbo-soft-kpis,
+    .mbo-soft-edit-grid,
+    .mbo-soft-calc-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+{% include "_mbo_toolbar.html" %}
+
+{% set ns = namespace(selected_period=none) %}
+{% for p in soft_skills.periods %}
+  {% if p.period_uuid == soft_skills.selected_period_uuid %}
+    {% set ns.selected_period = p %}
+  {% endif %}
+{% endfor %}
+
+<div class="container-fluid mbo-soft-page py-4">
+  <div class="mbo-soft-band d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+      <h1 class="mb-1">Soft skills</h1>
+      <div class="text-muted">Link periodici, compilazioni e punteggio finale pesato 1-4.</div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label mb-1">Periodo</label>
+        <select name="period_uuid" class="form-select">
+          {% for p in soft_skills.periods %}
+          <option value="{{ p.period_uuid }}" {% if p.period_uuid == soft_skills.selected_period_uuid %}selected{% endif %}>
+            {{ p.period_label }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline-primary">Carica</button>
+    </form>
+  </div>
+
+  <div class="mbo-soft-kpis mb-3">
+    <div class="mbo-soft-kpi">
+      <span>Compilazioni</span>
+      <strong>{{ soft_skills.submission_count or 0 }}</strong>
+    </div>
+    <div class="mbo-soft-kpi">
+      <span>Media punteggio</span>
+      <strong>{% if soft_skills.avg_score is not none %}{{ "%.2f"|format(soft_skills.avg_score) }}{% else %}-{% endif %}</strong>
+    </div>
+    <div class="mbo-soft-kpi">
+      <span>Link selezionato</span>
+      {% if ns.selected_period %}
+      <strong class="fs-6">{{ url_for('mbo.soft_skills_fill', token=ns.selected_period.token, _external=True, _scheme='https') }}</strong>
+      {% else %}
+      <strong>-</strong>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-xl-4">
+      <section class="mbo-soft-band mb-3">
+      <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="h5 mb-0">Crea o modifica link</h2>
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('mbo.soft_skills', new=1) }}">Nuovo link</a>
+      </div>
+      <form method="post">
+        <input type="hidden" name="action" value="save_period">
+          <input type="hidden" name="edit_period_uuid" value="{% if ns.selected_period and not new_period_mode %}{{ ns.selected_period.period_uuid }}{% endif %}">
+          <label class="form-label">Nome periodo</label>
+          <input class="form-control mb-2" name="period_label" value="{% if ns.selected_period and not new_period_mode %}{{ ns.selected_period.period_label }}{% endif %}" placeholder="Es. Gennaio - Marzo" required>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Da</label>
+              <input class="form-control" type="month" name="start_year_month" value="{% if ns.selected_period and not new_period_mode %}{{ ns.selected_period.start_year_month }}{% endif %}" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">A</label>
+              <input class="form-control" type="month" name="end_year_month" value="{% if ns.selected_period and not new_period_mode %}{{ ns.selected_period.end_year_month }}{% endif %}" required>
+            </div>
+          </div>
+          <div class="form-check my-3">
+            <input class="form-check-input" type="checkbox" id="periodActive" name="is_active" {% if new_period_mode or not ns.selected_period or ns.selected_period.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="periodActive">Link attivo</label>
+          </div>
+          <button class="btn btn-primary w-100">Salva link</button>
+        </form>
+      </section>
+
+      <section class="mbo-soft-band">
+        <h2 class="h5 mb-3">Periodi</h2>
+        <div class="list-group">
+          {% for p in soft_skills.periods %}
+          <a class="list-group-item list-group-item-action {% if p.period_uuid == soft_skills.selected_period_uuid %}active{% endif %}" href="{{ url_for('mbo.soft_skills', period_uuid=p.period_uuid) }}">
+            <div class="d-flex justify-content-between gap-2">
+              <strong>{{ p.period_label }}</strong>
+              <span class="mbo-soft-pill {% if p.is_active %}mbo-soft-pill-active{% else %}mbo-soft-pill-off{% endif %}">
+                {% if p.is_active %}Attivo{% else %}Inattivo{% endif %}
+              </span>
+            </div>
+            <div class="small">{{ p.start_year_month }} / {{ p.end_year_month }}</div>
+          </a>
+          {% else %}
+          <div class="text-muted">Nessun link creato.</div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+
+    <div class="col-xl-8">
+      {% if edit_submission %}
+      <section class="mbo-soft-band mb-3">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+          <div>
+            <h2 class="h5 mb-1">Modifica compilazione</h2>
+            <div class="text-muted">{{ edit_submission.period_label }}</div>
+          </div>
+          <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('mbo.soft_skills', period_uuid=edit_submission.period_uuid) }}">Chiudi</a>
+        </div>
+        <form method="post">
+          <input type="hidden" name="action" value="save_submission">
+          <input type="hidden" name="submission_uuid" value="{{ edit_submission.submission_uuid }}">
+          <input type="hidden" name="period_uuid" value="{{ edit_submission.period_uuid }}">
+          <div class="row g-2 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">Nome e cognome</label>
+              <input class="form-control" name="full_name" value="{{ edit_submission.full_name }}" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Ruolo</label>
+              <select class="form-select" name="role" required>
+                {% for role in soft_skills.roles %}
+                <option value="{{ role }}" {% if edit_submission.role == role %}selected{% endif %}>{{ role }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Store</label>
+              <select class="form-select" name="store_code" required>
+                {% for store in soft_skills.stores %}
+                <option value="{{ store.store_code }}" {% if edit_submission.store_code == store.store_code %}selected{% endif %}>{{ store.store_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="mbo-soft-edit-grid">
+            {% for q in soft_skills.questions %}
+            <div class="mbo-soft-question">
+              <label class="form-label small fw-semibold">{{ q.text }}</label>
+              <select class="form-select form-select-sm" name="{{ q.id }}" required>
+                {% for n in [1,2,3,4] %}
+                <option value="{{ n }}" {% if edit_submission.answers.get(q.id)|int == n %}selected{% endif %}>{{ n }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endfor %}
+          </div>
+          <button class="btn btn-primary mt-3">Salva compilazione</button>
+        </form>
+      </section>
+      {% endif %}
+
+      <section class="mbo-soft-band">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+          <h2 class="h5 mb-0">Compilazioni</h2>
+          {% if soft_skills.selected_period_uuid %}
+          <form method="post">
+            <input type="hidden" name="action" value="recalculate_submissions">
+            <input type="hidden" name="period_uuid" value="{{ soft_skills.selected_period_uuid }}">
+            <button class="btn btn-sm btn-outline-primary">Ricalcola agganci</button>
+          </form>
+          {% endif %}
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Persona</th>
+                <th>Ruolo</th>
+                <th>Store</th>
+                <th class="text-end">Score</th>
+                <th class="text-end">Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in soft_skills.submissions %}
+              {% set calc = s.computed or {} %}
+              {% set groups = calc.get('groups', {}) %}
+              {% set auto = calc.get('auto_metrics', {}) %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ s.full_name }}</div>
+                  <div class="text-muted small">{{ s.created_at }}</div>
+                </td>
+                <td>{{ s.role }}</td>
+                <td>{{ s.store_name }}</td>
+                <td class="text-end fw-semibold">{% if s.final_score is not none %}{{ "%.2f"|format(s.final_score) }}{% else %}-{% endif %}</td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('mbo.soft_skills', period_uuid=s.period_uuid, edit=s.submission_uuid) }}">Modifica</a>
+                  <form method="post" class="d-inline">
+                    <input type="hidden" name="action" value="delete_submission">
+                    <input type="hidden" name="period_uuid" value="{{ s.period_uuid }}">
+                    <input type="hidden" name="submission_uuid" value="{{ s.submission_uuid }}">
+                    <button class="btn btn-sm btn-outline-danger">Elimina</button>
+                  </form>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="5" class="pt-0">
+                  <details class="mbo-soft-calc">
+                    <summary>Dettaglio calcolo</summary>
+                    <div class="mbo-soft-calc-note mt-2 mb-3">
+                      Finale = Controlli di gestione 40% + Business 30% + People 30%.
+                      COGS e Labour usano 50% risposte manuali e 50% P&amp;L. Nel Business le metriche Google,
+                      Rating totali e P&amp;L Revenues pesano 16,5% ciascuna.
+                    </div>
+                    {% set missing_pnl = [] %}
+                    {% for key in ['cogs', 'labour', 'revenues'] %}
+                      {% if not (auto.get(key, {}).get('points_theoretical') or 0) %}
+                        {% set _ = missing_pnl.append(key) %}
+                      {% endif %}
+                    {% endfor %}
+                    {% if missing_pnl %}
+                    <div class="alert alert-warning py-2 mb-3">
+                      P&amp;L non agganciato o senza punti teorici per: {{ missing_pnl|join(', ') }}.
+                      Usa il ricalcolo dopo aver verificato che per store e periodo esistano dati P&amp;L.
+                    </div>
+                    {% endif %}
+
+                    <div class="mbo-soft-calc-grid mb-3">
+                      <div class="mbo-soft-calc-box">
+                        <span>COGS manuale</span>
+                        <strong>{% if groups.get('cogs_manual') is not none %}{{ "%.2f"|format(groups.get('cogs_manual')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>P&amp;L COGS</span>
+                        <strong>{% if auto.get('cogs', {}).get('score') is not none %}{{ "%.2f"|format(auto.get('cogs', {}).get('score')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>COGS finale</span>
+                        <strong>{% if groups.get('cogs') is not none %}{{ "%.2f"|format(groups.get('cogs')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>Labour manuale</span>
+                        <strong>{% if groups.get('labour_manual') is not none %}{{ "%.2f"|format(groups.get('labour_manual')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>P&amp;L Labour</span>
+                        <strong>{% if auto.get('labour', {}).get('score') is not none %}{{ "%.2f"|format(auto.get('labour', {}).get('score')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>Labour finale</span>
+                        <strong>{% if groups.get('labour') is not none %}{{ "%.2f"|format(groups.get('labour')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>Controlli 40%</span>
+                        <strong>{% if groups.get('controlli') is not none %}{{ "%.2f"|format(groups.get('controlli')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>Business manuale</span>
+                        <strong>{% if groups.get('business_manual') is not none %}{{ "%.2f"|format(groups.get('business_manual')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>P&amp;L Revenues</span>
+                        <strong>{% if auto.get('revenues', {}).get('score') is not none %}{{ "%.2f"|format(auto.get('revenues', {}).get('score')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>Business 30%</span>
+                        <strong>{% if groups.get('business') is not none %}{{ "%.2f"|format(groups.get('business')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>People 30%</span>
+                        <strong>{% if groups.get('people') is not none %}{{ "%.2f"|format(groups.get('people')) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                      <div class="mbo-soft-calc-box">
+                        <span>Score finale</span>
+                        <strong>{% if calc.get('final_score') is not none %}{{ "%.2f"|format(calc.get('final_score')) }}{% elif s.final_score is not none %}{{ "%.2f"|format(s.final_score) }}{% else %}N/D{% endif %}</strong>
+                      </div>
+                    </div>
+
+                    <div class="table-responsive">
+                      <table class="table table-sm mbo-soft-calc-table mb-0">
+                        <thead>
+                          <tr>
+                            <th>Metrica automatica</th>
+                            <th class="text-end">Punti presi</th>
+                            <th class="text-end">Punti teorici</th>
+                            <th class="text-end">%</th>
+                            <th class="text-end">Voto 1-4</th>
+                            <th class="text-end">Mesi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for key, label in [
+                            ('cogs', 'P&L COGS'),
+                            ('labour', 'P&L Labour cost'),
+                            ('revenues', 'P&L Revenues'),
+                            ('google', 'Google'),
+                            ('rating_totali', 'Rating totali Glovo + Deliveroo')
+                          ] %}
+                          {% set m = auto.get(key, {}) %}
+                          <tr>
+                            <td>{{ label }}</td>
+                            <td class="text-end">{{ "%.1f"|format(m.get('points_taken') or 0) }}</td>
+                            <td class="text-end">{{ "%.1f"|format(m.get('points_theoretical') or 0) }}</td>
+                            <td class="text-end">{% if m.get('pct') is not none %}{{ "%.1f"|format(m.get('pct')) }}%{% else %}N/D{% endif %}</td>
+                            <td class="text-end">{% if m.get('score') is not none %}{{ "%.2f"|format(m.get('score')) }}{% else %}N/D{% endif %}</td>
+                            <td class="text-end">{{ (m.get('months') or [])|length }}</td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">Nessuna compilazione per il periodo selezionato.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

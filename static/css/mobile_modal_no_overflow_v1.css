@@ -1,0 +1,70 @@
+/* mobile_modal_no_overflow_v1.css
+   Prevent horizontal overflow / zoom-out effect when Bootstrap modals open on mobile.
+   Also prevents iOS Safari auto-zoom when focusing inputs (requires >=16px font size).
+*/
+@media (max-width: 768px){
+  html, body{
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+  }
+
+  /* Bootstrap adds padding-right to body when modal opens; on mobile this can cause overflow. */
+  body.modal-open{
+    overflow-x: hidden !important;
+    padding-right: 0 !important;
+  }
+
+  .modal{
+    overflow-x: hidden;
+  }
+
+  /* Avoid 100vw-based widths (can misbehave on mobile address bar / keyboard resize) */
+  .modal-dialog{
+    width: auto;
+    max-width: 100%;
+    margin: .5rem;
+  }
+
+  .modal-content{
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .modal-body{
+    overflow-x: hidden;
+  }
+
+  /* Flex children must be allowed to shrink */
+  .modal .row,
+  .modal [class*="col-"],
+  .modal .d-flex,
+  .modal .input-group{
+    min-width: 0 !important;
+  }
+
+  /* Any wide children should wrap instead of forcing layout wider than viewport */
+  .modal-body *{
+    max-width: 100%;
+    box-sizing: border-box;
+    word-break: break-word;
+  }
+
+  .modal-body input,
+  .modal-body select,
+  .modal-body textarea,
+  .modal-body button{
+    max-width: 100%;
+  }
+
+  /* iOS Safari: prevent auto-zoom on focus (looks like the popup “expands”) */
+  .modal-body input,
+  .modal-body select,
+  .modal-body textarea{
+    font-size: 16px !important;
+  }
+
+  /* Avoid accidental nowrap causing overflow */
+  .modal-body .text-nowrap{
+    white-space: normal !important;
+  }
+}

@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% block title %}MBO - Calcoli Deliveroo{% endblock %}
+{% block head_extra %}
+<style>
+  .mbo-deliveroo-page { max-width: 1680px; }
+  .mbo-deliveroo-head,
+  .mbo-deliveroo-panel,
+  .mbo-deliveroo-kpis {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+  }
+  .mbo-deliveroo-head,
+  .mbo-deliveroo-panel { padding: 1rem; }
+  .mbo-deliveroo-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: .75rem;
+    padding: .75rem;
+  }
+  .mbo-deliveroo-kpi {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .625rem .75rem;
+  }
+  .mbo-deliveroo-kpi span {
+    display: block;
+    color: var(--bs-secondary-color);
+    font-size: .8rem;
+  }
+  .mbo-deliveroo-kpi strong {
+    display: block;
+    font-size: 1.35rem;
+    line-height: 1.15;
+  }
+  .mbo-deliveroo-table { min-width: 1680px; }
+  .mbo-deliveroo-table td { vertical-align: top; }
+  .mbo-deliveroo-table th {
+    color: var(--bs-secondary-color);
+    font-size: .75rem;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+  .mbo-deliveroo-total { min-width: 96px; }
+  .mbo-deliveroo-cell { position: relative; }
+  .mbo-deliveroo-cell summary {
+    cursor: pointer;
+    list-style: none;
+  }
+  .mbo-deliveroo-cell summary::-webkit-details-marker { display: none; }
+  .mbo-deliveroo-preview {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    min-width: 112px;
+    min-height: 74px;
+    padding: .45rem .55rem;
+    border: 1px solid var(--bs-border-color);
+    border-left: 4px solid var(--bs-success);
+    border-radius: .5rem;
+    background: var(--bs-body-bg);
+  }
+  .mbo-deliveroo-preview:hover { border-color: rgba(13, 110, 253, .45); }
+  .mbo-deliveroo-preview-manual {
+    border-left-color: #fd7e14;
+    background: rgba(253, 126, 20, .06);
+  }
+  .mbo-deliveroo-preview-empty,
+  .mbo-deliveroo-preview-closed {
+    border-left-color: var(--bs-secondary-color);
+    background: var(--bs-tertiary-bg);
+  }
+  .mbo-deliveroo-preview-bad { border-left-color: var(--bs-danger); }
+  .mbo-deliveroo-preview-mid { border-left-color: #ffc107; }
+  .mbo-deliveroo-preview-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .5rem;
+  }
+  .mbo-deliveroo-value {
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.05;
+  }
+  .mbo-deliveroo-points {
+    color: var(--bs-secondary-color);
+    font-size: .78rem;
+    font-weight: 700;
+  }
+  .mbo-deliveroo-points-bad { color: var(--bs-danger); }
+  .mbo-deliveroo-points-mid { color: #8a5a00; }
+  .mbo-deliveroo-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .4rem;
+    color: var(--bs-secondary-color);
+    font-size: .7rem;
+    line-height: 1.1;
+  }
+  .mbo-deliveroo-source {
+    display: inline-flex;
+    border-radius: 999px;
+    padding: .12rem .38rem;
+    font-weight: 700;
+    font-size: .66rem;
+    text-transform: uppercase;
+    background: rgba(25, 135, 84, .12);
+    color: var(--bs-success);
+    white-space: nowrap;
+  }
+  .mbo-deliveroo-source-manual {
+    background: rgba(253, 126, 20, .18);
+    color: #a84f00;
+  }
+  .mbo-deliveroo-source-empty {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-secondary-color);
+  }
+  .mbo-deliveroo-edit {
+    position: absolute;
+    z-index: 30;
+    top: 100%;
+    left: 0;
+    min-width: 280px;
+    margin-top: .35rem;
+    padding: .75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .625rem;
+    background: var(--bs-body-bg);
+    box-shadow: 0 .75rem 2rem rgba(15, 23, 42, .16);
+  }
+  @media (max-width: 991.98px) {
+    .mbo-deliveroo-kpis { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+  }
+  @media (max-width: 575.98px) {
+    .mbo-deliveroo-kpis { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+{% include "_mbo_toolbar.html" %}
+
+<div class="container-fluid mbo-deliveroo-page py-4">
+  <div class="mbo-deliveroo-head d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+      <h1 class="mb-1">Calcoli Deliveroo</h1>
+      <div class="text-muted">Media mensile ponderata dai rating settimanali Deliveroo, con conferma audit al 90%.</div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label mb-1">Anno</label>
+        <select name="year" class="form-select">
+          {% for y in mbo_year_options %}
+          <option value="{{ y }}" {% if y == mbo_year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline-primary">Carica</button>
+    </form>
+  </div>
+
+  <div class="mbo-deliveroo-kpis mb-3">
+    <div class="mbo-deliveroo-kpi">
+      <span>Punti presi</span>
+      <strong>{{ "%.1f"|format(deliveroo_matrix.points_taken or 0) }}</strong>
+    </div>
+    <div class="mbo-deliveroo-kpi">
+      <span>Punti teorici</span>
+      <strong>{{ "%.1f"|format(deliveroo_matrix.points_theoretical or 0) }}</strong>
+    </div>
+    <div class="mbo-deliveroo-kpi">
+      <span>%</span>
+      <strong>{{ "%.1f"|format(deliveroo_matrix.pct or 0) }}%</strong>
+    </div>
+    <div class="mbo-deliveroo-kpi">
+      <span>Mesi attivi</span>
+      <strong>{{ deliveroo_matrix.active_months or 0 }}</strong>
+    </div>
+  </div>
+
+  <section class="mbo-deliveroo-panel">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mbo-deliveroo-table mb-0">
+        <thead>
+          <tr>
+            <th style="min-width: 240px;">Store</th>
+            <th class="text-end">Totale</th>
+            {% for month in deliveroo_matrix.month_labels %}
+            <th>{{ month.month_label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in deliveroo_matrix.rows %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ row.store_name }}</div>
+              <div class="text-muted small">{{ row.store_code }}</div>
+              <div class="text-muted small">Deliveroo: {{ row.deliveroo or "-" }}</div>
+              {% if row.closure_date %}
+              <div class="text-muted small">Chiusura: {{ row.closure_date }}</div>
+              {% endif %}
+            </td>
+            <td class="text-end mbo-deliveroo-total">
+              <div class="fw-semibold">{{ "%.1f"|format(row.points_taken or 0) }} / {{ "%.1f"|format(row.points_theoretical or 0) }}</div>
+              <div class="text-muted small">{{ "%.1f"|format(row.pct or 0) }}%</div>
+            </td>
+            {% for cell in row.months %}
+            <td>
+              {% if not cell.active %}
+              <span class="mbo-deliveroo-preview mbo-deliveroo-preview-closed">
+                <span class="mbo-deliveroo-preview-top">
+                  <span class="mbo-deliveroo-value">-</span>
+                  <span class="mbo-deliveroo-points">chiuso</span>
+                </span>
+                <span class="mbo-deliveroo-meta">Store chiuso</span>
+              </span>
+              {% else %}
+              <details class="mbo-deliveroo-cell">
+                <summary>
+                  {% if cell.rating is none %}
+                  <span class="mbo-deliveroo-preview mbo-deliveroo-preview-empty">
+                    <span class="mbo-deliveroo-preview-top">
+                      <span class="mbo-deliveroo-value">-</span>
+                      <span class="mbo-deliveroo-points">-</span>
+                    </span>
+                    <span class="mbo-deliveroo-meta">
+                      <span class="mbo-deliveroo-source mbo-deliveroo-source-empty">Vuoto</span>
+                      <span>{{ cell.week_count or 0 }} sett.</span>
+                    </span>
+                  </span>
+                  {% else %}
+                  <span class="mbo-deliveroo-preview {% if cell.source == 'manuale' %}mbo-deliveroo-preview-manual{% elif cell.raw_points < 0 %}mbo-deliveroo-preview-bad{% elif cell.raw_points < 1 %}mbo-deliveroo-preview-mid{% endif %}">
+                    <span class="mbo-deliveroo-preview-top">
+                      <span class="mbo-deliveroo-value">{{ "%.2f"|format(cell.rating or 0) }}</span>
+                      <span class="mbo-deliveroo-points {% if not cell.audit_ok or (cell.final_points or 0) <= 0 %}mbo-deliveroo-points-bad{% elif (cell.final_points or 0) < 1 %}mbo-deliveroo-points-mid{% endif %}">
+                        {{ "%.1f"|format(cell.final_points or 0) }} pt
+                      </span>
+                    </span>
+                    <span class="mbo-deliveroo-meta">
+                      <span class="mbo-deliveroo-source {% if cell.source == 'manuale' %}mbo-deliveroo-source-manual{% endif %}">
+                        {% if cell.source == 'manuale' %}Manuale{% else %}Deliveroo{% endif %}
+                      </span>
+                      <span>{{ cell.week_count or 0 }} sett. / {{ "%.0f"|format(cell.rating_count or 0) }} val.</span>
+                    </span>
+                  </span>
+                  {% endif %}
+                </summary>
+                <div class="mbo-deliveroo-edit">
+                  <div class="small text-muted mb-2">
+                    {{ row.store_name }} - {{ cell.year_month }}<br>
+                    Fonte: {{ cell.source }} | Settimane: {{ cell.week_count or 0 }} | Valori: {{ "%.0f"|format(cell.rating_count or 0) }}<br>
+                    Audit: {% if cell.audit_score is not none %}{{ "%.1f"|format(cell.audit_score or 0) }}%{% else %}0.0%{% endif %}
+                  </div>
+                  <form method="post">
+                    <input type="hidden" name="action" value="save_deliveroo_value">
+                    <input type="hidden" name="year" value="{{ mbo_year }}">
+                    <input type="hidden" name="store_code" value="{{ row.store_code }}">
+                    <input type="hidden" name="year_month" value="{{ cell.year_month }}">
+                    <label class="form-label small mb-1">Rating Deliveroo</label>
+                    <input type="number" step="0.01" min="0" max="5" name="rating" class="form-control form-control-sm mb-2" value="{% if cell.rating is not none %}{{ '%.2f'|format(cell.rating or 0) }}{% endif %}">
+                    <label class="form-label small mb-1">Nota</label>
+                    <input type="text" name="note" class="form-control form-control-sm mb-2" value="{{ (cell.manual or {}).get('note', '') }}">
+                    <button class="btn btn-sm btn-primary w-100">Salva valore</button>
+                  </form>
+                  {% if cell.manual %}
+                  <form method="post" class="mt-2">
+                    <input type="hidden" name="action" value="reset_deliveroo_value">
+                    <input type="hidden" name="year" value="{{ mbo_year }}">
+                    <input type="hidden" name="store_code" value="{{ row.store_code }}">
+                    <input type="hidden" name="year_month" value="{{ cell.year_month }}">
+                    <button class="btn btn-sm btn-outline-secondary w-100">Ripristina</button>
+                  </form>
+                  {% endif %}
+                </div>
+              </details>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="14" class="text-center text-muted py-4">Nessun dato Deliveroo disponibile.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

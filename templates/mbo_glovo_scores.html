@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% block title %}MBO - Calcoli Glovo{% endblock %}
+{% block head_extra %}
+<style>
+  .mbo-glovo-page { max-width: 1680px; }
+  .mbo-glovo-head,
+  .mbo-glovo-panel,
+  .mbo-glovo-kpis {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+  }
+  .mbo-glovo-head,
+  .mbo-glovo-panel { padding: 1rem; }
+  .mbo-glovo-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: .75rem;
+    padding: .75rem;
+  }
+  .mbo-glovo-kpi {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .625rem .75rem;
+  }
+  .mbo-glovo-kpi span {
+    display: block;
+    color: var(--bs-secondary-color);
+    font-size: .8rem;
+  }
+  .mbo-glovo-kpi strong {
+    display: block;
+    font-size: 1.35rem;
+    line-height: 1.15;
+  }
+  .mbo-glovo-table { min-width: 1680px; }
+  .mbo-glovo-table td { vertical-align: top; }
+  .mbo-glovo-table th {
+    color: var(--bs-secondary-color);
+    font-size: .75rem;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+  .mbo-glovo-total { min-width: 96px; }
+  .mbo-glovo-cell {
+    position: relative;
+  }
+  .mbo-glovo-cell summary {
+    cursor: pointer;
+    list-style: none;
+  }
+  .mbo-glovo-cell summary::-webkit-details-marker { display: none; }
+  .mbo-glovo-preview {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    min-width: 112px;
+    min-height: 74px;
+    padding: .45rem .55rem;
+    border: 1px solid var(--bs-border-color);
+    border-left: 4px solid var(--bs-success);
+    border-radius: .5rem;
+    background: var(--bs-body-bg);
+  }
+  .mbo-glovo-preview:hover { border-color: rgba(13, 110, 253, .45); }
+  .mbo-glovo-preview-manual {
+    border-left-color: #fd7e14;
+    background: rgba(253, 126, 20, .06);
+  }
+  .mbo-glovo-preview-empty,
+  .mbo-glovo-preview-closed {
+    border-left-color: var(--bs-secondary-color);
+    background: var(--bs-tertiary-bg);
+  }
+  .mbo-glovo-preview-bad { border-left-color: var(--bs-danger); }
+  .mbo-glovo-preview-mid { border-left-color: #ffc107; }
+  .mbo-glovo-preview-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .5rem;
+  }
+  .mbo-glovo-value {
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.05;
+  }
+  .mbo-glovo-points {
+    color: var(--bs-secondary-color);
+    font-size: .78rem;
+    font-weight: 700;
+  }
+  .mbo-glovo-points-bad { color: var(--bs-danger); }
+  .mbo-glovo-points-mid { color: #8a5a00; }
+  .mbo-glovo-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .4rem;
+    color: var(--bs-secondary-color);
+    font-size: .7rem;
+    line-height: 1.1;
+  }
+  .mbo-glovo-source {
+    display: inline-flex;
+    border-radius: 999px;
+    padding: .12rem .38rem;
+    font-weight: 700;
+    font-size: .66rem;
+    text-transform: uppercase;
+    background: rgba(25, 135, 84, .12);
+    color: var(--bs-success);
+    white-space: nowrap;
+  }
+  .mbo-glovo-source-manual {
+    background: rgba(253, 126, 20, .18);
+    color: #a84f00;
+  }
+  .mbo-glovo-source-empty {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-secondary-color);
+  }
+  .mbo-glovo-edit {
+    position: absolute;
+    z-index: 30;
+    top: 100%;
+    left: 0;
+    min-width: 260px;
+    margin-top: .35rem;
+    padding: .75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .625rem;
+    background: var(--bs-body-bg);
+    box-shadow: 0 .75rem 2rem rgba(15, 23, 42, .16);
+  }
+  @media (max-width: 991.98px) {
+    .mbo-glovo-kpis { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+  }
+  @media (max-width: 575.98px) {
+    .mbo-glovo-kpis { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+{% include "_mbo_toolbar.html" %}
+
+<div class="container-fluid mbo-glovo-page py-4">
+  <div class="mbo-glovo-head d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+      <h1 class="mb-1">Calcoli Glovo</h1>
+      <div class="text-muted">Media mensile da settimane Glovo, con conferma audit al 90%.</div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label mb-1">Anno</label>
+        <select name="year" class="form-select">
+          {% for y in mbo_year_options %}
+          <option value="{{ y }}" {% if y == mbo_year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline-primary">Carica</button>
+    </form>
+  </div>
+
+  <div class="mbo-glovo-kpis mb-3">
+    <div class="mbo-glovo-kpi">
+      <span>Punti presi</span>
+      <strong>{{ "%.1f"|format(glovo_matrix.points_taken or 0) }}</strong>
+    </div>
+    <div class="mbo-glovo-kpi">
+      <span>Punti teorici</span>
+      <strong>{{ "%.1f"|format(glovo_matrix.points_theoretical or 0) }}</strong>
+    </div>
+    <div class="mbo-glovo-kpi">
+      <span>%</span>
+      <strong>{{ "%.1f"|format(glovo_matrix.pct or 0) }}%</strong>
+    </div>
+    <div class="mbo-glovo-kpi">
+      <span>Mesi attivi</span>
+      <strong>{{ glovo_matrix.active_months or 0 }}</strong>
+    </div>
+  </div>
+
+  <section class="mbo-glovo-panel">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mbo-glovo-table mb-0">
+        <thead>
+          <tr>
+            <th style="min-width: 240px;">Store</th>
+            <th class="text-end">Totale</th>
+            {% for month in glovo_matrix.month_labels %}
+            <th>{{ month.month_label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in glovo_matrix.rows %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ row.store_name }}</div>
+              <div class="text-muted small">{{ row.store_code }}</div>
+              <div class="text-muted small">Glovo: {{ row.glovo or "-" }}</div>
+              {% if row.closure_date %}
+              <div class="text-muted small">Chiusura: {{ row.closure_date }}</div>
+              {% endif %}
+            </td>
+            <td class="text-end mbo-glovo-total">
+              <div class="fw-semibold">{{ "%.1f"|format(row.points_taken or 0) }} / {{ "%.1f"|format(row.points_theoretical or 0) }}</div>
+              <div class="text-muted small">{{ "%.1f"|format(row.pct or 0) }}%</div>
+            </td>
+            {% for cell in row.months %}
+            <td>
+              {% if not cell.active %}
+              <span class="mbo-glovo-preview mbo-glovo-preview-closed">
+                <span class="mbo-glovo-preview-top">
+                  <span class="mbo-glovo-value">-</span>
+                  <span class="mbo-glovo-points">chiuso</span>
+                </span>
+                <span class="mbo-glovo-meta">Store chiuso</span>
+              </span>
+              {% else %}
+              <details class="mbo-glovo-cell">
+                <summary>
+                  {% if cell.value_pct is none %}
+                  <span class="mbo-glovo-preview mbo-glovo-preview-empty">
+                    <span class="mbo-glovo-preview-top">
+                      <span class="mbo-glovo-value">-</span>
+                      <span class="mbo-glovo-points">-</span>
+                    </span>
+                    <span class="mbo-glovo-meta">
+                      <span class="mbo-glovo-source mbo-glovo-source-empty">Vuoto</span>
+                      <span>{{ cell.week_count or 0 }} sett.</span>
+                    </span>
+                  </span>
+                  {% else %}
+                  <span class="mbo-glovo-preview {% if cell.source == 'manuale' %}mbo-glovo-preview-manual{% elif cell.raw_points < 0 %}mbo-glovo-preview-bad{% elif cell.raw_points < 1 %}mbo-glovo-preview-mid{% endif %}">
+                    <span class="mbo-glovo-preview-top">
+                      <span class="mbo-glovo-value">{{ "%.1f"|format(cell.value_pct or 0) }}%</span>
+                      <span class="mbo-glovo-points {% if not cell.audit_ok or (cell.final_points or 0) <= 0 %}mbo-glovo-points-bad{% elif (cell.final_points or 0) < 1 %}mbo-glovo-points-mid{% endif %}">
+                        {{ "%.1f"|format(cell.final_points or 0) }} pt
+                      </span>
+                    </span>
+                    <span class="mbo-glovo-meta">
+                      <span class="mbo-glovo-source {% if cell.source == 'manuale' %}mbo-glovo-source-manual{% endif %}">
+                        {% if cell.source == 'manuale' %}Manuale{% else %}Glovo{% endif %}
+                      </span>
+                      <span>{{ cell.week_count or 0 }} sett.</span>
+                    </span>
+                  </span>
+                  {% endif %}
+                </summary>
+                <div class="mbo-glovo-edit">
+                  <div class="small text-muted mb-2">
+                    {{ row.store_name }} - {{ cell.year_month }}<br>
+                    Fonte: {{ cell.source }} | Settimane: {{ cell.week_count or 0 }}<br>
+                    Audit: {% if cell.audit_score is not none %}{{ "%.1f"|format(cell.audit_score or 0) }}%{% else %}0.0%{% endif %}
+                  </div>
+                  <form method="post">
+                    <input type="hidden" name="action" value="save_glovo_value">
+                    <input type="hidden" name="year" value="{{ mbo_year }}">
+                    <input type="hidden" name="store_code" value="{{ row.store_code }}">
+                    <input type="hidden" name="year_month" value="{{ cell.year_month }}">
+                    <label class="form-label small mb-1">Valore Glovo %</label>
+                    <input type="number" step="0.01" min="0" max="100" name="value_pct" class="form-control form-control-sm mb-2" value="{% if cell.value_pct is not none %}{{ '%.2f'|format(cell.value_pct or 0) }}{% endif %}">
+                    <label class="form-label small mb-1">Nota</label>
+                    <input type="text" name="note" class="form-control form-control-sm mb-2" value="{{ (cell.manual or {}).get('note', '') }}">
+                    <button class="btn btn-sm btn-primary w-100">Salva valore</button>
+                  </form>
+                  {% if cell.manual %}
+                  <form method="post" class="mt-2">
+                    <input type="hidden" name="action" value="reset_glovo_value">
+                    <input type="hidden" name="year" value="{{ mbo_year }}">
+                    <input type="hidden" name="store_code" value="{{ row.store_code }}">
+                    <input type="hidden" name="year_month" value="{{ cell.year_month }}">
+                    <button class="btn btn-sm btn-outline-secondary w-100">Ripristina</button>
+                  </form>
+                  {% endif %}
+                </div>
+              </details>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="14" class="text-center text-muted py-4">Nessun dato Glovo disponibile.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

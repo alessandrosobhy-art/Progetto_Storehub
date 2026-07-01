@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Master{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 1180px;">
+  <div class="mb-3">
+    <h1 class="h4 mb-1">Area Master</h1>
+    <div class="text-muted small">Configurazione tenant e strumenti tecnici.</div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="h6">Piattaforma</h2>
+          <div class="list-group list-group-flush">
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenant_wizard') }}">Wizard nuovo tenant</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenants') }}">Dashboard tenant</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenant_assignments') }}">Assegnazioni tenant</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_users') }}">Utenti master</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenants', section='modules') }}">Moduli tenant</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenants', section='users') }}">Utenti tenant</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenants', section='stores') }}">Store tenant</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_translations') }}">Traduzioni</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="h6">Gestione orari</h2>
+          <div class="list-group list-group-flush">
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_orari_config') }}">Inquadramenti e causali</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('admin_fabbisogno_sites') }}">Fabbisogno per store</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="h6">Rendiconto</h2>
+          <div class="list-group list-group-flush">
+            <a class="list-group-item list-group-item-action" href="{{ url_for('admin_distinta_cassa_config') }}">Configurazione distinta cassa</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('admin_ipratico_config') }}">Configurazione iPratico</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_mobipos_test') }}">Test Mobipos</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('admin_delivery_providers') }}">Configurazione delivery</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('admin_historical_daily_sales_import') }}">Import storico giornaliero</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="h6">Pagine test</h2>
+          <div class="list-group list-group-flush">
+            <a class="list-group-item list-group-item-action" href="{{ url_for('admin_finance_store_map') }}">Finance: mappatura store</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('admin_costo_lavoro_test_page') }}">Costo lavoro (test)</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_offer_plan_test') }}">Piano offerta e fogli produzione</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

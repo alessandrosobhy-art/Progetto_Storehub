@@ -1,0 +1,212 @@
+﻿{% extends "base.html" %}
+{% block title %}Admin - Anagrafica Listini Prezzi{% endblock %}
+
+{% block content %}
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">Anagrafica Listini Prezzi</h1>
+        <div class="text-muted small">Gestione valori comuni, elenchi prezzi e assegnazione store.</div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-12">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h6 mb-3">Elenchi prezzi</h2>
+            <form method="post" class="row g-3">
+              <input type="hidden" name="entity" value="listino">
+              <div class="col-md-5">
+                <label class="form-label">Nome elenco</label>
+                <input type="text" name="nome" class="form-control" placeholder="Es. Listino Franchising" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Attivo</label>
+                <select name="is_active" class="form-select">
+                  <option value="1" selected>Si</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+              <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-primary w-100">Crea elenco</button>
+              </div>
+            </form>
+          </div>
+          <div class="table-responsive border-top">
+            <table class="table align-middle mb-0">
+              <thead><tr><th>Elenco</th><th>Righe</th><th>Store</th><th>Attivo</th><th style="min-width:260px;">Assegnazioni</th><th class="text-end">Azioni</th></tr></thead>
+              <tbody>
+                {% for l in price_lists or [] %}
+                <tr>
+                  <td>
+                    <div class="fw-semibold">{{ l.nome }}</div>
+                    {% if l.is_default %}<span class="badge text-bg-primary">Default</span>{% endif %}
+                  </td>
+                  <td>{{ l.row_count }}</td>
+                  <td>{{ l.store_count }}</td>
+                  <td>{{ 'Si' if l.is_active else 'No' }}</td>
+                  <td>
+                    <form method="post" class="d-flex gap-2 align-items-start">
+                      <input type="hidden" name="entity" value="listino">
+                      <input type="hidden" name="row_uuid" value="{{ l.row_uuid }}">
+                      <input type="hidden" name="nome" value="{{ l.nome }}">
+                      <input type="hidden" name="is_active" value="{{ 1 if l.is_active else 0 }}">
+                      <select class="form-select form-select-sm" name="store_codes" multiple size="4">
+                        {% set assigned = assignments.get(l.row_uuid, []) if assignments else [] %}
+                        {% for s in stores or [] %}
+                          <option value="{{ s.code }}" {% if s.code in assigned %}selected{% endif %}>{{ s.code }} - {{ s.name }}</option>
+                        {% endfor %}
+                      </select>
+                      <button class="btn btn-sm btn-outline-primary">Salva</button>
+                    </form>
+                  </td>
+                  <td class="text-end">
+                    {% if not l.is_default %}
+                      <form method="post" class="d-inline">
+                        <input type="hidden" name="entity" value="listino">
+                        <input type="hidden" name="action" value="set_default">
+                        <input type="hidden" name="row_uuid" value="{{ l.row_uuid }}">
+                        <button class="btn btn-sm btn-outline-secondary">Rendi default</button>
+                      </form>
+                    {% endif %}
+                    {% if not l.is_default %}
+                      <form method="post" class="d-inline" onsubmit="return confirm('Eliminare il listino {{ l.nome|e }}? Le assegnazioni store verranno spostate sul listino di default.');">
+                        <input type="hidden" name="entity" value="listino">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="row_uuid" value="{{ l.row_uuid }}">
+                        <button class="btn btn-sm btn-outline-danger ms-1">Elimina</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Nessun elenco prezzi.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h6 mb-3">{{ 'Modifica tipo listino' if edit_tipo_row else 'Nuovo tipo listino' }}</h2>
+            <form method="post" class="row g-3">
+              <input type="hidden" name="entity" value="tipo">
+              <input type="hidden" name="row_uuid" value="{{ edit_tipo_row.row_uuid if edit_tipo_row else '' }}">
+              <div class="col-md-7">
+                <label class="form-label">Tipo listino</label>
+                <input type="text" name="tipo_listino" class="form-control" value="{{ edit_tipo_row.tipo_listino if edit_tipo_row else '' }}" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Ordine</label>
+                <input type="number" name="sort_order" class="form-control" value="{{ edit_tipo_row.sort_order if edit_tipo_row else 0 }}">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Attivo</label>
+                <select name="is_active" class="form-select">
+                  <option value="1" {% if not edit_tipo_row or edit_tipo_row.is_active %}selected{% endif %}>Si</option>
+                  <option value="0" {% if edit_tipo_row and not edit_tipo_row.is_active %}selected{% endif %}>No</option>
+                </select>
+              </div>
+              <div class="col-12 d-flex gap-2">
+                <button class="btn btn-primary">Salva</button>
+                {% if edit_tipo_row %}
+                  <a href="{{ url_for('warehouse.listini_anagrafica') }}" class="btn btn-outline-secondary">Annulla</a>
+                {% endif %}
+              </div>
+            </form>
+          </div>
+          <div class="table-responsive border-top">
+            <table class="table align-middle mb-0">
+              <thead><tr><th>Tipo listino</th><th>Ordine</th><th>Attivo</th><th class="text-end">Azioni</th></tr></thead>
+              <tbody>
+                {% for r in tipi or [] %}
+                <tr>
+                  <td class="fw-semibold">{{ r.tipo_listino }}</td>
+                  <td>{{ r.sort_order }}</td>
+                  <td>{{ 'Si' if r.is_active else 'No' }}</td>
+                  <td class="text-end">
+                    <a href="{{ url_for('warehouse.listini_anagrafica', edit_tipo=r.row_uuid) }}" class="btn btn-sm btn-outline-secondary">Modifica</a>
+                    <form method="post" class="d-inline" onsubmit="return confirm('Eliminare il tipo listino {{ r.tipo_listino|e }}?');">
+                      <input type="hidden" name="entity" value="tipo">
+                      <input type="hidden" name="action" value="delete">
+                      <input type="hidden" name="row_uuid" value="{{ r.row_uuid }}">
+                      <button class="btn btn-sm btn-outline-danger ms-1">Elimina</button>
+                    </form>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-4">Nessun tipo listino.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h6 mb-3">{{ 'Modifica gruppo' if edit_gruppo_row else 'Nuovo gruppo' }}</h2>
+            <form method="post" class="row g-3">
+              <input type="hidden" name="entity" value="gruppo">
+              <input type="hidden" name="row_uuid" value="{{ edit_gruppo_row.row_uuid if edit_gruppo_row else '' }}">
+              <div class="col-md-7">
+                <label class="form-label">Gruppo</label>
+                <input type="text" name="gruppo" class="form-control" value="{{ edit_gruppo_row.gruppo if edit_gruppo_row else '' }}" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Ordine</label>
+                <input type="number" name="sort_order" class="form-control" value="{{ edit_gruppo_row.sort_order if edit_gruppo_row else 0 }}">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Attivo</label>
+                <select name="is_active" class="form-select">
+                  <option value="1" {% if not edit_gruppo_row or edit_gruppo_row.is_active %}selected{% endif %}>Si</option>
+                  <option value="0" {% if edit_gruppo_row and not edit_gruppo_row.is_active %}selected{% endif %}>No</option>
+                </select>
+              </div>
+              <div class="col-12 d-flex gap-2">
+                <button class="btn btn-primary">Salva</button>
+                {% if edit_gruppo_row %}
+                  <a href="{{ url_for('warehouse.listini_anagrafica') }}" class="btn btn-outline-secondary">Annulla</a>
+                {% endif %}
+              </div>
+            </form>
+          </div>
+          <div class="table-responsive border-top">
+            <table class="table align-middle mb-0">
+              <thead><tr><th>Gruppo</th><th>Ordine</th><th>Attivo</th><th class="text-end">Azioni</th></tr></thead>
+              <tbody>
+                {% for r in gruppi or [] %}
+                <tr>
+                  <td class="fw-semibold">{{ r.gruppo }}</td>
+                  <td>{{ r.sort_order }}</td>
+                  <td>{{ 'Si' if r.is_active else 'No' }}</td>
+                  <td class="text-end">
+                    <a href="{{ url_for('warehouse.listini_anagrafica', edit_gruppo=r.row_uuid) }}" class="btn btn-sm btn-outline-secondary">Modifica</a>
+                    <form method="post" class="d-inline" onsubmit="return confirm('Eliminare il gruppo {{ r.gruppo|e }}?');">
+                      <input type="hidden" name="entity" value="gruppo">
+                      <input type="hidden" name="action" value="delete">
+                      <input type="hidden" name="row_uuid" value="{{ r.row_uuid }}">
+                      <button class="btn btn-sm btn-outline-danger ms-1">Elimina</button>
+                    </form>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-4">Nessun gruppo.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

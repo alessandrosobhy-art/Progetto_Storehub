@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Admin – Profilo accesso{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width: 900px;">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+      <h1 class="h4 mb-0">{% if mode == 'new' %}Nuovo profilo{% else %}Modifica profilo{% endif %}</h1>
+      {% if selected_tenant_key %}<div class="text-muted small">Tenant: {{ selected_tenant_key }}</div>{% endif %}
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin_access_profiles') }}">Indietro</a>
+      {% if mode != 'new' %}
+        <a class="btn btn-outline-primary" href="{{ url_for('admin_access_profiles_assign', profile_id=profile.id) }}">Assegna utenti</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if not tenant_profile_scope_available and selected_tenant_key != 'default' %}
+    <div class="alert alert-warning">
+      Per creare profili accesso su questo tenant serve la colonna <code>tenant_key</code> su <code>access_profiles</code> in Supabase.
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Nome</label>
+            <input name="name" type="text" class="form-control" value="{{ profile.name or '' }}" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Descrizione (opzionale)</label>
+            <input name="description" type="text" class="form-control" value="{{ profile.description or '' }}">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h2 class="h6 mb-2">Moduli abilitati</h2>
+        <div class="form-text mb-3">I moduli non selezionati vengono nascosti e bloccati (403).</div>
+
+        {% set mods = profile.modules or {} %}
+        <div class="row g-2">
+          {% for k, label in module_catalog %}
+          <div class="col-12 col-md-6">
+            <label class="list-group-item d-flex align-items-center gap-2 border rounded p-2">
+              <input class="form-check-input m-0" type="checkbox" name="modules" value="{{ k }}" {% if mods.get(k) %}checked{% endif %}>
+              <span class="fw-semibold">{{ label }}</span>
+              <span class="text-muted small ms-auto">{{ k }}</span>
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin_access_profiles') }}">Annulla</a>
+      <button class="btn btn-primary">Salva</button>
+    </div>
+  </form>
+
+  {% if mode != 'new' and assigned_users is defined %}
+  <div class="card mt-4">
+    <div class="card-body">
+      <h2 class="h6 mb-3">Utenti con questo profilo ({{ assigned_users|length }})</h2>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Email</th><th>Nome</th><th>Ruolo</th><th class="text-end">Apri</th></tr></thead>
+          <tbody>
+            {% for u in assigned_users %}
+            <tr>
+              <td>{{ u.email }}</td>
+              <td>{{ u.name or '' }}</td>
+              <td><span class="badge {{ 'bg-success' if u.role=='admin' else 'bg-secondary' }}">{{ u.role }}</span></td>
+              <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin_users_edit', uid=u.id) }}">Modifica utente</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-muted text-center">Nessun utente assegnato.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

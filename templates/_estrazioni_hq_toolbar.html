@@ -1,0 +1,43 @@
+<div class="app-sectionbar">
+  <div class="container app-sectionbar__inner">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="app-sectionbar__label">Estrazioni HQ</span>
+      {% set is_scheduling = request.path.startswith('/estrazioni/scheduling') %}
+      {% set is_verifica_rendiconto = request.path.startswith('/estrazioni/verifica-rendiconto') %}
+      {% set is_dati_rendiconto = request.endpoint == 'rendiconto.riepilogo' %}
+      {% set is_finance = request.path.startswith('/estrazioni/finance') %}
+      {% set is_convalida_versamenti = request.endpoint in ['admin_versamenti_finance_match_test', 'admin_versamenti_finance_match_test_save'] %}
+      {% set is_convalida_pos = request.endpoint in ['admin_pos_finance_match_test', 'admin_pos_finance_match_test_save'] %}
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_scheduling else 'btn-outline-primary' }}"
+         href="{{ url_for('estrazioni.scheduling') }}">
+        Scheduling
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_verifica_rendiconto else 'btn-outline-primary' }}"
+         href="{{ url_for('estrazioni.verifica_rendiconto') }}">
+        Verifica Rendiconto
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_dati_rendiconto else 'btn-outline-primary' }}"
+         href="{{ url_for('rendiconto.riepilogo') }}">
+        Dati Rendiconto
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_finance else 'btn-outline-primary' }}"
+         href="{{ url_for('estrazioni.finance') }}">
+        Finance
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_convalida_versamenti else 'btn-outline-primary' }}"
+         href="{{ url_for('admin_versamenti_finance_match_test') }}">
+        Convalida Versamenti
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_convalida_pos else 'btn-outline-primary' }}"
+         href="{{ url_for('admin_pos_finance_match_test') }}">
+        Convalida POS
+      </a>
+    </div>
+  </div>
+</div>

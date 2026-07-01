@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "_orari_toolbar.html" %}
+
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h4 mb-0">{{ tr('orari', 'staff.title', 'Anagrafica Staff') }}</h1>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="post" class="row g-3 align-items-end">
+        <input type="hidden" name="action" value="create">
+        <div class="col-12 col-md-4">
+          <label class="form-label">{{ tr('orari', 'staff.full_name', 'Nome e Cognome') }}</label>
+          <input type="text" class="form-control" name="nome_cognome" placeholder="Es: Mario Rossi" required>
+        </div>
+        <div class="col-12 col-md-2">
+          <label class="form-label">{{ tr('orari', 'staff.employment_type', 'Inquadramento') }}</label>
+          <select class="form-select" name="ruolo" required>
+            <option value="" selected disabled>{{ tr('orari', 'staff.select', 'Seleziona...') }}</option>
+            {% for inq in inquadramenti %}
+              <option>{{ inq.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-2">
+          <label class="form-label">{{ tr('orari', 'staff.contract_hours', 'Ore Contrattuali') }}</label>
+          <input type="number" class="form-control" name="ore_contrattuali" min="1" max="40" step="1" required>
+        </div>
+        {% if scheduling_enabled %}
+          <div class="col-12 col-md-2">
+            <label class="form-label">{{ tr('orari', 'staff.employee_code', 'Codice Dipendente') }}</label>
+            <input type="text" class="form-control" name="codice_dipendente" placeholder="(vuoto)">
+          </div>
+          <div class="col-12 col-md-1">
+            <label class="form-label">{{ tr('orari', 'staff.scheduling', 'Scheduling') }}</label>
+            <div class="form-check form-switch m-0">
+              <input class="form-check-input" type="checkbox" name="scheduling" value="1">
+            </div>
+          </div>
+        {% endif %}
+        <div class="col-12 col-md-1 d-grid">
+          <button class="btn btn-primary" type="submit">{{ tr('orari', 'staff.add', 'Aggiungi') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr class="text-center">
+              <th>{{ tr('orari', 'staff.full_name', 'Nome e Cognome') }}</th>
+              <th>{{ tr('orari', 'staff.employment_type', 'Inquadramento') }}</th>
+              <th style="width:160px;">{{ tr('orari', 'staff.contract_hours', 'Ore Contrattuali') }}</th>
+              {% if scheduling_enabled %}
+                <th style="width:180px;">{{ tr('orari', 'staff.employee_code', 'Codice Dipendente') }}</th>
+                <th style="width:120px;">{{ tr('orari', 'staff.scheduling', 'Scheduling') }}</th>
+              {% endif %}
+              <th style="width:120px;">{{ tr('orari', 'staff.status', 'Stato') }}</th>
+              <th style="width:260px;">{{ tr('orari', 'staff.actions', 'Azioni') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for s in staff %}
+            {% set form_id = 'f_staff_' ~ loop.index %}
+            <tr>
+              <td>
+                <form id="{{ form_id }}" method="post">
+                  <input type="hidden" name="staff_id" value="{{ s.id }}">
+                  <input type="hidden" name="orig_nome_cognome" value="{{ s.nome_cognome }}">
+                  <input type="hidden" name="orig_ruolo" value="{{ s.ruolo or '' }}">
+                  <input type="hidden" name="retroactive_inquadramento" value="0">
+                </form>
+                <input form="{{ form_id }}" type="text" class="form-control form-control-sm" name="nome_cognome" value="{{ s.nome_cognome }}" required>
+              </td>
+              <td>
+                <select form="{{ form_id }}" class="form-select form-select-sm" name="ruolo" required>
+                  {% set ruolo = s.ruolo %}
+                  {% set ruolo_state = namespace(found=false) %}
+                  {% for inq in inquadramenti %}
+                    {% if ruolo == inq.name %}{% set ruolo_state.found = true %}{% endif %}
+                    <option {{ 'selected' if ruolo == inq.name else '' }}>{{ inq.name }}</option>
+                  {% endfor %}
+                  {% if ruolo and not ruolo_state.found %}
+                    <option selected>{{ ruolo }}</option>
+                  {% endif %}
+                </select>
+              </td>
+              <td>
+                <input form="{{ form_id }}" type="number" class="form-control form-control-sm text-center" name="ore_contrattuali" min="1" max="40" step="1" value="{{ s.ore_contrattuali }}" required>
+              </td>
+              {% if scheduling_enabled %}
+                <td>
+                  <input form="{{ form_id }}" type="text" class="form-control form-control-sm" name="codice_dipendente" value="{{ s.codice_dipendente or '' }}" placeholder="(vuoto)">
+                </td>
+                <td class="text-center">
+                  <div class="form-check form-switch d-inline-flex justify-content-center m-0">
+                    <input form="{{ form_id }}" class="form-check-input" type="checkbox" name="scheduling" value="1" {{ 'checked' if s.scheduling else '' }}>
+                  </div>
+                </td>
+              {% endif %}
+              <td class="text-center">
+                {% if s.attivo %}
+                  <span class="badge bg-success">{{ tr('orari', 'staff.active', 'Attivo') }}</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ tr('orari', 'staff.inactive', 'Inattivo') }}</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm" role="group">
+                  <button form="{{ form_id }}" class="btn btn-primary" type="submit" name="action" value="update">{{ tr('orari', 'staff.save', 'Salva') }}</button>
+                  {% if s.attivo %}
+                    <button form="{{ form_id }}" class="btn btn-outline-secondary" type="submit" name="action" value="deactivate">{{ tr('orari', 'staff.deactivate', 'Disattiva') }}</button>
+                  {% else %}
+                    <button form="{{ form_id }}" class="btn btn-outline-success" type="submit" name="action" value="activate">{{ tr('orari', 'staff.activate', 'Attiva') }}</button>
+                  {% endif %}
+                  <button form="{{ form_id }}" class="btn btn-outline-danger" type="submit" name="action" value="delete" onclick="return confirm({{ tr('orari', 'staff.delete_confirm', 'Eliminare definitivamente questa persona?')|tojson }});">{{ tr('orari', 'staff.delete', 'Elimina') }}</button>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="{{ 7 if scheduling_enabled else 5 }}" class="text-center text-muted py-4">{{ tr('orari', 'staff.empty', 'Nessuna persona presente.') }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+          <div class="fw-semibold">{{ tr('orari', 'legend.title', 'Legenda colori (Orari)') }}</div>
+          <div class="text-muted small">{{ tr('orari', 'legend.help', 'Crea una legenda per i colori utilizzati nella pagina Orari.') }}</div>
+        </div>
+      </div>
+
+      <form method="post" class="row g-3 align-items-end">
+        <input type="hidden" name="action" value="legend_create">
+        <div class="col-12 col-md-6">
+          <label class="form-label">{{ tr('orari', 'legend.name', 'Nome legenda') }}</label>
+          <input type="text" class="form-control" name="nomelegenda" placeholder="Es: Ferie, Corso, Extra..." required>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">{{ tr('orari', 'legend.color', 'Colore') }}</label>
+          {# Limita la scelta ai colori selezionabili nella pagina Orari (quadrati prestabiliti) #}
+          {% set _default_color = '#fff3cd' %}
+          {% if color_swatches and (_default_color not in color_swatches) %}
+            {% set _default_color = (color_swatches[0] if color_swatches else '#fff3cd') %}
+          {% endif %}
+          <input type="hidden" name="colorelegenda" id="legColore" value="{{ _default_color }}">
+          <div class="dropdown">
+            <button
+              class="legend-color-toggle"
+              type="button"
+              id="legendColorToggle"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              title="{{ tr('orari', 'legend.pick_color', 'Scegli colore') }}"
+            >
+              <span id="legendColorChip" class="legend-color-chip" style="background: {{ _default_color }}"></span>
+            </button>
+            <div class="dropdown-menu p-2" aria-labelledby="legendColorToggle">
+              <div id="legendColorGrid" class="legend-color-grid" aria-label="{{ tr('orari', 'legend.select_color', 'Seleziona colore legenda') }}">
+                {% for c in (color_swatches or ['#f8f9fa','#e9ecef','#fff3cd','#d1e7dd','#cff4fc','#f8d7da','#ffe5d0','#e2d9f3','#d2f4ea','#f7d6e6']) %}
+                  <button type="button" class="legend-swatch" data-color="{{ c }}" style="background: {{ c }}" title="{{ c }}"></button>
+                {% endfor %}
+              </div>
+              <div class="text-muted small mt-2">{{ tr('orari', 'legend.color_help', 'Scegli uno dei colori disponibili nella pagina Orari.') }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-3 d-grid">
+          <button class="btn btn-primary" type="submit">{{ tr('orari', 'legend.save', 'Salva legenda') }}</button>
+        </div>
+      </form>
+
+      <hr class="my-3">
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th style="width:80px;">{{ tr('orari', 'legend.color', 'Colore') }}</th>
+              <th>{{ tr('common', 'name', 'Nome') }}</th>
+              <th style="width:120px;" class="text-end">{{ tr('orari', 'legend.actions', 'Azioni') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for l in legenda %}
+            {% set form_id = 'f_leg_' ~ loop.index %}
+            <tr>
+              <td>
+                <span class="d-inline-block rounded" style="width:22px;height:22px;background:{{ l.colorelegenda }};border:1px solid rgba(0,0,0,.2);"></span>
+              </td>
+              <td>{{ l.nomelegenda }}</td>
+              <td class="text-end">
+                <form id="{{ form_id }}" method="post" class="d-inline">
+                  <input type="hidden" name="action" value="legend_delete">
+                  <input type="hidden" name="orig_nomelegenda" value="{{ l.nomelegenda }}">
+                  <input type="hidden" name="orig_colorelegenda" value="{{ l.colorelegenda }}">
+                  <button class="btn btn-sm btn-outline-danger" type="submit" onclick="return confirm({{ tr('orari', 'legend.delete_confirm', 'Eliminare questa legenda?')|tojson }});">{{ tr('orari', 'legend.delete', 'Elimina') }}</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="3" class="text-center text-muted py-3">{{ tr('orari', 'legend.empty', 'Nessuna legenda presente.') }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .legend-color-toggle {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.15);
+      background: #fff;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .legend-color-toggle:focus {
+      outline: 0;
+      box-shadow: 0 0 0 .25rem rgba(13,110,253,.25);
+    }
+    .legend-color-chip {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      border: 1px solid rgba(0,0,0,.12);
+      display: inline-block;
+    }
+    .legend-color-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 34px);
+      gap: 8px;
+    }
+    .legend-swatch {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid rgba(0,0,0,.15);
+      cursor: pointer;
+      padding: 0;
+    }
+    .legend-swatch.sel {
+      outline: 2px solid rgba(0,0,0,.55);
+      outline-offset: 2px;
+    }
+  </style>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const grid = document.getElementById('legendColorGrid');
+      const inp = document.getElementById('legColore');
+      const toggle = document.getElementById('legendColorToggle');
+      const chip = document.getElementById('legendColorChip');
+      if (!grid || !inp || !toggle || !chip) return;
+
+      function setSel(color) {
+        const c = String(color || '').toLowerCase();
+        inp.value = c;
+        chip.style.background = c;
+        grid.querySelectorAll('.legend-swatch').forEach(btn => {
+          const bc = String(btn.getAttribute('data-color') || '').toLowerCase();
+          btn.classList.toggle('sel', bc === c);
+        });
+      }
+
+      grid.addEventListener('click', function (e) {
+        const btn = e.target && e.target.closest ? e.target.closest('.legend-swatch') : null;
+        if (!btn) return;
+        const c = btn.getAttribute('data-color');
+        setSel(c);
+
+        // chiudi dropdown dopo selezione
+        try {
+          const dd = (window.bootstrap && window.bootstrap.Dropdown)
+            ? (window.bootstrap.Dropdown.getInstance(toggle) || new window.bootstrap.Dropdown(toggle))
+            : null;
+          if (dd && typeof dd.hide === 'function') dd.hide();
+        } catch (_) {
+          // no-op
+        }
+      });
+
+
+
+      // Conferma retroattività se cambia l'inquadramento (campo select è fuori dal <form> e usa attributo form=)
+      document.querySelectorAll('button[name="action"][value="update"]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const formId = btn.getAttribute('form');
+          const form = formId ? document.getElementById(formId) : null;
+          if (!form) return;
+          const ruoloEl = (function(){
+            try {
+              return document.querySelector('select[name="ruolo"][form="' + formId + '"]') || form.querySelector('select[name="ruolo"]');
+            } catch (_) {
+              return form.querySelector('select[name="ruolo"]');
+            }
+          })();
+          const origRuoloEl = form.querySelector('input[name="orig_ruolo"]');
+          const retroEl = form.querySelector('input[name="retroactive_inquadramento"]');
+          if (!ruoloEl || !origRuoloEl || !retroEl) return;
+          const nuovo = String(ruoloEl.value || '').trim().toLowerCase();
+          const orig = String(origRuoloEl.value || '').trim().toLowerCase();
+          if (!nuovo || !orig || nuovo === orig) {
+            retroEl.value = '0';
+            return;
+          }
+          const retro = window.confirm(
+            "Hai modificato l'inquadramento. Vuoi applicare la modifica anche ai record orari già salvati?\n\n" +
+            "OK = Sì, retroattiva (aggiorna l'inquadramento negli orari storici)\n" +
+            "Annulla = No, solo dai prossimi salvataggi orari"
+          );
+          retroEl.value = retro ? '1' : '0';
+        });
+      });
+
+      // inizializza selezione
+      setSel(inp.value);
+    });
+  </script>
+
+</div>
+{% endblock %}

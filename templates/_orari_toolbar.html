@@ -1,0 +1,11 @@
+<div class="app-sectionbar">
+  <div class="container app-sectionbar__inner">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="app-sectionbar__label">{{ tr('orari', 'toolbar.title', 'Gestione Orari') }}</span>
+      {% set is_anagrafica = request.path.startswith('/orari/anagrafica') %}
+      {% set is_orari = request.path.startswith('/orari/orari') %}
+      <a class="btn btn-sm {{ 'btn-primary' if is_anagrafica else 'btn-outline-primary' }}" href="{{ url_for('orari.anagrafica') }}">{{ tr('orari', 'toolbar.registry', 'Anagrafica') }}</a>
+      <a class="btn btn-sm {{ 'btn-primary' if is_orari else 'btn-outline-primary' }}" href="{{ url_for('orari.orari_page') }}">{{ tr('orari', 'toolbar.schedules', 'Orari') }}</a>
+    </div>
+  </div>
+</div>

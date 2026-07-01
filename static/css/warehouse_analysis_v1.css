@@ -1,0 +1,36 @@
+.warehouse-analysis .ana-mode-box {
+  padding: 0;
+}
+
+.warehouse-analysis .table-kpi {
+  min-width: 520px;
+}
+
+.warehouse-analysis .table-kpi th,
+.warehouse-analysis .table-kpi td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.warehouse-analysis .table-kpi td.value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.warehouse-analysis .kpi-muted {
+  color: #6c757d;
+}
+
+.warehouse-analysis .kpi-strong {
+  font-weight: 600;
+}
+
+.warehouse-analysis .kpi-row-total td {
+  border-top: 2px solid rgba(0,0,0,.08);
+}
+
+@media (max-width: 991.98px) {
+  .warehouse-analysis .table-kpi {
+    min-width: 640px;
+  }
+}

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Admin – Import CSV utenti{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Import CSV utenti</h1>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin_users') }}">Torna a Utenti</a>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="alert alert-info mb-3">
+        <div class="fw-semibold mb-1">Formato richiesto</div>
+        <div class="small">
+          Il file CSV deve avere intestazioni: <code>MAIL</code>, <code>NOME</code>, <code>RUOLO</code>, <code>SITE</code>.
+          Puoi ripetere la stessa mail su più righe per assegnare più store allo stesso account.
+          Separatore accettato: virgola o punto e virgola.
+        </div>
+      </div>
+
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('admin_users_import_csv') }}">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-8">
+            <label class="form-label">CSV</label>
+            <input class="form-control" type="file" name="csv_file" accept=".csv,text/csv" required>
+          </div>
+          <div class="col-md-4 text-md-end">
+            <button class="btn btn-primary" type="submit">Importa</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if result %}
+  <div class="card">
+    <div class="card-body">
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <span class="badge text-bg-success">Creati: {{ result.created_users }}</span>
+        <span class="badge text-bg-primary">Aggiornati: {{ result.updated_users }}</span>
+        <span class="badge text-bg-secondary">Assegnazioni store: {{ result.assignments_ok }}</span>
+        <span class="badge text-bg-warning">Avvisi: {{ result.warnings|length }}</span>
+        <span class="badge text-bg-danger">Errori: {{ result.errors|length }}</span>
+      </div>
+
+      {% if result.warnings %}
+      <div class="alert alert-warning">
+        <div class="fw-semibold mb-1">Avvisi</div>
+        <ul class="mb-0">
+          {% for w in result.warnings %}
+          <li>{{ w }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if result.errors %}
+      <div class="alert alert-danger">
+        <div class="fw-semibold mb-1">Errori</div>
+        <ul class="mb-0">
+          {% for e in result.errors %}
+          <li>{{ e }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if result.rows %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>MAIL</th>
+              <th>NOME</th>
+              <th>RUOLO</th>
+              <th>SITE</th>
+              <th>Esito</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in result.rows %}
+            <tr>
+              <td>{{ r.email }}</td>
+              <td>{{ r.name }}</td>
+              <td>{{ r.role }}</td>
+              <td>{{ r.site }}</td>
+              <td>
+                {% if r.status == 'ok' %}
+                  <span class="badge text-bg-success">OK</span>
+                {% elif r.status == 'warn' %}
+                  <span class="badge text-bg-warning">WARN</span>
+                {% else %}
+                  <span class="badge text-bg-danger">ERR</span>
+                {% endif %}
+                <span class="small text-muted">{{ r.message }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

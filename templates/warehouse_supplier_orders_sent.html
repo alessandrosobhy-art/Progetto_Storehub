@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Ordini inviati{% endblock %}
+{% block content %}
+{% include "_supplier_orders_toolbar.html" %}
+<div class="container py-4 supplier-orders-page supplier-orders-sent-page">
+  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+    <div>
+      <h1 class="h4 mb-1">Ordini inviati</h1>
+      <div class="text-muted small">Monitoraggio ordini inviati via app e via mail.</div>
+    </div>
+  </div>
+
+  <form class="card border-0 shadow-sm supplier-orders-filter-card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-lg-3 col-md-6">
+          <label class="form-label">Store</label>
+          <select name="store" class="form-select">
+            <option value="">Tutti</option>
+            {% for s in store_options or [] %}
+              <option value="{{ s.code }}" {% if filters.store == s.code %}selected{% endif %}>{{ s.code }}{% if s.name %} - {{ s.name }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <label class="form-label">Fornitore</label>
+          <select name="supplier" class="form-select">
+            <option value="">Tutti</option>
+            {% for s in supplier_options or [] %}
+              <option value="{{ s.row_uuid }}" {% if filters.supplier == s.row_uuid|string %}selected{% endif %}>{{ s.Fornitore }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <label class="form-label">Stato</label>
+          <select name="status" class="form-select">
+            <option value="">Tutti</option>
+            {% for st in status_options or [] %}
+              <option value="{{ st }}" {% if filters.status == st %}selected{% endif %}>{{ st }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <label class="form-label">Consegna dal</label>
+          <input type="date" class="form-control" name="delivery_date_from" value="{{ filters.delivery_date_from or '' }}">
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <label class="form-label">Consegna al</label>
+          <input type="date" class="form-control" name="delivery_date_to" value="{{ filters.delivery_date_to or '' }}">
+        </div>
+        <div class="col-lg-2 col-md-12 d-flex align-items-end justify-content-end gap-2 supplier-orders-filter-actions">
+          <a class="btn btn-outline-secondary" href="{{ url_for('warehouse.supplier_orders_sent') }}">Reset</a>
+          <button class="btn btn-primary">Filtra</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="row g-3 supplier-orders-layout">
+    <div class="col-12 col-xxl-3 col-xl-4">
+      <div class="card border-0 shadow-sm supplier-orders-panel h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h6 mb-0">Elenco ordini</h2>
+            <span class="text-muted small">{{ (rows or [])|length }} risultati</span>
+          </div>
+          <div class="supplier-order-list">
+            {% for row in rows or [] %}
+            {% set is_active = detail and detail.header.row_uuid == row.row_uuid %}
+            <a class="supplier-order-list-item supplier-order-list-item-compact {% if is_active %}is-active{% endif %}" href="{% if is_active %}{{ url_for('warehouse.supplier_orders_sent', store=filters.store, supplier=filters.supplier, status=filters.status, order_mode=filters.order_mode, order_date_from=filters.order_date_from, order_date_to=filters.order_date_to, delivery_date_from=filters.delivery_date_from, delivery_date_to=filters.delivery_date_to) }}{% else %}{{ url_for('warehouse.supplier_orders_sent', order_id=row.row_uuid, store=filters.store, supplier=filters.supplier, status=filters.status, order_mode=filters.order_mode, order_date_from=filters.order_date_from, order_date_to=filters.order_date_to, delivery_date_from=filters.delivery_date_from, delivery_date_to=filters.delivery_date_to) }}{% endif %}">
+              <div class="supplier-order-list-top">
+                <div>
+                  <div class="supplier-order-code">{{ row.numero_ordine }}</div>
+                  <div class="supplier-order-meta">{{ row.order_date }}</div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap justify-content-end">
+                  <span class="badge text-bg-light border">{{ row.order_mode }}</span>
+                  <span class="badge supplier-status-badge supplier-status-{{ (row.status or '')|lower|replace(' ', '-') }}">{{ row.status }}</span>
+                  {% if row.archived_at %}<span class="badge text-bg-secondary">Archiviato</span>{% endif %}
+                </div>
+              </div>
+              <div class="supplier-order-list-body">
+                <div class="supplier-order-value supplier-order-clamp">{{ row.supplier_name }}</div>
+                <div class="supplier-order-chip-stack">
+                  <span class="supplier-order-inline-chip">{{ row.site }}</span>
+                  <span class="supplier-order-inline-chip">{{ row.requested_delivery_date }}</span>
+                  <span class="supplier-order-inline-chip">{{ '%.2f'|format(row.total_estimated|float) }} &euro;</span>
+                </div>
+                {% if row.store_name %}
+                <div class="supplier-order-subvalue supplier-order-clamp">{{ row.store_name }}</div>
+                {% endif %}
+              </div>
+            </a>
+            {% else %}
+            <div class="text-muted p-3">Nessun ordine trovato.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xxl-9 col-xl-8">
+      <div class="card border-0 shadow-sm supplier-orders-panel h-100">
+        <div class="card-body">
+          {% if detail %}
+            <div class="supplier-order-detail-head mb-3">
+              <div>
+                <h2 class="h5 mb-1">{{ detail.header.numero_ordine }}</h2>
+                <div class="text-muted small">{{ detail.header.site }}{% if detail.header.store_name %} - {{ detail.header.store_name }}{% endif %} &middot; {{ detail.header.supplier_name }}</div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <span class="badge supplier-status-badge supplier-status-{{ (detail.header.status or '')|lower|replace(' ', '-') }}">{{ detail.header.status }}</span>
+                {% if detail.header.archived_at %}<span class="badge text-bg-secondary">Archiviato</span>{% endif %}
+            </div>
+          </div>
+
+            <div class="supplier-order-kpis mb-3">
+              <div class="supplier-order-kpi"><span>Data ordine</span><strong>{{ detail.header.order_date }}</strong></div>
+              <div class="supplier-order-kpi"><span>Consegna</span><strong>{{ detail.header.requested_delivery_date }}</strong></div>
+              <div class="supplier-order-kpi"><span>Invio</span><strong>{{ detail.header.order_mode }}</strong></div>
+              <div class="supplier-order-kpi"><span>Totale stimato</span><strong>{{ '%.2f'|format(detail.header.total_estimated|float) }} &euro;</strong></div>
+            </div>
+
+            <div class="supplier-order-note-box mb-3">
+              <div class="supplier-order-label mb-1">Note ordine</div>
+              <div>{{ detail.header.note_ordine or '-' }}</div>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('warehouse.supplier_order_pdf', order_id=detail.header.row_uuid) }}" target="_blank">Visualizza PDF</a>
+              {% if detail.header.ddt_data_doc and detail.header.ddt_data_rif and detail.header.ddt_supplier_code %}
+                <span class="btn btn-success btn-sm disabled" aria-disabled="true">DDT caricato</span>
+                <a class="btn btn-outline-success btn-sm" href="{{ url_for('warehouse.delivery_edit', supplier_code=detail.header.ddt_supplier_code, data_doc=detail.header.ddt_data_doc, data_rif=detail.header.ddt_data_rif) }}">Visualizza DDT collegato</a>
+              {% else %}
+                <form method="post" action="{{ url_for('warehouse.supplier_orders_sent_to_ddt', order_id=detail.header.row_uuid) }}">
+                  <button class="btn btn-primary btn-sm">Carica DDT</button>
+                </form>
+              {% endif %}
+            </div>
+
+            <div class="supplier-order-lines">
+              {% for row in detail.rows or [] %}
+              <div class="supplier-order-line-card {% if row.supplier_added %}is-supplier-added{% endif %}">
+                <div class="supplier-order-line-main">
+                  <div>
+                    <div class="fw-semibold">{{ row.descrizione }}</div>
+                    <div class="small text-muted">
+                      {{ row.gruppo or '-' }}
+                      {% if row.lotto %} &middot; Lotto {{ row.lotto }}{% endif %}
+                      {% if row.scadenza %} &middot; Scad. {{ row.scadenza }}{% endif %}
+                    </div>
+                    {% if row.note_fornitore %}<div class="small text-muted mt-1">{{ row.note_fornitore }}</div>{% endif %}
+                  </div>
+                  <div class="d-flex gap-2 flex-wrap justify-content-end">
+                    <span class="badge text-bg-light border">Q.t&agrave; {{ row.qty_ordered }}</span>
+                    <span class="badge text-bg-light border">{{ row.price_source or '-' }}</span>
+                    {% if row.supplier_added and row.replacement_for_row_uuid %}<span class="badge text-bg-warning">Sostituzione</span>{% elif row.supplier_added %}<span class="badge text-bg-info">Aggiunto dal fornitore</span>{% endif %}
+                    {% if row.picked %}<span class="badge text-bg-success">S&igrave;</span>{% else %}<span class="badge text-bg-light border">No</span>{% endif %}
+                  </div>
+                </div>
+                <div class="supplier-order-line-values">
+                  <div><span>Prezzo</span><strong>{{ '%.2f'|format(row.estimated_price|float) }} &euro;</strong></div>
+                  <div><span>Subtotale</span><strong>{{ '%.2f'|format(row.subtotal|float) }} &euro;</strong></div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted">Seleziona un ordine per vedere il dettaglio.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

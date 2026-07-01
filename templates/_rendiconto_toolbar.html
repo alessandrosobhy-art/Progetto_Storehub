@@ -1,0 +1,39 @@
+<div class="app-sectionbar">
+  <div class="container app-sectionbar__inner">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      {% set cs_ns = 'cash_statement' %}
+      <span class="app-sectionbar__label">{{ tr(cs_ns, 'toolbar.rendiconto', 'Rendiconto') }}</span>
+      {% set is_ricerca = request.path.startswith('/rendiconto/ricerca') %}
+      {% set is_spese = request.path.startswith('/rendiconto/spese') %}
+      {% set is_distinta = request.path.startswith('/rendiconto/distinta-cassa') %}
+      {% set is_versamenti = request.path.startswith('/rendiconto/versamenti') %}
+      {% set is_delivery = request.path.startswith('/rendiconto/gestione-delivery') %}
+
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_distinta else 'btn-outline-primary' }}"
+         href="{{ url_for('rendiconto.distinta_cassa') }}">
+        {{ tr(cs_ns, 'ui.title', 'Distinta cassa') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_spese else 'btn-outline-primary' }}"
+         href="{{ url_for('rendiconto.spese') }}">
+        {{ tr(cs_ns, 'toolbar.spese', 'Spese') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_versamenti else 'btn-outline-primary' }}"
+         href="{{ url_for('rendiconto.versamenti') }}">
+        {{ tr(cs_ns, 'toolbar.versamenti', 'Versamenti') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_delivery else 'btn-outline-primary' }}"
+         href="{{ url_for('rendiconto.gestione_delivery') }}">
+        {{ tr(cs_ns, 'toolbar.gestione_delivery', 'Gestione delivery') }}
+      </a>
+
+      <a class="btn btn-sm {{ 'btn-primary' if is_ricerca else 'btn-outline-primary' }}"
+         href="{{ url_for('rendiconto.ricerca') }}">
+        {{ tr(cs_ns, 'toolbar.ricerca', 'Ricerca') }}
+      </a>
+    </div>
+  </div>
+</div>

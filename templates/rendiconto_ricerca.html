@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Rendiconto - Ricerca{% endblock %}
+
+{% block content %}
+  {% include "_rendiconto_toolbar.html" %}
+  {% set rc_ns = 'rendiconto' %}
+
+  <div class="container py-4">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+      <div>
+        <h3 class="mb-1">{{ tr(rc_ns, 'search.title', 'Ricerca') }}</h3>
+        <div class="text-muted small">
+          {{ tr(rc_ns, 'search.visible_stores', 'Store visibili') }}: <strong>{{ stores_count }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-md-3">
+            <label class="form-label small text-muted mb-1">{{ tr(rc_ns, 'search.kind', 'Cosa cercare') }}</label>
+            <select class="form-select" id="rsKind">
+              <option value="VERSAMENTI">{{ tr(rc_ns, 'deposits.title', 'Versamenti') }}</option>
+              <option value="SPESE">{{ tr('cash_statement', 'toolbar.spese', 'Spese') }}</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label small text-muted mb-1">{{ tr(rc_ns, 'search.period', 'Periodo') }}</label>
+            <select class="form-select" id="rsMode">
+              <option value="WEEK">{{ tr(rc_ns, 'search.week', 'Settimana') }}</option>
+              <option value="MONTH" selected>{{ tr(rc_ns, 'search.month', 'Mese') }}</option>
+              <option value="PERIOD">{{ tr(rc_ns, 'search.period', 'Periodo') }}</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <!-- WEEK -->
+            <div id="rsBoxWeek" class="d-none">
+              <div class="d-flex align-items-end gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary" id="rsWeekPrev">◀</button>
+                <div>
+                  <label class="form-label small text-muted mb-1">{{ tr(rc_ns, 'search.date_in_week', 'Data (nella settimana)') }}</label>
+                  <input type="date" class="form-control" id="rsWeekAnchor" />
+                </div>
+                <button type="button" class="btn btn-outline-secondary" id="rsWeekNext">▶</button>
+                <div class="text-muted small" id="rsWeekLabel"></div>
+              </div>
+            </div>
+
+            <!-- MONTH -->
+            <div id="rsBoxMonth">
+              <div class="d-flex align-items-end gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary" id="rsMonthPrev">◀</button>
+                <div>
+                  <label class="form-label small text-muted mb-1">{{ tr(rc_ns, 'search.month', 'Mese') }}</label>
+                  <input type="month" class="form-control" id="rsMonthPicker" />
+                </div>
+                <button type="button" class="btn btn-outline-secondary" id="rsMonthNext">▶</button>
+                <div class="text-muted small" id="rsMonthLabel"></div>
+              </div>
+            </div>
+
+            <!-- PERIOD -->
+            <div id="rsBoxPeriod" class="d-none">
+              <div class="d-flex align-items-end gap-2 flex-wrap">
+                <div>
+                  <label class="form-label small text-muted mb-1">{{ tr(rc_ns, 'search.from', 'Dal') }}</label>
+                  <input type="date" class="form-control" id="rsPeriodStart" />
+                </div>
+                <div>
+                  <label class="form-label small text-muted mb-1">{{ tr(rc_ns, 'search.to', 'Al') }}</label>
+                  <input type="date" class="form-control" id="rsPeriodEnd" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 d-flex align-items-center gap-2 flex-wrap mt-3">
+            <button type="button" class="btn btn-primary" id="rsBtnSearch">{{ tr(rc_ns, 'search.search', 'Cerca') }}</button>
+            <button type="button" class="btn btn-outline-success" id="rsBtnExport" disabled>{{ tr(rc_ns, 'search.export', 'Estrai Excel (vista corrente)') }}</button>
+            <div class="ms-auto text-muted small" id="rsSummary"></div>
+          </div>
+        </div>
+
+        <div class="alert alert-danger mt-3 d-none" id="rsError"></div>
+        <div class="alert alert-warning mt-3 d-none" id="rsWarn"></div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label small text-muted mb-1">{{ tr(rc_ns, 'search.filter_by', 'Filtra per') }}</label>
+            <select class="form-select" id="rsFilterKey" disabled>
+              <option value="ALL">{{ tr(rc_ns, 'search.all_fields', 'Tutti i campi') }}</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label small text-muted mb-1">{{ tr(rc_ns, 'search.search', 'Cerca') }}</label>
+            <input type="text" class="form-control" id="rsFilterVal" placeholder="{{ tr(rc_ns, 'search.placeholder', 'Scrivi per filtrare...') }}" disabled>
+          </div>
+          <div class="col-12 col-md-2 d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary w-100" id="rsFilterClear" disabled>{{ tr(rc_ns, 'search.reset', 'Reset') }}</button>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <div class="text-muted small" id="rsCount"></div>
+          <div class="spinner-border spinner-border-sm d-none" role="status" id="rsSpinner"></div>
+        </div>
+
+        <div id="rsResults"></div>
+
+        <div class="text-muted small mt-2" id="rsHint" style="display:none;">
+          {{ tr(rc_ns, 'search.hint', 'Suggerimento: scegli il campo dalla tendina e digita il valore per filtrare i risultati.') }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal foto spesa (stile pagina Spese) -->
+  <div class="modal fade" id="photoSpesaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ tr(rc_ns, 'expenses.photo_title', 'Foto spesa') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr(rc_ns, 'common.close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body text-center">
+          <div class="text-muted small mb-2" id="photoSpesaLoading" style="display:none;">{{ tr(rc_ns, 'common.loading', 'Caricamento...') }}</div>
+          <img id="photoSpesaImg" src="" class="img-fluid rounded" alt="{{ tr(rc_ns, 'expenses.photo_title', 'Foto spesa') }}" style="max-height:70vh;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal foto versamento (stile pagina Versamenti) -->
+  <div class="modal fade" id="photoVersamentoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ tr(rc_ns, 'deposits.photo_title', 'Foto versamento') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ tr(rc_ns, 'common.close', 'Chiudi') }}"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center">
+            <div id="photoVersamentoLoading" class="text-muted small mb-2" style="display:none;">{{ tr(rc_ns, 'common.loading', 'Caricamento...') }}</div>
+            <img id="photoVersamentoImg" src="" alt="{{ tr(rc_ns, 'common.photo', 'Foto') }}" style="max-width:100%; height:auto; display:none; border-radius:8px;">
+            <div id="photoVersamentoError" class="text-danger small" style="display:none;">{{ tr(rc_ns, 'common.photo_load_error', 'Impossibile caricare la foto.') }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.REND_SEARCH_CFG = {
+      apiUrl: "{{ url_for('rendiconto.api_ricerca') }}",
+      exportUrl: "{{ url_for('rendiconto.api_ricerca_export_xlsx') }}",
+      build: "v1.3.3",
+      i18n: {
+        uiError: {{ tr(rc_ns, 'search.ui_error', 'Errore UI')|tojson }},
+        rows: {{ tr(rc_ns, 'search.rows', 'Righe')|tojson }},
+        of: {{ tr(rc_ns, 'search.of', 'su')|tojson }},
+        noResults: {{ tr(rc_ns, 'search.no_results', 'Nessun risultato.')|tojson }},
+        storeUnavailable: {{ tr(rc_ns, 'search.store_unavailable', 'store non disponibile')|tojson }},
+        store: {{ tr(rc_ns, 'common.store', 'Store')|tojson }},
+        allFields: {{ tr(rc_ns, 'search.all_fields', 'Tutti i campi')|tojson }},
+        date: {{ tr(rc_ns, 'common.date', 'Data')|tojson }},
+        type: {{ tr('cash_statement', 'ui.type', 'Tipo')|tojson }},
+        supplierExpense: {{ tr(rc_ns, 'expenses.supplier_expense', 'Fornitore / Spesa')|tojson }},
+        document: {{ tr(rc_ns, 'expenses.document', 'Scontrino / Fattura')|tojson }},
+        amount: {{ tr(rc_ns, 'common.amount', 'Importo')|tojson }},
+        photo: {{ tr(rc_ns, 'common.photo', 'Foto')|tojson }},
+        depositDate: {{ tr(rc_ns, 'deposits.deposit_date', 'Data versamento')|tojson }},
+        fullName: {{ tr(rc_ns, 'deposits.full_name', 'Nome e cognome')|tojson }},
+        value: {{ tr('cash_statement', 'ui.value', 'Valore')|tojson }},
+        period: {{ tr(rc_ns, 'deposits.period', 'Periodo')|tojson }},
+        card: {{ tr(rc_ns, 'deposits.card', 'Tessera')|tojson }},
+        reference: {{ tr(rc_ns, 'deposits.reference', 'Riferimento versamento')|tojson }},
+        viewPhoto: {{ tr(rc_ns, 'expenses.view_photo', 'Vedi foto')|tojson }},
+        loading: {{ tr(rc_ns, 'common.loading', 'Caricamento...')|tojson }},
+        photoLoadError: {{ tr(rc_ns, 'common.photo_load_error', 'Impossibile caricare la foto.')|tojson }},
+        invalidRange: {{ tr(rc_ns, 'search.invalid_range', 'Seleziona un intervallo valido.')|tojson }},
+        searchError: {{ tr(rc_ns, 'search.search_error', 'Errore ricerca')|tojson }},
+        exportError: {{ tr(rc_ns, 'search.export_error', 'Errore export')|tojson }},
+        weekPrefix: {{ tr(rc_ns, 'search.week', 'Settimana')|tojson }},
+        monthPrefix: {{ tr(rc_ns, 'search.month', 'Mese')|tojson }},
+        periodPrefix: {{ tr(rc_ns, 'search.period', 'Periodo')|tojson }},
+        total: {{ tr(rc_ns, 'common.total', 'Totale')|tojson }},
+      },
+    };
+  </script>
+  {#
+    In produzione (es. gunicorn sulla VM) Flask tende a servire /static con cache lunga.
+    Aggiungiamo un cache-buster per evitare che il browser/proxy mantenga una versione vecchia del JS.
+  #}
+  <script src="{{ url_for('static', filename='js/rendiconto_ricerca_v1.js') }}?v=1.3.3" defer></script>
+{% endblock %}

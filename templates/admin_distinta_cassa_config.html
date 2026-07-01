@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+{% block title %}Admin - Configurazione distinta cassa{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Configurazione distinta cassa</h1>
+      <div class="text-muted small">Le sezioni e le voci non vengono cancellate: possono essere solo nascoste.</div>
+    </div>
+    <span class="badge text-bg-light border">{{ sections|length }} sezioni</span>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white fw-semibold">Tenant</div>
+        <div class="card-body">
+          <form method="get" class="vstack gap-2">
+            <label class="form-label">Seleziona tenant</label>
+            <select class="form-select" name="tenant_key" onchange="this.form.submit()">
+              {% for t in tenants %}
+                <option value="{{ t.tenant_key }}" {% if selected_tenant_key == t.tenant_key %}selected{% endif %}>
+                  {{ t.display_name }} ({{ t.tenant_key }})
+                </option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-outline-primary" type="submit">Carica</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white fw-semibold">Nuova sezione</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-2">
+            <input type="hidden" name="action" value="create_section">
+            <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+            <div>
+              <label class="form-label">Nome sezione</label>
+              <input class="form-control" name="section_label" placeholder="Es. Buoni pasto extra">
+            </div>
+            <div class="row g-2">
+              <div class="col-12 col-md-4">
+                <label class="form-label">Nome EN</label>
+                <input class="form-control" name="section_label_en" placeholder="Default se vuoto">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Nome FR</label>
+                <input class="form-control" name="section_label_fr" placeholder="Default se vuoto">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Nome ES</label>
+                <input class="form-control" name="section_label_es" placeholder="Default se vuoto">
+              </div>
+            </div>
+            <div class="row g-2">
+              <div class="col-8">
+                <label class="form-label">Tipo</label>
+                <select class="form-select" name="section_kind">
+                  <option value="fields">Campi liberi</option>
+                  <option value="option_list">Elenco voci</option>
+                </select>
+              </div>
+              <div class="col-4">
+                <label class="form-label">Ordine</label>
+                <input class="form-control" type="number" name="section_sort_order" value="100">
+              </div>
+            </div>
+            <button class="btn btn-primary" type="submit">Crea sezione</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white fw-semibold">Nuova voce</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-2">
+            <input type="hidden" name="action" value="create_field">
+            <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+            <div>
+              <label class="form-label">Sezione</label>
+              <select class="form-select" name="field_section_key" id="fieldSectionKey">
+                {% for section in sections %}
+                  <option value="{{ section.section_key }}" data-section-kind="{{ section.section_kind }}">{{ section.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Nome voce</label>
+              <input class="form-control" name="field_label" placeholder="Es. Incasso extra">
+            </div>
+            <div class="row g-2">
+              <div class="col-12 col-md-4">
+                <label class="form-label">Nome EN</label>
+                <input class="form-control" name="field_label_en" placeholder="Default se vuoto">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Nome FR</label>
+                <input class="form-control" name="field_label_fr" placeholder="Default se vuoto">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Nome ES</label>
+                <input class="form-control" name="field_label_es" placeholder="Default se vuoto">
+              </div>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">Valore</label>
+                <select class="form-select" name="field_value_type" id="fieldValueType">
+                  <option value="money">Importo</option>
+                  <option value="int">Numero</option>
+                  <option value="text">Testo</option>
+                  <option value="calculated">Calcolato</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Ordine</label>
+                <input class="form-control" type="number" name="field_sort_order" value="100">
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Comportamento</label>
+              <select class="form-select" name="field_behavior" id="fieldBehavior">
+                <option value="none">Nessun effetto</option>
+                <option value="gross_plus">Aumenta giro d'affari</option>
+                <option value="gross_minus">Diminuisce giro d'affari</option>
+                <option value="cash_difference_plus">Riduce differenza cassa (come POS)</option>
+                <option value="cash_difference_minus">Aumenta differenza cassa</option>
+                <option value="pos">POS</option>
+                <option value="cash">Contanti</option>
+                <option value="receipts">Scontrini</option>
+                <option value="cash_deposit">Versamento contanti</option>
+                <option value="ticket_si">Ticket SI</option>
+                <option value="delivery_online_si">Delivery online SI</option>
+                <option value="delivery_cash_no">Delivery contanti NO</option>
+                <option value="coupon_si">Coupon SI</option>
+              </select>
+            </div>
+            <div id="fieldLegacyTipoWrap">
+              <label class="form-label">Tipo voce elenco</label>
+              <select class="form-select" name="field_legacy_tipo" id="fieldLegacyTipo">
+                <option value="">Non applicabile</option>
+                <option value="SI">SI</option>
+                <option value="NO">NO</option>
+              </select>
+              <div class="form-text">Usato solo nelle sezioni Elenco voci per alimentare la tendina.</div>
+            </div>
+            <div id="fieldFormulaWrap">
+              <label class="form-label">Formula</label>
+              <input class="form-control" name="field_formula" id="fieldFormula" placeholder="Es. vendite_lorde - annullati">
+              <div class="form-text">Inserisci campi e operatori dai controlli guidati.</div>
+            </div>
+            <div class="row g-2" id="fieldFormulaBuilderWrap">
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Campo da inserire</label>
+                <select class="form-select" id="formulaTokenSelect">
+                  <option value="">Seleziona campo</option>
+                  {% for section in sections %}
+                    {% set fields = fields_by_section.get(section.section_key, []) %}
+                    {% if fields %}
+                      <optgroup label="{{ section.label }}">
+                        {% for f in fields %}
+                          <option value="{{ f.field_key }}">{{ f.label }} ({{ f.field_key }})</option>
+                        {% endfor %}
+                      </optgroup>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6 col-lg-3">
+                <label class="form-label">Operatore</label>
+                <select class="form-select" id="formulaOperatorSelect">
+                  <option value="+">+</option>
+                  <option value="-">-</option>
+                  <option value="*">*</option>
+                  <option value="/">/</option>
+                  <option value="(">(</option>
+                  <option value=")">)</option>
+                </select>
+              </div>
+              <div class="col-6 col-lg-3">
+                <label class="form-label">Costante</label>
+                <input class="form-control" id="formulaConstantInput" placeholder="1.1">
+              </div>
+              <div class="col-12 d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="insertFormulaToken">Inserisci campo</button>
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="insertFormulaOperator">Inserisci operatore</button>
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="insertFormulaConstant">Inserisci costante</button>
+                <button class="btn btn-outline-danger btn-sm" type="button" id="clearFormula">Pulisci formula</button>
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Metrica report</label>
+              <select class="form-select" name="field_canonical_metric">
+                <option value="">Nessuna: solo visibile/salvata in distinta</option>
+                <option value="gross_revenue">Sostituisce vendite lorde/giro affari dei report</option>
+                <option value="business_volume">Sostituisce giro d'affari dei report</option>
+                <option value="net_revenue">Sostituisce vendite nette dei report</option>
+                <option value="cash_difference">Sostituisce differenza cassa dei report</option>
+                <option value="pos_amount">Alimenta totale POS report</option>
+                <option value="cash_amount">Alimenta totale contanti report</option>
+                <option value="ticket_total">Alimenta totale ticket report</option>
+                <option value="delivery_total">Alimenta totale delivery report</option>
+                <option value="coupon_total">Alimenta totale coupon report</option>
+                <option value="receipts_count">Alimenta numero scontrini report</option>
+              </select>
+              <div class="form-text">Da usare solo se questo campo deve diventare un valore ufficiale nei report. Per campi operativi lascia Nessuna.</div>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="field_required" value="1" id="fieldRequired">
+              <label class="form-check-label" for="fieldRequired">Obbligatoria</label>
+            </div>
+            <button class="btn btn-primary" type="submit">Crea voce</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {% for section in sections %}
+      {% set fields = fields_by_section.get(section.section_key, []) %}
+      <div class="col-12">
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+              <div class="fw-semibold">{{ section.label }}</div>
+              <div class="text-muted small">{{ section.section_key }} · {{ section.section_kind }}</div>
+              {% if section.label_en or section.label_fr or section.label_es %}
+                <div class="text-muted small">EN: {{ section.label_en or section.label }} · FR: {{ section.label_fr or section.label }} · ES: {{ section.label_es or section.label }}</div>
+              {% endif %}
+            </div>
+            <div class="d-flex flex-wrap gap-1 align-items-center">
+              {% if section.base_section %}<span class="badge text-bg-primary">base</span>{% else %}<span class="badge text-bg-info">personalizzazione</span>{% endif %}
+              {% if section.protected_section %}<span class="badge text-bg-secondary">protetta</span>{% endif %}
+              {% if section.is_visible %}<span class="badge text-bg-success">visibile</span>{% else %}<span class="badge text-bg-warning">nascosta</span>{% endif %}
+              <form method="post">
+                <input type="hidden" name="action" value="toggle_section">
+                <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                <input type="hidden" name="section_key" value="{{ section.section_key }}">
+                <input type="hidden" name="visible" value="{{ 0 if section.is_visible else 1 }}">
+                <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Nascondi' if section.is_visible else 'Mostra' }}</button>
+              </form>
+              {% if not section.protected_section and not section.base_section %}
+                <form method="post" onsubmit="return window.confirm('Eliminare questa sezione e tutte le sue voci? Azione consentita solo in fase test.');">
+                  <input type="hidden" name="action" value="delete_section">
+                  <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                  <input type="hidden" name="section_key" value="{{ section.section_key }}">
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Elimina test</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 22%;">Voce</th>
+                  <th style="width: 12%;">Tipo</th>
+                  <th style="width: 18%;">Origine</th>
+                  <th>Comportamenti</th>
+                  <th class="text-end" style="width: 110px;">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if fields %}
+                  {% for field in fields %}
+                    <tr>
+                      <td>
+                        <div class="fw-semibold">{{ field.label }}</div>
+                        <div class="text-muted small">{{ field.field_key }}</div>
+                        {% if field.label_en or field.label_fr or field.label_es %}
+                          <div class="text-muted small">EN: {{ field.label_en or field.label }} · FR: {{ field.label_fr or field.label }} · ES: {{ field.label_es or field.label }}</div>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <span class="badge text-bg-light border">{{ field.value_type }}</span>
+                        {% if field.required_field %}<span class="badge text-bg-danger">obbl.</span>{% endif %}
+                        {% if field.readonly_field %}<span class="badge text-bg-secondary">readonly</span>{% endif %}
+                        {% if field.imported_field %}<span class="badge text-bg-info">import</span>{% endif %}
+                        {% if field.formula_expression %}<span class="badge text-bg-dark">formula</span>{% endif %}
+                        {% if field.is_visible %}<span class="badge text-bg-success">visibile</span>{% else %}<span class="badge text-bg-warning">nascosta</span>{% endif %}
+                      </td>
+                      <td class="small">
+                        {% if field.legacy_category %}<div>Legacy: {{ field.legacy_category }}</div>{% endif %}
+                        {% if field.option_group %}<div>Elenco: {{ field.option_group }}</div>{% endif %}
+                        {% if field.ipratico_key %}<div>iPratico: {{ field.ipratico_key }}</div>{% endif %}
+                        {% if field.canonical_metric %}<div>Report: {{ field.canonical_metric }}</div>{% endif %}
+                        {% if field.formula_expression %}<div>Formula: <code>{{ field.formula_expression }}</code></div>{% endif %}
+                      </td>
+                      <td class="small">
+                        <div class="d-flex flex-wrap gap-1">
+                          {% if field.affects_gross_revenue %}<span class="badge text-bg-light border">giro affari {{ field.gross_revenue_sign }}</span>{% endif %}
+                          {% if field.affects_cash_difference %}<span class="badge text-bg-light border">diff. cassa {{ field.cash_difference_sign }}{% if field.cash_difference_tipo_filter %} {{ field.cash_difference_tipo_filter }}{% endif %}</span>{% endif %}
+                          {% if field.affects_receipts %}<span class="badge text-bg-light border">scontrini {{ field.receipts_sign }}</span>{% endif %}
+                          {% if field.affects_pos_amount %}<span class="badge text-bg-light border">POS {{ field.pos_amount_sign }}</span>{% endif %}
+                          {% if field.affects_cash_amount %}<span class="badge text-bg-light border">contanti {{ field.cash_amount_sign }}</span>{% endif %}
+                          {% if field.affects_cash_deposit %}<span class="badge text-bg-light border">versamento {{ field.cash_deposit_sign }}</span>{% endif %}
+                          {% if field.affects_ticket_total %}<span class="badge text-bg-light border">ticket totale {{ field.ticket_total_sign }}</span>{% endif %}
+                          {% if field.affects_ticket_cash_effect %}<span class="badge text-bg-light border">ticket diff. {{ field.ticket_cash_effect_sign }}{% if field.ticket_cash_effect_tipo_filter %} {{ field.ticket_cash_effect_tipo_filter }}{% endif %}</span>{% endif %}
+                          {% if field.affects_delivery_total %}<span class="badge text-bg-light border">delivery totale {{ field.delivery_total_sign }}</span>{% endif %}
+                          {% if field.affects_delivery_online %}<span class="badge text-bg-light border">delivery online {{ field.delivery_online_sign }}{% if field.delivery_online_tipo_filter %} {{ field.delivery_online_tipo_filter }}{% endif %}</span>{% endif %}
+                          {% if field.affects_delivery_cash %}<span class="badge text-bg-light border">delivery contanti {{ field.delivery_cash_sign }}{% if field.delivery_cash_tipo_filter %} {{ field.delivery_cash_tipo_filter }}{% endif %}</span>{% endif %}
+                          {% if field.affects_delivery_cash_effect %}<span class="badge text-bg-light border">delivery diff. {{ field.delivery_cash_effect_sign }}{% if field.delivery_cash_effect_tipo_filter %} {{ field.delivery_cash_effect_tipo_filter }}{% endif %}</span>{% endif %}
+                          {% if field.affects_coupon_total %}<span class="badge text-bg-light border">coupon totale {{ field.coupon_total_sign }}</span>{% endif %}
+                          {% if field.affects_coupon_cash_effect %}<span class="badge text-bg-light border">coupon diff. {{ field.coupon_cash_effect_sign }}{% if field.coupon_cash_effect_tipo_filter %} {{ field.coupon_cash_effect_tipo_filter }}{% endif %}</span>{% endif %}
+                        </div>
+                        {% if not field.protected_field %}
+                          {% set current_behavior = 'none' %}
+                          {% if field.affects_gross_revenue and field.gross_revenue_sign > 0 %}{% set current_behavior = 'gross_plus' %}{% endif %}
+                          {% if field.affects_gross_revenue and field.gross_revenue_sign < 0 %}{% set current_behavior = 'gross_minus' %}{% endif %}
+                          {% if field.affects_cash_difference and field.cash_difference_sign > 0 and not field.affects_pos_amount and not field.affects_cash_deposit %}{% set current_behavior = 'cash_difference_plus' %}{% endif %}
+                          {% if field.affects_cash_difference and field.cash_difference_sign < 0 %}{% set current_behavior = 'cash_difference_minus' %}{% endif %}
+                          {% if field.affects_pos_amount %}{% set current_behavior = 'pos' %}{% endif %}
+                          {% if field.affects_cash_amount %}{% set current_behavior = 'cash' %}{% endif %}
+                          {% if field.affects_receipts %}{% set current_behavior = 'receipts' %}{% endif %}
+                          {% if field.affects_cash_deposit %}{% set current_behavior = 'cash_deposit' %}{% endif %}
+                          {% if field.affects_ticket_total and field.affects_ticket_cash_effect %}{% set current_behavior = 'ticket_si' %}{% endif %}
+                          {% if field.affects_delivery_total and field.affects_delivery_online and field.affects_delivery_cash_effect %}{% set current_behavior = 'delivery_online_si' %}{% endif %}
+                          {% if field.affects_delivery_total and field.affects_delivery_cash and not field.affects_delivery_cash_effect %}{% set current_behavior = 'delivery_cash_no' %}{% endif %}
+                          {% if field.affects_coupon_total and field.affects_coupon_cash_effect %}{% set current_behavior = 'coupon_si' %}{% endif %}
+                          <form method="post" class="row g-1 align-items-center mt-2">
+                            <input type="hidden" name="action" value="update_field_behavior">
+                            <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                            <input type="hidden" name="section_key" value="{{ section.section_key }}">
+                            <input type="hidden" name="field_key" value="{{ field.field_key }}">
+                            <div class="col">
+                              <select class="form-select form-select-sm" name="field_behavior">
+                                <option value="none" {% if current_behavior == 'none' %}selected{% endif %}>Nessun effetto</option>
+                                <option value="gross_plus" {% if current_behavior == 'gross_plus' %}selected{% endif %}>Aumenta giro d'affari</option>
+                                <option value="gross_minus" {% if current_behavior == 'gross_minus' %}selected{% endif %}>Diminuisce giro d'affari</option>
+                                <option value="cash_difference_plus" {% if current_behavior == 'cash_difference_plus' %}selected{% endif %}>Riduce diff. cassa (come POS)</option>
+                                <option value="cash_difference_minus" {% if current_behavior == 'cash_difference_minus' %}selected{% endif %}>Aumenta diff. cassa</option>
+                                <option value="pos" {% if current_behavior == 'pos' %}selected{% endif %}>POS</option>
+                                <option value="cash" {% if current_behavior == 'cash' %}selected{% endif %}>Contanti</option>
+                                <option value="receipts" {% if current_behavior == 'receipts' %}selected{% endif %}>Scontrini</option>
+                                <option value="cash_deposit" {% if current_behavior == 'cash_deposit' %}selected{% endif %}>Versamento contanti</option>
+                                <option value="ticket_si" {% if current_behavior == 'ticket_si' %}selected{% endif %}>Ticket SI</option>
+                                <option value="delivery_online_si" {% if current_behavior == 'delivery_online_si' %}selected{% endif %}>Delivery online SI</option>
+                                <option value="delivery_cash_no" {% if current_behavior == 'delivery_cash_no' %}selected{% endif %}>Delivery contanti NO</option>
+                                <option value="coupon_si" {% if current_behavior == 'coupon_si' %}selected{% endif %}>Coupon SI</option>
+                              </select>
+                            </div>
+                            <div class="col-auto">
+                              <button class="btn btn-outline-primary btn-sm" type="submit">Salva</button>
+                            </div>
+                          </form>
+                        {% endif %}
+                      </td>
+                      <td class="text-end">
+                        <div class="d-inline-flex gap-1">
+                          <form method="post">
+                            <input type="hidden" name="action" value="toggle_field">
+                            <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                            <input type="hidden" name="section_key" value="{{ section.section_key }}">
+                            <input type="hidden" name="field_key" value="{{ field.field_key }}">
+                            <input type="hidden" name="visible" value="{{ 0 if field.is_visible else 1 }}">
+                            <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Nascondi' if field.is_visible else 'Mostra' }}</button>
+                          </form>
+                          {% if not field.protected_field %}
+                            <form method="post" onsubmit="return window.confirm('Eliminare questa voce? Azione consentita solo in fase test.');">
+                              <input type="hidden" name="action" value="delete_field">
+                              <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                              <input type="hidden" name="section_key" value="{{ section.section_key }}">
+                              <input type="hidden" name="field_key" value="{{ field.field_key }}">
+                              <button class="btn btn-outline-danger btn-sm" type="submit">Elimina</button>
+                            </form>
+                          {% endif %}
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="5" class="text-muted small">Nessuna voce configurata per questa sezione.</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+<script>
+  (() => {
+    const formula = document.getElementById('fieldFormula');
+    if (!formula) return;
+    const appendPart = (part) => {
+      const value = String(part || '').trim();
+      if (!value) return;
+      const current = formula.value.trim();
+      formula.value = current ? `${current} ${value}` : value;
+      formula.focus();
+    };
+    document.getElementById('insertFormulaToken')?.addEventListener('click', () => {
+      appendPart(document.getElementById('formulaTokenSelect')?.value || '');
+    });
+    document.getElementById('insertFormulaOperator')?.addEventListener('click', () => {
+      appendPart(document.getElementById('formulaOperatorSelect')?.value || '');
+    });
+    document.getElementById('insertFormulaConstant')?.addEventListener('click', () => {
+      appendPart((document.getElementById('formulaConstantInput')?.value || '').replace(',', '.'));
+    });
+    document.getElementById('clearFormula')?.addEventListener('click', () => {
+      formula.value = '';
+      formula.focus();
+    });
+  })();
+  (() => {
+    const section = document.getElementById('fieldSectionKey');
+    const valueType = document.getElementById('fieldValueType');
+    const behavior = document.getElementById('fieldBehavior');
+    const legacyTipo = document.getElementById('fieldLegacyTipo');
+    const legacyTipoWrap = document.getElementById('fieldLegacyTipoWrap');
+    const formula = document.getElementById('fieldFormula');
+    const formulaWrap = document.getElementById('fieldFormulaWrap');
+    const formulaBuilderWrap = document.getElementById('fieldFormulaBuilderWrap');
+    if (!section || !valueType) return;
+    const sync = () => {
+      const selected = section.options[section.selectedIndex];
+      const isOptionList = selected && selected.dataset.sectionKind === 'option_list';
+      const calc = Array.from(valueType.options).find((opt) => opt.value === 'calculated');
+      if (calc) calc.disabled = isOptionList;
+      if (isOptionList && valueType.value === 'calculated') valueType.value = 'money';
+      if (legacyTipoWrap) legacyTipoWrap.classList.toggle('d-none', !isOptionList);
+      if (formulaWrap) formulaWrap.classList.toggle('d-none', isOptionList);
+      if (formulaBuilderWrap) formulaBuilderWrap.classList.toggle('d-none', isOptionList);
+      if (isOptionList && formula) formula.value = '';
+    };
+    const syncBehaviorTipo = () => {
+      if (!legacyTipo || !behavior) return;
+      const selected = section.options[section.selectedIndex];
+      const isOptionList = selected && selected.dataset.sectionKind === 'option_list';
+      if (!isOptionList) return;
+      if (['ticket_si', 'delivery_online_si', 'coupon_si'].includes(behavior.value)) {
+        legacyTipo.value = 'SI';
+      } else if (behavior.value === 'delivery_cash_no') {
+        legacyTipo.value = 'NO';
+      }
+    };
+    section.addEventListener('change', sync);
+    section.addEventListener('change', syncBehaviorTipo);
+    behavior?.addEventListener('change', syncBehaviorTipo);
+    sync();
+    syncBehaviorTipo();
+  })();
+</script>
+{% endblock %}

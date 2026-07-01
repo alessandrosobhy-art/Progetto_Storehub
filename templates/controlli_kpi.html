@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}KPI{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/controlli_kpi_v1.css') }}?v=1.0.4">
+{% endblock %}
+
+{% block content %}
+{% include "_controlli_toolbar.html" %}
+
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h2 class="h5 mb-0">KPI</h2>
+    <div class="text-muted small">Periodo: <span id="kpiPeriodLabel">—</span></div>
+  </div>
+
+  <!-- Filtri -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-6">
+          <label class="form-label">Store (anche aggregati)</label>
+          <div class="input-group">
+            <input id="kpiStoresLabel" class="form-control"
+                   value="{% if store_code %}{{ store_code }}{% else %}Nessuno store selezionato{% endif %}"
+                   readonly>
+            <button class="btn btn-outline-secondary" type="button"
+                    data-bs-toggle="modal" data-bs-target="#kpiStoresModal">Seleziona</button>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Anno</label>
+          <select class="form-select" id="kpiYear"></select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Dal mese</label>
+          <select class="form-select" id="kpiMonthFrom"></select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Al mese</label>
+          <select class="form-select" id="kpiMonthTo"></select>
+        </div>
+
+        <div class="col-6 col-md-12 text-end">
+          <button class="btn btn-primary" id="kpiApply">Applica</button>
+        </div>
+      </div>
+
+      <div class="text-muted small mt-2" id="kpiHint">
+        KPI confrontati esclusivamente con il Budget.
+      </div>
+      <div class="alert alert-danger mt-2 d-none" id="kpiError"></div>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row g-3" id="kpiCards"></div>
+
+</div>
+
+<!-- Modal selezione stores -->
+<div class="modal fade" id="kpiStoresModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Seleziona store</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 align-items-center mb-2">
+          <div class="col-12 col-md-6">
+            <input type="text" class="form-control" id="kpiStoresSearch" placeholder="Cerca store (codice o nome)">
+          </div>
+          <div class="col-12 col-md-6 text-md-end">
+            <div class="btn-group btn-group-sm" role="group">
+              <button class="btn btn-outline-secondary" type="button" id="kpiStoresAll">Tutti</button>
+              <button class="btn btn-outline-secondary" type="button" id="kpiStoresNone">Nessuno</button>
+            </div>
+          </div>
+        </div>
+        <div id="kpiStoresList" class="kpi-stores-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+        <button type="button" class="btn btn-primary" id="kpiStoresSave" data-bs-dismiss="modal">Conferma</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.__KpiCfg = {
+  apiUrl: "{{ url_for('controlli.api_kpi') }}",
+  defaultYear: {{ default_year|int }},
+  defaultMonth: {{ default_month|int }},
+  storeCode: "{{ store_code or '' }}",
+  storesJsonUrl: "{{ url_for('warehouse.stores_json') }}",
+  storeName: "{{ store_name or '' }}"
+};
+</script>
+<script src="{{ url_for('static', filename='js/controlli_kpi_v1.js') }}?v=1.0.4"></script>
+{% endblock %}

@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}Admin – Simulatore Costo Lavoro{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_costo_lavoro_v1.css') }}?v=1.0.3">
+{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-0">Costo del lavoro – Configurazione e pagina test</h1>
+      <div class="text-muted small">Profili azienda, anagrafica costo dipendenti e simulazione quota settimanale</div>
+    </div>
+    <div class="small text-muted" id="lcStatus">—</div>
+  </div>
+
+  <div class="alert alert-info py-2 px-3 small">
+    <b>Nota v1 test:</b> il calcolo usa le ore dagli orari, applica oneri/accantonamenti pro-quota e maggiorazioni configurabili. Le ore in <b>Prestito</b> vengono calcolate e poi stornate pro-quota. Le festività mobili non sono ancora rilevate automaticamente.
+  </div>
+
+  <ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#lcTabProfiles" type="button">1. Profili azienda</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#lcTabEmployees" type="button">2. Dati dipendenti</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#lcTabTest" type="button">3. Pagina test calcolo</button></li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="lcTabProfiles" role="tabpanel">
+      <div class="lc-grid">
+        <div class="lc-span-12 lc-card">
+          <div class="lc-head">
+            <span>Profili azienda / settore</span>
+            <div class="d-flex gap-2 align-items-center">
+              <span class="lc-pill">CMO letti: <span id="lcCmoCount">0</span></span>
+              <button class="btn btn-sm btn-primary" id="lcBtnNewProfile">Nuovo profilo</button>
+            </div>
+          </div>
+          <div class="lc-body">
+            <div class="small text-muted mb-2" id="lcCmoExamples">—</div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0" id="lcProfilesTable">
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Codice</th><th>Nome</th><th>Settore</th>
+                    <th class="text-end">Costo orario default</th>
+                    <th class="text-end">INPS</th>
+                    <th class="text-end">INAIL</th>
+                    <th class="text-center">Attivo</th>
+                    <th class="text-end">Azioni</th>
+                  </tr>
+                </thead>
+                <tbody><tr><td colspan="11" class="text-center text-muted py-3">Caricamento…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="lcTabEmployees" role="tabpanel">
+      <div class="lc-grid">
+        <div class="lc-span-4 lc-card">
+          <div class="lc-head">Inserimento manuale / aggiornamento</div>
+          <div class="lc-body">
+            <div class="row g-2">
+              <div class="col-6"><label class="form-label small mb-1">Codice dipendente *</label><input id="lcEmpCode" class="form-control form-control-sm"></div>
+              <div class="col-6"><label class="form-label small mb-1">Store code</label><input id="lcEmpStore" class="form-control form-control-sm" placeholder="es. 4134"></div>
+              <div class="col-12"><label class="form-label small mb-1">Nome</label><input id="lcEmpName" class="form-control form-control-sm"></div>
+              <div class="col-6"><label class="form-label small mb-1">Profilo azienda</label><select id="lcEmpCompanyProfile" class="form-select form-select-sm"></select></div>
+              <div class="col-6"><label class="form-label small mb-1">RAL</label><input id="lcEmpRAL" type="number" step="0.01" class="form-control form-control-sm"></div>
+              <div class="col-6"><label class="form-label small mb-1">Costo orario override</label><input id="lcEmpHourly" type="number" step="0.0001" class="form-control form-control-sm"></div>
+              <div class="col-6"><label class="form-label small mb-1">CMO fisso Stage/Intermittente</label><input id="lcEmpStageFixedHourlyCost" type="number" step="0.0001" class="form-control form-control-sm" placeholder="€/h all-in"></div>
+              <div class="col-12"><label class="form-label small mb-1">Inquadramento override</label><input id="lcEmpInq" class="form-control form-control-sm" placeholder="facoltativo"></div>
+              <div class="col-6"><label class="form-label small mb-1">INPS az. override %</label><input id="lcEmpInpsOverride" type="number" step="0.0001" class="form-control form-control-sm" placeholder="0.30"></div>
+              <div class="col-6"><label class="form-label small mb-1">INAIL override %</label><input id="lcEmpInailOverride" type="number" step="0.0001" class="form-control form-control-sm" placeholder="0.02"></div>
+              <div class="col-6"><label class="form-label small mb-1">TFR override %</label><input id="lcEmpTfrOverride" type="number" step="0.0001" class="form-control form-control-sm"></div>
+              <div class="col-12"><label class="form-label small mb-1">Note</label><input id="lcEmpNote" class="form-control form-control-sm"></div>
+              <div class="col-12"><div class="small text-muted">Tipo contratto ricavato dall'anagrafica staff. Se il dipendente è <b>Stage</b> o <b>Intermittente</b>, inserire il <b>CMO fisso Stage/Intermittente</b> (€/h all-in) per usare il costo fisso nella simulazione test.</div></div>
+              <div class="col-12 d-flex align-items-center gap-2"><input id="lcEmpActive" type="checkbox" class="form-check-input" checked><label for="lcEmpActive" class="small">Attivo</label></div>
+              <div class="col-12 d-flex gap-2 mt-1">
+                <button class="btn btn-primary btn-sm" id="lcBtnEmpSave">Salva</button>
+                <span id="lcEmpSaveMsg" class="small text-muted align-self-center"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lc-span-8 lc-card">
+          <div class="lc-head">Import CSV e archivio dipendenti</div>
+          <div class="lc-body">
+            <div class="row g-2 align-items-end mb-3">
+              <div class="col-md-4"><label class="form-label small mb-1">CSV</label><input id="lcImportCsv" type="file" accept=".csv,text/csv" class="form-control form-control-sm"></div>
+              <div class="col-md-2"><label class="form-label small mb-1">Store default</label><input id="lcImportStore" class="form-control form-control-sm"></div>
+              <div class="col-md-3"><label class="form-label small mb-1">Profilo default</label><select id="lcImportCompanyProfile" class="form-select form-select-sm"></select></div>
+              <div class="col-md-3"><button class="btn btn-outline-primary btn-sm w-100" id="lcBtnImportCsv">Importa CSV</button></div>
+              <div class="col-12"><div id="lcImportMsg" class="small text-muted"></div></div>
+            </div>
+
+            <div class="row g-2 align-items-end mb-2">
+              <div class="col-md-3"><label class="form-label small mb-1">Filtro store</label><input id="lcEmpStoreFilter" class="form-control form-control-sm"></div>
+              <div class="col-md-2"><button class="btn btn-outline-secondary btn-sm" id="lcBtnEmpRefresh">Aggiorna elenco</button></div>
+              <div class="col-md-7 text-md-end"><span class="small text-muted">Record mostrati: <span id="lcEmpCount">0</span></span></div>
+            </div>
+
+            <div class="lc-table-wrap">
+              <table class="table table-sm table-hover align-middle mb-0 lc-table" id="lcEmpTable">
+                <thead>
+                  <tr>
+                    <th>Codice</th><th>Nome</th><th>Store</th><th>Profilo</th>
+                    <th class="text-end">RAL</th><th class="text-end">Costo orario</th><th class="text-end">CMO fisso</th><th class="text-end">INPS ov.</th><th class="text-end">INAIL ov.</th><th class="text-end">TFR ov.</th><th class="text-center">Attivo</th>
+                  </tr>
+                </thead>
+                <tbody><tr><td colspan="11" class="text-center text-muted py-3">Caricamento…</td></tr></tbody>
+              </table>
+            </div>
+            <div class="small text-muted mt-2">
+              Il match dei costi con l'anagrafica locale avviene per <b>codice dipendente</b> (tabella STAFF).
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="lcTabTest" role="tabpanel">
+      <div class="lc-grid">
+        <div class="lc-span-4 lc-card">
+          <div class="lc-head">Parametri simulazione settimanale</div>
+          <div class="lc-body">
+            <div class="row g-2">
+              <div class="col-6"><label class="form-label small mb-1">Store code *</label><input id="lcTestStore" class="form-control form-control-sm" value="{{ session.get('store_code') or '' }}"></div>
+              <div class="col-6"><label class="form-label small mb-1">Lunedì settimana *</label><input id="lcTestWeek" type="date" class="form-control form-control-sm"></div>
+              <div class="col-12"><label class="form-label small mb-1">Profilo azienda</label><select id="lcProfileSelectTest" class="form-select form-select-sm"></select></div>
+              <div class="col-12"><label class="form-label small mb-1">Revenues actual settimana (opzionale)</label><input id="lcTestRevenues" type="number" step="0.01" class="form-control form-control-sm"></div>
+              <div class="col-12 d-grid"><button class="btn btn-primary btn-sm" id="lcBtnRunProjection">Calcola quota costo lavoro</button></div>
+              <div class="col-12"><div id="lcProjectionStatus" class="small text-muted">—</div></div>
+              <div class="col-12">
+                <div class="alert alert-light border small mb-0 py-2 px-3">
+                  <b>Priorità costo orario (v1 test):</b> <code>stage fisso dipendente</code> → <code>override dipendente</code> → <code>RAL / ore annue</code> → <code>profilo azienda</code>.<br>
+                  In questa pagina test il <b>CMO base del cruscotto non viene usato</b>. FERIE / PERMESSI / ALLATTAMENTO / ROL non generano costo diretto (consumo accantonamenti).
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lc-span-8">
+          <div class="lc-grid">
+            <div class="lc-span-3 lc-card"><div class="lc-head">Dipendenti</div><div class="lc-body"><div id="lcKpiEmployees" class="h4 mb-0 lc-mono">0</div></div></div>
+            <div class="lc-span-3 lc-card"><div class="lc-head">Ore costo</div><div class="lc-body"><div id="lcKpiHours" class="h4 mb-0 lc-mono">—</div></div></div>
+            <div class="lc-span-3 lc-card"><div class="lc-head">Costo netto stimato</div><div class="lc-body"><div id="lcKpiNetCost" class="h5 mb-0 lc-mono">—</div></div></div>
+            <div class="lc-span-3 lc-card"><div class="lc-head">Costo lavoro %</div><div class="lc-body"><div id="lcKpiLaborPct" class="h4 mb-0 lc-mono">—</div></div></div>
+
+            <div class="lc-span-4 lc-card">
+              <div class="lc-head">Meta calcolo</div>
+              <div class="lc-body lc-mono small">
+                <div class="lc-kv"><span>Settimana</span><span id="lcMetaWeek">—</span></div>
+                <div class="lc-kv"><span>Store</span><span id="lcMetaStore">—</span></div>
+                <div class="lc-kv"><span>Profilo</span><span id="lcMetaProfile">—</span></div>
+              </div>
+            </div>
+
+            <div class="lc-span-4 lc-card">
+              <div class="lc-head">Composizione costo</div>
+              <div class="lc-body" id="lcCostStack"><div class="text-muted small">Esegui un calcolo</div></div>
+            </div>
+
+            <div class="lc-span-4 lc-card">
+              <div class="lc-head">Avvisi / controlli</div>
+              <div class="lc-body lc-warnings" id="lcWarnings"><div class="text-muted small">Esegui un calcolo</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lc-span-12 lc-card">
+          <div class="lc-head">Dettaglio calcolo aggregato (tutte le componenti)</div>
+          <div class="lc-body">
+            <div class="row g-3">
+              <div class="col-lg-6">
+                <div id="lcAggBreakdown" class="lc-mono small">
+                  <div class="lc-kv"><span>Retribuzione diretta</span><span>—</span></div>
+                  <div class="lc-kv"><span>Oneri INPS</span><span>—</span></div>
+                  <div class="lc-kv"><span>Oneri INAIL</span><span>—</span></div>
+                  <div class="lc-kv"><span>TFR</span><span>—</span></div>
+                  <div class="lc-kv"><span>Ferie/Permessi acc.</span><span>—</span></div>
+                  <div class="lc-kv"><span>13a</span><span>—</span></div>
+                  <div class="lc-kv"><span>14a</span><span>—</span></div>
+                  <div class="lc-kv"><span>Altri acc.</span><span>—</span></div>
+                  <div class="lc-kv"><span>Totale lordo stimato</span><span>—</span></div>
+                  <div class="lc-kv"><span>Storno prestiti</span><span>—</span></div>
+                  <div class="lc-kv fw-semibold"><span>Totale netto stimato</span><span>—</span></div>
+                </div>
+              </div>
+              <div class="col-lg-6">
+                <div class="small text-muted mb-2">
+                  <b>Nota:</b> qui trovi tutte le componenti aggregate del calcolo. Sotto trovi anche il dettaglio spacchettato per singolo dipendente.
+                </div>
+                <details>
+                  <summary class="small">JSON completo righe calcolo (debug test)</summary>
+                  <pre class="small mb-0 mt-2 lc-pre" id="lcProjectionLinesJson">[]</pre>
+                </details>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lc-span-12 lc-card">
+          <div class="lc-head">Dettaglio per dipendente (test)</div>
+          <div class="lc-body">
+            <div class="lc-table-wrap">
+              <table class="table table-sm table-striped align-middle mb-0 lc-table" id="lcProjectionTable">
+                <thead>
+                  <tr>
+                    <th>Dipendente</th><th>Codice</th><th>Ruolo / Inquadramento</th><th>Fonte costo h</th>
+                    <th class="text-end">Ore costo</th><th class="text-end">Extra</th><th class="text-end">Ferie</th><th class="text-end">Perm.</th><th class="text-end">ROL</th><th class="text-end">Prestito</th>
+                    <th class="text-end">Costo h</th><th class="text-end">Diretto</th><th class="text-end">Tot lordo</th><th class="text-end">Storno prest.</th><th class="text-end">Tot netto</th>
+                  </tr>
+                </thead>
+                <tbody id="lcProjectionTbody"><tr><td colspan="15" class="text-center text-muted py-3">Nessun calcolo</td></tr></tbody>
+              </table>
+            </div>
+            <div class="mt-3">
+              <h6 class="mb-2">Dettaglio calcoli per dipendente</h6>
+              <div id="lcProjectionEmployeeCards" class="lc-employee-cards"></div>
+            </div>
+            <details class="mt-3">
+              <summary class="small">JSON riepilogo (debug test)</summary>
+              <pre class="small mb-0 mt-2" id="lcProjectionSummaryJson">{}</pre>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="lcProfileModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Profilo azienda / settore</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-3">
+          <input type="hidden" id="lcProfileId">
+          <div class="col-md-2"><label class="form-label small mb-1">Codice *</label><input id="lcProfileCode" class="form-control form-control-sm"></div>
+          <div class="col-md-4"><label class="form-label small mb-1">Nome *</label><input id="lcProfileName" class="form-control form-control-sm"></div>
+          <div class="col-md-3"><label class="form-label small mb-1">Settore</label><input id="lcProfileSector" class="form-control form-control-sm" placeholder="ristorazione"></div>
+          <div class="col-md-3"><label class="form-label small mb-1">Costo orario default</label><input id="lcProfileDefaultHourly" type="number" step="0.0001" class="form-control form-control-sm"></div>
+
+          <div class="col-md-2"><label class="form-label small mb-1">Ore annue FT</label><input id="lcProfileAnnualHours" type="number" step="0.01" class="form-control form-control-sm" value="2076"></div>
+          <div class="col-md-2"><label class="form-label small mb-1">INPS azienda %</label><input id="lcProfileINPS" type="number" step="0.0001" class="form-control form-control-sm" value="0.30"></div>
+          <div class="col-md-2"><label class="form-label small mb-1">INAIL %</label><input id="lcProfileINAIL" type="number" step="0.0001" class="form-control form-control-sm" value="0.02"></div>
+          <div class="col-md-2"><label class="form-label small mb-1">TFR %</label><input id="lcProfileTFR" type="number" step="0.0001" class="form-control form-control-sm" value="0.0741"></div>
+          <div class="col-md-2"><label class="form-label small mb-1">Ferie/permessi acc. %</label><input id="lcProfileFeriePerm" type="number" step="0.0001" class="form-control form-control-sm" value="0.12"></div>
+          <div class="col-md-2"><label class="form-label small mb-1">13a %</label><input id="lcProfile13" type="number" step="0.0001" class="form-control form-control-sm" value="0.0833"></div>
+          <div class="col-md-2"><label class="form-label small mb-1">14a %</label><input id="lcProfile14" type="number" step="0.0001" class="form-control form-control-sm" value="0"></div>
+          <div class="col-md-2"><label class="form-label small mb-1">Altri acc. %</label><input id="lcProfileOther" type="number" step="0.0001" class="form-control form-control-sm" value="0"></div>
+          <div class="col-md-8"><label class="form-label small mb-1">Note</label><input id="lcProfileNotes" class="form-control form-control-sm"></div>
+          <div class="col-md-2 d-flex align-items-end"><div class="form-check"><input id="lcProfileActive" type="checkbox" class="form-check-input" checked><label class="form-check-label small" for="lcProfileActive">Attivo</label></div></div>
+        </div>
+
+        <div class="mb-3">
+          <h6 class="mb-2">Quote INPS / INAIL per profilo staff</h6>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-2">
+              <thead><tr><th>Profilo staff</th><th class="text-end">INPS azienda %</th><th class="text-end">INAIL %</th></tr></thead>
+              <tbody id="lcRoleRatesTbody"></tbody>
+            </table>
+          </div>
+          <div class="small text-muted">Quote applicate in automatico in base al ruolo/anagrafica (Store Manager, Assistant, Banconista, Apprendista, Stage). I valori inseriti nel singolo dipendente restano prioritari.</div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Maggiorazioni tipiche personalizzabili</h6>
+          <button class="btn btn-sm btn-outline-secondary" id="lcBtnAddExtra" type="button">Aggiungi riga</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle" id="lcExtrasTable">
+            <thead>
+              <tr><th>Codice</th><th>Etichetta</th><th>%</th><th>Ordine</th><th>Applies to</th><th class="text-center">Attivo</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="small text-muted">Percentuali in formato decimale: es. 0,30 = 30%.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+        <button class="btn btn-primary" id="lcBtnSaveProfile" type="button">Salva profilo + maggiorazioni</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/admin_costo_lavoro_v1.js') }}?v=1.0.4"></script>
+{% endblock %}

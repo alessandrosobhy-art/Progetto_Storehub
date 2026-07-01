@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tr('cruscotto', 'monthly.title', 'Cruscotto - Analisi Mensile') }}{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/cruscotto_weekly_v1.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+{% endblock %}
+
+{% block content %}
+  {% include "_cruscotto_toolbar.html" %}
+
+  <div class="container py-4 cruscotto-weekly">
+    <div class="cr-header">
+      <div class="cr-header__left">
+        <h1 class="cr-title">{{ tr('cruscotto', 'monthly.heading', 'Analisi Mensile') }}</h1>
+        <div class="cr-subtitle">
+          <span id="monthRangeLabel">&mdash;</span>
+        </div>
+      </div>
+      <div class="cr-header__right">
+        <div class="cr-week-picker">
+          <select class="form-select form-select-sm" id="yearSelect" aria-label="{{ tr('cruscotto', 'monthly.select_year', 'Seleziona anno') }}"></select>
+          <select class="form-select form-select-sm" id="monthSelect" aria-label="{{ tr('cruscotto', 'monthly.select_month', 'Seleziona mese') }}"></select>
+          <div class="btn-group btn-group-sm" role="group" aria-label="{{ tr('cruscotto', 'monthly.month', 'Mese') }}">
+            <button type="button" class="btn btn-outline-secondary" id="btnPrevMonth">&lsaquo;</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnThisMonth">{{ tr('cruscotto', 'monthly.today', 'Oggi') }}</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnNextMonth">&rsaquo;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-danger d-none" id="monthlyError"></div>
+
+    <section class="cr-section">
+      <div class="cr-section__head">
+        <h2 class="cr-section__title">{{ tr('cruscotto', 'monthly.overview', 'Panoramica') }}</h2>
+      </div>
+      <div class="cr-kpi-grid" id="kpiCards"></div>
+    </section>
+
+    <section class="cr-section">
+      <div class="cr-section__head">
+        <h2 class="cr-section__title">{{ tr('cruscotto', 'monthly.detail', 'Dettaglio mese') }}</h2>
+        <div class="cr-section__actions small text-muted"></div>
+      </div>
+      <div class="cr-card">
+        <div class="table-responsive weekly-table-wrap">
+          <table class="table table-sm table-bordered align-middle weekly-table" id="monthlyTable">
+            <thead id="monthlyThead"></thead>
+            <tbody id="monthlyTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="cr-section">
+      <div class="cr-section__head">
+        <h2 class="cr-section__title">{{ tr('cruscotto', 'charts', 'Grafici') }}</h2>
+      </div>
+      <div class="row g-3">
+        <div class="col-12 col-lg-4">
+          <div class="cr-card h-100">
+            <div class="cr-card__head">
+              <div class="fw-semibold">{{ tr('cruscotto', 'revenues', 'Revenues') }}</div>
+              <div class="small text-muted">{{ tr('cruscotto', 'monthly_revenues_help', 'Proiezione (Actual/Previsione) vs Last Year/Budget') }}</div>
+            </div>
+            <div class="cr-card__body">
+              <div class="chart-box"><canvas id="chartRevenues"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="cr-card h-100">
+            <div class="cr-card__head">
+              <div class="fw-semibold">{{ tr('cruscotto', 'receipt', 'Receipt') }}</div>
+              <div class="small text-muted">{{ tr('cruscotto', 'actual_vs_ly', 'Actual vs Last Year') }}</div>
+            </div>
+            <div class="cr-card__body">
+              <div class="chart-box"><canvas id="chartReceipt"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="cr-card h-100">
+            <div class="cr-card__head">
+              <div class="fw-semibold">{{ tr('cruscotto', 'average_receipt', 'Average Receipt') }}</div>
+              <div class="small text-muted">{{ tr('cruscotto', 'actual_vs_ly', 'Actual vs Last Year') }}</div>
+            </div>
+            <div class="cr-card__body">
+              <div class="chart-box"><canvas id="chartAvgReceipt"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    window.CRUSCOTTO_MONTHLY = {
+      apiUrl: "{{ url_for('cruscotto.api_monthly') }}",
+      storeCode: {{ (session.get('store_code') or '') | tojson }},
+      locale: {{ current_language|default('it')|tojson }},
+      i18n: {
+        error: {{ tr('dashboard', 'error', 'Errore')|tojson }},
+        monthRevenues: {{ tr('cruscotto', 'month_revenues', 'Revenues (mese)')|tojson }},
+        monthReceipt: {{ tr('cruscotto', 'month_receipt', 'Receipt (mese)')|tojson }},
+        averageReceipt: {{ tr('cruscotto', 'average_receipt', 'Average Receipt')|tojson }},
+        laborCost: {{ tr('cruscotto', 'labor_cost', 'Costo Lavoro')|tojson }},
+        delivery: {{ tr('cash_statement', 'ui.delivery', 'Delivery')|tojson }},
+        projection: {{ tr('cruscotto', 'projection', 'Proiezione')|tojson }},
+        projectionShort: {{ tr('cruscotto', 'projection_short', 'Proj')|tojson }},
+        forecast: {{ tr('cruscotto', 'forecast', 'Previsione')|tojson }},
+        previous: {{ tr('cruscotto', 'previous_short', 'Prev')|tojson }},
+        actual: {{ tr('cruscotto', 'actual', 'Actual')|tojson }},
+        lastYear: {{ tr('cruscotto', 'last_year', 'Last Year')|tojson }},
+        lastYearShort: {{ tr('cruscotto', 'last_year_short', 'LY')|tojson }},
+        budget: {{ tr('dashboard', 'budget', 'Budget')|tojson }},
+        day: {{ tr('cruscotto', 'day', 'Giorno')|tojson }},
+        stage: {{ tr('cruscotto', 'stage', 'Stage')|tojson }},
+        training: {{ tr('cruscotto', 'training', 'Training')|tojson }},
+        productivity: {{ tr('cruscotto', 'productivity', 'Produttivita')|tojson }},
+        hours: {{ tr('cruscotto', 'hours', 'Ore')|tojson }},
+        inc: {{ tr('cruscotto', 'delivery_inc', 'Inc')|tojson }},
+        partial: {{ tr('cruscotto', 'partial', 'parziale')|tojson }},
+        weekdays: [
+          {{ tr('cruscotto', 'weekday.sun', 'Dom')|tojson }},
+          {{ tr('cruscotto', 'weekday.mon', 'Lun')|tojson }},
+          {{ tr('cruscotto', 'weekday.tue', 'Mar')|tojson }},
+          {{ tr('cruscotto', 'weekday.wed', 'Mer')|tojson }},
+          {{ tr('cruscotto', 'weekday.thu', 'Gio')|tojson }},
+          {{ tr('cruscotto', 'weekday.fri', 'Ven')|tojson }},
+          {{ tr('cruscotto', 'weekday.sat', 'Sab')|tojson }},
+        ],
+      },
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/cruscotto_monthly_v1.js') }}?v=5"></script>
+{% endblock %}

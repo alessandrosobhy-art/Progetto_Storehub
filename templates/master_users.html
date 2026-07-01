@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Master - Utenti master{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 980px;">
+  <div class="d-flex justify-content-between align-items-start gap-3 mb-3 flex-wrap">
+    <div>
+      <h1 class="h4 mb-1">Utenti master</h1>
+      <div class="text-muted small">Gestione dei soli utenti con privilegi di piattaforma.</div>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('master_home') }}">Area Master</a>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-header bg-white fw-semibold">Nuovo utente master</div>
+    <div class="card-body">
+      <form method="post" class="row g-3">
+        <div class="col-md-5">
+          <label class="form-label">Email</label>
+          <input name="email" type="email" class="form-control" required>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Nome</label>
+          <input name="name" type="text" class="form-control" placeholder="Nome e cognome">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button class="btn btn-primary w-100">Invia invito</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white fw-semibold">Master attivi</div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Nome</th>
+            <th>Ruolo</th>
+            <th>Creato</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users or [] %}
+          <tr>
+            <td>{{ u.email }}</td>
+            <td>{{ u.name or '-' }}</td>
+            <td><span class="badge text-bg-primary">Master</span></td>
+            <td class="text-muted small">{{ u.created_at or '-' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="text-muted">Nessun utente Master trovato.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
