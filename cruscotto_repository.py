@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
 from app_db import get_connection, sql_date
+from daily_sales_repository import list_daily_sales_range
 from primanota_repository import load_primanota_day
 from orari_repository import list_turni_week
 from sales_repository import list_sales_week
@@ -417,6 +418,26 @@ def fetch_dati_database_day(*, store_code: str, day: date) -> Dict[str, Any]:
             pass
 
 
+def fetch_dati_database_range(*, store_code: str, start_day: date, end_day: date) -> Dict[str, Dict[str, Any]]:
+    if end_day < start_day:
+        start_day, end_day = end_day, start_day
+    try:
+        rows = list_daily_sales_range(
+            store_code=str(store_code),
+            start_day=start_day,
+            end_day=end_day,
+        ) or {}
+    except Exception:
+        rows = {}
+    out: Dict[str, Dict[str, Any]] = {}
+    for d_iso, row in rows.items():
+        out[str(d_iso)] = {
+            "fatturato_lordo": _float((row or {}).get("gross_revenue")),
+            "scontrini": _int((row or {}).get("receipts_count")),
+        }
+    return out
+
+
 def fetch_budget_day(*, store_code: str, day: date) -> float:
     conn = get_connection(store_code)
     try:
@@ -445,6 +466,60 @@ def fetch_budget_day(*, store_code: str, day: date) -> float:
         if not row:
             return 0.0
         return _float(row[0])
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def fetch_budget_range(*, store_code: str, start_day: date, end_day: date) -> Dict[str, float]:
+    if end_day < start_day:
+        start_day, end_day = end_day, start_day
+
+    conn = get_connection(store_code)
+    try:
+        cur = conn.cursor()
+        table = "BudgetGiorno"
+        if not _access_has_table(cur, table):
+            return {}
+
+        cols = _access_columns(cur, table)
+        site_col = _pick_col(cols, ("Site", "SITE", "Store", "Negozio"))
+        data_col = _pick_col(cols, ("Data", "DATA", "Date"))
+        fatt_col = _pick_col(cols, ("FatturatoNetto", "Fatturato", "Sales", "Budget"))
+
+        if not data_col or not fatt_col:
+            return {}
+
+        where = [
+            f"{sql_date(_qname(data_col))}>=?",
+            f"{sql_date(_qname(data_col))}<=?",
+        ]
+        params: List[Any] = [start_day, end_day]
+        if site_col:
+            where.append(f"{_qname(site_col)}=?")
+            params.append(str(store_code).strip())
+
+        sql = f"""
+        SELECT {sql_date(_qname(data_col))} AS d, {_qname(fatt_col)} AS budget
+          FROM {_qname(table)}
+         WHERE {' AND '.join(where)}
+         ORDER BY {sql_date(_qname(data_col))}
+        """
+        cur.execute(sql, params)
+        out: Dict[str, float] = {}
+        for row in cur.fetchall() or []:
+            d_val = row[0]
+            if isinstance(d_val, datetime):
+                d_iso = d_val.date().isoformat()
+            elif isinstance(d_val, date):
+                d_iso = d_val.isoformat()
+            else:
+                d_iso = str(d_val or "").strip()[:10]
+            if d_iso:
+                out[d_iso] = _float(row[1])
+        return out
     finally:
         try:
             conn.close()
@@ -517,6 +592,10 @@ def get_weekly_analysis(*, store_code: str, week_start: date, delivery_voci: Lis
     ore_tot_by_day, ore_stage_by_day, ore_training_by_day = _hours_from_turni_rows(turni)
     cmo_rates = load_cmo_rates(store_code=str(store_code))
     labor_cost_by_day = _labor_cost_from_turni_rows(turni, cmo_rates)
+    ly_week_start = _align_last_year_same_weekday(week_start)
+    ly_week_end = ly_week_start + timedelta(days=6)
+    ly_by_day = fetch_dati_database_range(store_code=str(store_code), start_day=ly_week_start, end_day=ly_week_end)
+    budget_by_day = fetch_budget_range(store_code=str(store_code), start_day=week_start, end_day=week_end)
 
     provider_aliases = _delivery_provider_aliases()
     days_out: List[Dict[str, Any]] = []
@@ -588,11 +667,11 @@ def get_weekly_analysis(*, store_code: str, week_start: date, delivery_voci: Lis
         projection_source = "Actual" if has_actual else "Previsione"
 
         ly_d = _align_last_year_same_weekday(d)
-        ly = fetch_dati_database_day(store_code=str(store_code), day=ly_d)
+        ly = ly_by_day.get(ly_d.isoformat(), {"fatturato_lordo": 0.0, "scontrini": 0})
         ly_rev_net = (ly.get("fatturato_lordo") or 0.0) / 1.1 if (ly.get("fatturato_lordo") or 0.0) else 0.0
         ly_receipts = int(ly.get("scontrini") or 0)
 
-        budget = fetch_budget_day(store_code=str(store_code), day=d)
+        budget = budget_by_day.get(d_iso, 0.0)
 
         # Budget può arrivare come float (schema attuale) o come dict (legacy)
         if isinstance(budget, dict):
@@ -651,7 +730,7 @@ def get_weekly_analysis(*, store_code: str, week_start: date, delivery_voci: Lis
                 "revenues_chart": revenue_chart,
                 "projection_source": projection_source,
                 "revenues_ly": ly_rev_net,
-                "revenues_budget": budget,
+                "revenues_budget": budget_netto,
                 "receipts_actual": int(scontrini or 0),
                 "receipts_ly": int(ly_receipts or 0),
                 "avg_receipt_actual": avg_receipt,
@@ -756,6 +835,10 @@ def get_monthly_analysis(*, store_code: str, month_start: date, delivery_voci: L
     ore_tot_by_day, ore_stage_by_day, ore_training_by_day = _hours_from_turni_rows(turni)
     cmo_rates = load_cmo_rates(store_code=str(store_code))
     labor_cost_by_day = _labor_cost_from_turni_rows(turni, cmo_rates)
+    ly_month_start = _align_last_year_same_weekday(ms)
+    ly_month_end = _align_last_year_same_weekday(me)
+    ly_by_day = fetch_dati_database_range(store_code=str(store_code), start_day=ly_month_start, end_day=ly_month_end)
+    budget_by_day = fetch_budget_range(store_code=str(store_code), start_day=ms, end_day=me)
 
     provider_aliases = _delivery_provider_aliases()
     days_out: List[Dict[str, Any]] = []
@@ -853,11 +936,11 @@ def get_monthly_analysis(*, store_code: str, month_start: date, delivery_voci: L
                 last_included = d
 
         ly_d = _align_last_year_same_weekday(d)
-        ly = fetch_dati_database_day(store_code=str(store_code), day=ly_d)
+        ly = ly_by_day.get(ly_d.isoformat(), {"fatturato_lordo": 0.0, "scontrini": 0})
         ly_rev_net = (ly.get("fatturato_lordo") or 0.0) / 1.1 if (ly.get("fatturato_lordo") or 0.0) else 0.0
         ly_receipts = int(ly.get("scontrini") or 0)
 
-        budget = fetch_budget_day(store_code=str(store_code), day=d)
+        budget = budget_by_day.get(d_iso, 0.0)
 
         # Budget può arrivare come float (schema attuale) o come dict (legacy)
         if isinstance(budget, dict):
