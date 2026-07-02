@@ -21,9 +21,15 @@
     background: rgba(79, 143, 207, .12);
   }
   @media (min-width: 992px) {
+    .app-header .container-fluid.nav-wrap {
+      min-width: 0;
+      overflow: hidden;
+    }
     .app-header .navbar-collapse {
       align-items: center;
       gap: .75rem;
+      min-width: 0;
+      overflow: hidden;
     }
     .app-header .nav-scroll-shell{
       display: flex;
@@ -31,10 +37,12 @@
       gap: .35rem;
       min-width: 0;
       flex: 1 1 auto;
+      overflow: hidden;
     }
     .app-header .nav-scroll-track{
       min-width: 0;
       flex: 1 1 auto;
+      max-width: 100%;
       overflow-x: auto;
       overflow-y: hidden;
       scrollbar-width: thin;
@@ -88,6 +96,7 @@
     }
     .app-header .navbar-nav.ms-auto{
       flex: 0 0 auto;
+      min-width: 0;
       margin-left: 0 !important;
     }
   }
