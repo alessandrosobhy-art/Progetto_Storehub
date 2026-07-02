@@ -124,7 +124,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.8"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.9"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
@@ -1128,8 +1128,8 @@ ACCESS_MODULES = [
 _ACCESS_PROFILE_CACHE: dict[str, dict] = {}
 _ACCESS_PROFILE_TENANT_COLUMN: bool | None = None
 _TENANT_MODULE_CACHE: dict[str, dict] = {}
-_SESSION_PROFILE_CACHE_TTL_SECONDS = 30
-_TENANT_MODULE_CACHE_TTL_SECONDS = 30
+_SESSION_PROFILE_CACHE_TTL_SECONDS = 120
+_TENANT_MODULE_CACHE_TTL_SECONDS = 120
 
 
 def _request_cache_get(key: str, default=None):
@@ -1573,23 +1573,6 @@ def _enforce_module(module_key: str):
     if not u:
         abort(403)
     if _is_platform_master(u) and _master_admin_context_is_active():
-        return None
-    if not _is_platform_master(u):
-        enabled = True
-        try:
-            from tenant_config_repository import current_tenant_key
-
-            tenant_key = str(session.get("tenant_key") or current_tenant_key()).strip() or current_tenant_key()
-            enabled_map = _tenant_module_enabled_map(tenant_key)
-            enabled = bool(enabled_map.get(module_key, True)) if enabled_map else True
-            if module_key == "cruscotto_pnl_store":
-                enabled = bool(enabled) and (bool(enabled_map.get("controlli", True)) if enabled_map else True)
-        except Exception:
-            current_app.logger.exception("Errore verifica modulo tenant")
-            abort(403)
-        if not enabled:
-            abort(403)
-    if u.get("role") == "admin":
         return None
     if module_key == "cruscotto_pnl_store" and u.get("mod_cruscotto_pnl_store", False):
         return None
