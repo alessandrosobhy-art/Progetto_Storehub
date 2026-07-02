@@ -32,6 +32,14 @@
   {% endif %}
 {%- endmacro %}
 
+{% macro nav_layout_arrow(direction='collapse') -%}
+  {% if direction == 'expand' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 13 10 7 16"/></svg>
+  {% else %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4 7 10l6 6"/></svg>
+  {% endif %}
+{%- endmacro %}
+
 <style>
   .app-header .nav-link,
   .app-header .dropdown-item,
@@ -160,10 +168,20 @@
   {% set is_master_user = user and (user.is_master or role_l == 'master') %}
   {% set show_admin_menu = user and (role_l == 'admin' or (is_master_user and master_can_admin_active)) %}
   <div class="container-fluid nav-wrap">
-    <a class="navbar-brand fw-semibold app-brand" href="{{ home_url }}" title="Store Hub 360" aria-label="Store Hub 360">
-      <span class="app-nav__icon app-brand__icon">{{ nav_icon('dashboard') }}</span>
-      <span class="app-nav__label app-brand__label">Store Hub 360</span>
-    </a>
+    <div class="app-brand-row">
+      <a class="navbar-brand fw-semibold app-brand" href="{{ home_url }}" title="Store Hub 360" aria-label="Store Hub 360">
+        <span class="app-nav__icon app-brand__icon">{{ nav_icon('dashboard') }}</span>
+        <span class="app-nav__label app-brand__label">Store Hub 360</span>
+      </a>
+      <div class="app-nav-desktop-actions d-none d-xl-inline-flex">
+        <button type="button" class="app-nav-action-btn" id="toggleDesktopNavLayoutInline" title="Cambia orientamento menu desktop" aria-label="Cambia orientamento menu desktop">
+          <span class="app-nav__icon">{{ nav_icon('links') }}</span>
+        </button>
+        <button type="button" class="app-nav-action-btn" id="toggleDesktopNavCompact" title="Comprimi menu desktop" aria-label="Comprimi menu desktop">
+          <span class="app-nav__icon app-nav-action-btn__arrow">{{ nav_layout_arrow('collapse') }}</span>
+        </button>
+      </div>
+    </div>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
             aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
@@ -344,6 +362,9 @@
         </div>
         <button class="nav-scroll-btn nav-scroll-btn--next" type="button" aria-label="Scorri menu a destra" data-nav-scroll-next hidden>
           <span aria-hidden="true">&rsaquo;</span>
+        </button>
+        <button class="nav-scroll-btn nav-scroll-btn--layout d-none d-xl-inline-flex" type="button" aria-label="Comprimi menu desktop" id="toggleDesktopNavCompactInline">
+          <span class="app-nav__icon app-nav-action-btn__arrow">{{ nav_layout_arrow('collapse') }}</span>
         </button>
       </div>
 

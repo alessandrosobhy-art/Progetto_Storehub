@@ -32,6 +32,11 @@
     document.body.classList.toggle('app-shell--sidebar-collapsed', desktop && mode === 'sidebar-compact');
     document.body.classList.toggle('app-shell--top-compact', desktop && mode === 'top-compact');
     const btn = document.getElementById('toggleDesktopNavLayout');
+    const inlineBtn = document.getElementById('toggleDesktopNavLayoutInline');
+    const compactBtns = [
+      document.getElementById('toggleDesktopNavCompact'),
+      document.getElementById('toggleDesktopNavCompactInline')
+    ].filter(Boolean);
     if (btn) {
       const labels = {
         'top': 'Layout desktop: orizzontale',
@@ -41,11 +46,32 @@
       };
       btn.textContent = labels[mode] || 'Layout barra desktop';
     }
+    if (inlineBtn) {
+      inlineBtn.title = mode.startsWith('sidebar')
+        ? 'Passa alla barra orizzontale'
+        : 'Passa alla barra laterale';
+      inlineBtn.setAttribute('aria-label', inlineBtn.title);
+    }
+    const compact = mode === 'top-compact' || mode === 'sidebar-compact';
+    compactBtns.forEach(function (compactBtn) {
+      compactBtn.title = compact ? 'Espandi menu desktop' : 'Comprimi menu desktop';
+      compactBtn.setAttribute('aria-label', compactBtn.title);
+      compactBtn.dataset.compact = compact ? '1' : '0';
+    });
   }
 
   function nextMode(current) {
-    const idx = MODES.indexOf(current);
-    return MODES[(idx + 1) % MODES.length];
+    if (current === 'sidebar' || current === 'sidebar-compact') {
+      return current === 'sidebar-compact' ? 'top-compact' : 'top';
+    }
+    return current === 'top-compact' ? 'sidebar-compact' : 'sidebar';
+  }
+
+  function toggleCompact(current) {
+    if (current === 'sidebar') return 'sidebar-compact';
+    if (current === 'sidebar-compact') return 'sidebar';
+    if (current === 'top') return 'top-compact';
+    return 'top';
   }
 
   function init() {
@@ -53,6 +79,11 @@
     applyMode(mode);
 
     const btn = document.getElementById('toggleDesktopNavLayout');
+    const inlineBtn = document.getElementById('toggleDesktopNavLayoutInline');
+    const compactBtns = [
+      document.getElementById('toggleDesktopNavCompact'),
+      document.getElementById('toggleDesktopNavCompactInline')
+    ].filter(Boolean);
     if (btn) {
       btn.addEventListener('click', function () {
         mode = nextMode(getMode());
@@ -60,6 +91,20 @@
         applyMode(mode);
       });
     }
+    if (inlineBtn) {
+      inlineBtn.addEventListener('click', function () {
+        mode = nextMode(getMode());
+        setMode(mode);
+        applyMode(mode);
+      });
+    }
+    compactBtns.forEach(function (compactBtn) {
+      compactBtn.addEventListener('click', function () {
+        mode = toggleCompact(getMode());
+        setMode(mode);
+        applyMode(mode);
+      });
+    });
 
     try {
       window.matchMedia(DESKTOP_QUERY).addEventListener('change', function () {

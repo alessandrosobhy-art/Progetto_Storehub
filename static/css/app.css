@@ -175,16 +175,27 @@ a:hover{
 
 .app-header.navbar{
   background: linear-gradient(180deg, var(--app-header-top) 0%, var(--app-nav-bg) 100%) !important;
-  border-bottom: 1px solid var(--app-nav-border) !important;
-  box-shadow: var(--app-shadow-sm);
+  border: 1px solid var(--app-nav-border) !important;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .08);
   position: relative;
   z-index: 1060;
+  border-radius: 22px;
+  width: min(calc(100% - 24px), 1600px);
+  margin: 12px auto 0;
+  padding-inline: .35rem;
 }
 
 .app-header .navbar-brand{
   color: var(--app-heading);
   font-weight: 700;
   letter-spacing: -.02em;
+}
+
+.app-brand-row{
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  min-width: 0;
 }
 
 .app-header .navbar-nav{
@@ -204,6 +215,34 @@ a:hover{
   display: inline-flex;
   align-items: center;
   gap: .55rem;
+}
+
+.app-nav-desktop-actions{
+  align-items: center;
+  gap: .35rem;
+}
+
+.app-nav-action-btn{
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(79, 143, 207, .18);
+  background: rgba(255,255,255,.88);
+  color: var(--app-heading);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .06);
+  transition: transform .18s ease, background-color .18s ease, border-color .18s ease, opacity .18s ease;
+}
+
+.app-nav-action-btn:hover{
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.app-nav-action-btn__arrow{
+  transition: transform .18s ease;
 }
 
 .app-nav__icon{
@@ -261,6 +300,10 @@ a:hover{
 }
 
 @media (min-width: 1200px){
+  body.app-shell:not(.app-shell--sidebar) .app-brand-row .app-nav-desktop-actions{
+    display: none !important;
+  }
+
   body.app-shell.app-shell--top-compact .app-header .nav-scroll-track .navbar-nav{
     column-gap: .15rem;
   }
@@ -286,21 +329,31 @@ a:hover{
     min-width: auto;
   }
 
+  body.app-shell:not(.app-shell--sidebar) .app-header.navbar{
+    position: sticky;
+    top: 10px;
+  }
+
+  body.app-shell.app-shell--top-compact .app-nav-action-btn__arrow,
+  body.app-shell.app-shell--sidebar-collapsed .app-nav-action-btn__arrow{
+    transform: rotate(180deg);
+  }
+
   body.app-shell.app-shell--sidebar{
-    padding-left: 236px;
+    padding-left: 274px;
   }
 
   body.app-shell.app-shell--sidebar .app-header.navbar{
     position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 236px;
+    top: 14px;
+    left: 14px;
+    bottom: 14px;
+    width: 246px;
     z-index: 1045;
-    border-right: 1px solid var(--app-nav-border) !important;
-    border-bottom: 0 !important;
-    box-shadow: 10px 0 30px rgba(15, 23, 42, .08);
+    border: 1px solid var(--app-nav-border) !important;
+    box-shadow: 0 18px 38px rgba(15, 23, 42, .10);
     overflow-y: auto;
+    margin: 0;
   }
 
   body.app-shell.app-shell--sidebar .app-header .container-fluid.nav-wrap{
@@ -312,7 +365,7 @@ a:hover{
 
   body.app-shell.app-shell--sidebar .app-header .navbar-brand{
     margin-right: 0;
-    margin-bottom: .8rem;
+    margin-bottom: 0;
     padding: .25rem .35rem;
     font-size: 1rem;
   }
@@ -327,6 +380,23 @@ a:hover{
     align-items: stretch !important;
     min-height: 0;
     flex: 1 1 auto;
+  }
+
+  body.app-shell.app-shell--sidebar .app-header .nav-scroll-shell{
+    display: block;
+    flex: 1 1 auto;
+  }
+
+  body.app-shell.app-shell--sidebar .app-header .nav-scroll-track{
+    overflow: visible;
+    max-width: none;
+    padding-block: .15rem;
+  }
+
+  body.app-shell.app-shell--sidebar .app-header .nav-scroll-btn--prev,
+  body.app-shell.app-shell--sidebar .app-header .nav-scroll-btn--next,
+  body.app-shell.app-shell--sidebar .app-header .nav-scroll-btn--layout{
+    display: none !important;
   }
 
   body.app-shell.app-shell--sidebar .app-header .navbar-nav{
@@ -375,15 +445,20 @@ a:hover{
   }
 
   body.app-shell.app-shell--sidebar-collapsed{
-    padding-left: 82px;
+    padding-left: 110px;
   }
 
   body.app-shell.app-shell--sidebar-collapsed .app-header.navbar{
-    width: 82px;
+    width: 96px;
   }
 
   body.app-shell.app-shell--sidebar-collapsed .app-header .container-fluid.nav-wrap{
     padding-inline: .45rem;
+  }
+
+  body.app-shell.app-shell--sidebar .app-brand-row{
+    justify-content: space-between;
+    margin-bottom: .8rem;
   }
 
   body.app-shell.app-shell--sidebar-collapsed .app-header .navbar-brand,
@@ -411,6 +486,21 @@ a:hover{
     padding-top: .6rem;
   }
 
+  body.app-shell.app-shell--sidebar-collapsed .app-header .app-brand-row{
+    justify-content: center;
+    margin-bottom: .65rem;
+  }
+
+  body.app-shell.app-shell--sidebar-collapsed .app-header .app-nav-desktop-actions{
+    position: absolute;
+    top: .85rem;
+    right: .65rem;
+  }
+
+  body.app-shell.app-shell--sidebar-collapsed .app-header .app-nav-desktop-actions #toggleDesktopNavLayoutInline{
+    display: none;
+  }
+
   body.app-shell.app-shell--sidebar-collapsed .app-header .dropdown-menu{
     position: absolute !important;
     left: calc(100% + 10px) !important;
@@ -427,6 +517,12 @@ a:hover{
 @media (max-width: 1199.98px){
   body.app-shell.app-shell--sidebar{
     padding-left: 0;
+  }
+
+  .app-header.navbar{
+    width: calc(100% - 14px);
+    margin-top: 8px;
+    border-radius: 18px;
   }
 }
 
