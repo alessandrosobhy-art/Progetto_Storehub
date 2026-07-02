@@ -297,9 +297,6 @@
 
   {% if request.endpoint and request.endpoint.startswith('cruscotto.') %}
   <div class="app-desktop-sectionbar">
-    <button type="button" class="app-desktop-sectionbar__toggle" id="toggleDesktopSectionbar" aria-label="Comprimi barra sezioni" title="Comprimi barra sezioni">
-      <span class="app-desktop-sectionbar__toggle-up">{{ nav_chevron('up') }}</span><span class="app-desktop-sectionbar__toggle-down">{{ nav_chevron('down') }}</span>
-    </button>
     <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionPrev" aria-label="Scorri sezioni a sinistra">&lsaquo;</button>
     <div class="app-desktop-sectionbar__track" id="desktopSectionTrack">
       {% set is_weekly = request.path.startswith('/cruscotto/analisi-settimanale') %}
@@ -311,12 +308,10 @@
       <a class="app-desktop-sectionbar__link{% if is_monthly %} active{% endif %}" href="{{ url_for('cruscotto.analisi_mensile') }}">{{ tr('cruscotto', 'toolbar.monthly_analysis', 'Analisi Mensile') }}</a>
       {% if user and user.mod_cruscotto_pnl_store %}<a class="app-desktop-sectionbar__link{% if is_pnl_store %} active{% endif %}" href="{{ url_for('cruscotto.pnl_store') }}">{{ tr('cruscotto', 'toolbar.pnl_store', 'P&L store') }}</a>{% endif %}
     </div>
-    <div class="app-desktop-sectionbar__summary">{{ desktop_section_title }}</div>
     <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionNext" aria-label="Scorri sezioni a destra">&rsaquo;</button>
   </div>
   {% elif request.endpoint and request.endpoint.startswith('warehouse.') and request.endpoint not in ['warehouse.fornitori', 'warehouse.listini_anagrafica', 'warehouse.listini_prezzi', 'warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] and request.endpoint != 'warehouse.riepilogo' %}
   <div class="app-desktop-sectionbar">
-    <button type="button" class="app-desktop-sectionbar__toggle" id="toggleDesktopSectionbar" aria-label="Comprimi barra sezioni" title="Comprimi barra sezioni"><span class="app-desktop-sectionbar__toggle-up">{{ nav_chevron('up') }}</span><span class="app-desktop-sectionbar__toggle-down">{{ nav_chevron('down') }}</span></button>
     <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionPrev" aria-label="Scorri sezioni a sinistra">&lsaquo;</button>
     <div class="app-desktop-sectionbar__track" id="desktopSectionTrack">
       {% set is_delivery_new = request.path.startswith('/magazzino/delivery/nuovo') %}
@@ -338,12 +333,10 @@
       <a class="app-desktop-sectionbar__link{% if is_search %} active{% endif %}" href="{{ url_for('warehouse.ricerca') }}">{{ tr('warehouse', 'toolbar.search', 'Ricerca') }}</a>
       <a class="app-desktop-sectionbar__link{% if is_ordini %} active{% endif %}" href="{{ url_for('warehouse.ordini') }}">{{ tr('warehouse', 'toolbar.orders', 'Ordini') }}</a>
     </div>
-    <div class="app-desktop-sectionbar__summary">{{ desktop_section_title }}</div>
     <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionNext" aria-label="Scorri sezioni a destra">&rsaquo;</button>
   </div>
   {% elif is_admin_section %}
   <div class="app-desktop-sectionbar">
-    <button type="button" class="app-desktop-sectionbar__toggle" id="toggleDesktopSectionbar" aria-label="Comprimi barra sezioni" title="Comprimi barra sezioni"><span class="app-desktop-sectionbar__toggle-up">{{ nav_chevron('up') }}</span><span class="app-desktop-sectionbar__toggle-down">{{ nav_chevron('down') }}</span></button>
     <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionPrev" aria-label="Scorri sezioni a sinistra">&lsaquo;</button>
     <div class="app-desktop-sectionbar__track" id="desktopSectionTrack">
       <a class="app-desktop-sectionbar__link{% if is_admin_users_section %} active{% endif %}" href="{{ url_for('admin_users') }}">{{ tr('navigation', 'admin.users', 'Utenti') }}</a>
@@ -357,7 +350,6 @@
       <a class="app-desktop-sectionbar__link{% if request.endpoint == 'warehouse.listini_prezzi' %} active{% endif %}" href="{{ url_for('warehouse.listini_prezzi') }}">{{ tr('navigation', 'admin.price_lists', 'Listini Prezzi') }}</a>
       <a class="app-desktop-sectionbar__link{% if request.endpoint == 'cruscotto.pnl_store_visibility' %} active{% endif %}" href="{{ url_for('cruscotto.pnl_store_visibility') }}">Visualizzazione P&amp;L store</a>
     </div>
-    <div class="app-desktop-sectionbar__summary">{{ desktop_section_title }}</div>
     <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionNext" aria-label="Scorri sezioni a destra">&rsaquo;</button>
   </div>
   {% endif %}

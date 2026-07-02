@@ -1,7 +1,6 @@
 (function () {
   const DESKTOP_QUERY = '(min-width: 1200px)';
   const RAIL_KEY = 'storehub-desktop-rail-collapsed-v1';
-  const SECTIONBAR_KEY = 'storehub-desktop-sectionbar-collapsed-v1';
 
   function isDesktop() {
     try {
@@ -28,23 +27,14 @@
   function applyDesktopShellState() {
     const desktop = isDesktop();
     const railCollapsed = readBool(RAIL_KEY);
-    const sectionbarCollapsed = readBool(SECTIONBAR_KEY);
 
     document.body.classList.toggle('app-shell--rail-collapsed', desktop && railCollapsed);
-    document.body.classList.toggle('app-shell--sectionbar-collapsed', desktop && sectionbarCollapsed);
 
     const railBtn = document.getElementById('toggleDesktopRail');
     if (railBtn) {
       const title = railCollapsed ? 'Espandi barra laterale' : 'Comprimi barra laterale';
       railBtn.title = title;
       railBtn.setAttribute('aria-label', title);
-    }
-
-    const sectionBtn = document.getElementById('toggleDesktopSectionbar');
-    if (sectionBtn) {
-      const title = sectionbarCollapsed ? 'Espandi barra sezioni' : 'Comprimi barra sezioni';
-      sectionBtn.title = title;
-      sectionBtn.setAttribute('aria-label', title);
     }
   }
 
@@ -56,7 +46,7 @@
 
     function update() {
       const overflow = track.scrollWidth - track.clientWidth > 8;
-      const desktop = isDesktop() && !document.body.classList.contains('app-shell--sectionbar-collapsed');
+      const desktop = isDesktop();
       prev.hidden = !desktop || !overflow || track.scrollLeft <= 4;
       next.hidden = !desktop || !overflow || (track.scrollLeft + track.clientWidth >= track.scrollWidth - 4);
     }
@@ -81,14 +71,6 @@
     if (railBtn) {
       railBtn.addEventListener('click', function () {
         writeBool(RAIL_KEY, !readBool(RAIL_KEY));
-        applyDesktopShellState();
-      });
-    }
-
-    const sectionBtn = document.getElementById('toggleDesktopSectionbar');
-    if (sectionBtn) {
-      sectionBtn.addEventListener('click', function () {
-        writeBool(SECTIONBAR_KEY, !readBool(SECTIONBAR_KEY));
         applyDesktopShellState();
       });
     }

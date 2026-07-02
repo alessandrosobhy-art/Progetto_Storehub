@@ -715,7 +715,6 @@ a:hover{
     margin-bottom: 16px;
   }
 
-  .app-desktop-sectionbar__toggle,
   .app-desktop-sectionbar__scroll{
     width: 34px;
     height: 34px;
@@ -729,13 +728,8 @@ a:hover{
     flex: 0 0 auto;
   }
 
-  .app-desktop-sectionbar__toggle svg,
   .app-desktop-sectionbar__scroll{
     font-size: 1.05rem;
-  }
-
-  .app-desktop-sectionbar__toggle-down{
-    display: none;
   }
 
   .app-desktop-sectionbar__track{
@@ -776,36 +770,6 @@ a:hover{
     background: var(--app-accent);
     color: #fff;
     box-shadow: 0 10px 24px rgba(47, 95, 150, .18);
-  }
-
-  .app-desktop-sectionbar__summary{
-    display: none;
-    flex: 1 1 auto;
-    min-width: 0;
-    font-weight: 700;
-    color: var(--app-heading);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  body.app-shell.app-shell--sectionbar-collapsed .app-desktop-sectionbar{
-    padding-top: 8px;
-    padding-bottom: 8px;
-  }
-
-  body.app-shell.app-shell--sectionbar-collapsed .app-desktop-sectionbar__track,
-  body.app-shell.app-shell--sectionbar-collapsed .app-desktop-sectionbar__scroll{
-    display: none;
-  }
-
-  body.app-shell.app-shell--sectionbar-collapsed .app-desktop-sectionbar__summary,
-  body.app-shell.app-shell--sectionbar-collapsed .app-desktop-sectionbar__toggle-down{
-    display: inline-flex;
-  }
-
-  body.app-shell.app-shell--sectionbar-collapsed .app-desktop-sectionbar__toggle-up{
-    display: none;
   }
 
   body.app-shell.app-shell--rail-collapsed{
