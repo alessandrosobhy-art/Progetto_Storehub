@@ -124,7 +124,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.9"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.10"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
@@ -1003,18 +1003,25 @@ def current_user():
     except Exception:
         cached_profile = None
 
+    profile_fetch_needed = bool(cached_profile) or not (
+        base.get('email')
+        and base.get('name')
+        and base.get('role')
+        and isinstance(base.get('access_modules'), dict)
+    )
+
     # Arricchisci con i flag profilo se presenti (best-effort)
     try:
         token = base.get('sb_token')
         prof = cached_profile
-        if prof is None:
+        if prof is None and profile_fetch_needed:
             try:
                 prof = sb_get_profile_by_id(token, uid, fields='id,email,name,role,access_profile_id,ai_enabled,theme_key,is_master')
             except Exception:
                 # compat: se la colonna non esiste ancora
                 prof = sb_get_profile_by_id(token, uid, fields='id,email,name,role')
 
-        if prof is None and (not prof or not prof.get('access_profile_id')) and uid:
+        if prof is None and profile_fetch_needed and (not prof or not prof.get('access_profile_id')) and uid:
             try:
                 admin_prof = sb_admin_get_profile_by_id(str(uid))
                 if admin_prof:
@@ -1128,8 +1135,8 @@ ACCESS_MODULES = [
 _ACCESS_PROFILE_CACHE: dict[str, dict] = {}
 _ACCESS_PROFILE_TENANT_COLUMN: bool | None = None
 _TENANT_MODULE_CACHE: dict[str, dict] = {}
-_SESSION_PROFILE_CACHE_TTL_SECONDS = 120
-_TENANT_MODULE_CACHE_TTL_SECONDS = 120
+_SESSION_PROFILE_CACHE_TTL_SECONDS = 900
+_TENANT_MODULE_CACHE_TTL_SECONDS = 300
 
 
 def _request_cache_get(key: str, default=None):
