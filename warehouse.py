@@ -121,6 +121,7 @@ from supplier_order_flow_repository import (
 
 warehouse_bp = Blueprint("warehouse", __name__, url_prefix="/magazzino")
 _AVAILABLE_STORES_CACHE_TTL_SECONDS = 60
+_AVAILABLE_STORES_SHARED_CACHE: dict[str, dict] = {}
 
 
 def _ensure_admin_warehouse_access():
@@ -1072,19 +1073,12 @@ def _available_stores_for_user(user_id: str | None):
     cache_uid = str(user_id or "").strip()
     cache_role = str(session.get("tenant_role") or session.get("role") or "").strip().lower()
     cache_tenant = str(session.get("tenant_key") or session.get("master_admin_tenant_key") or "").strip().lower()
+    shared_cache_key = f"{cache_uid}|{cache_role}|{cache_tenant}"
     try:
-        cached_payload = session.get("available_stores_cache")
-        cached_ts = float(session.get("available_stores_cache_ts") or 0)
-        cached_uid = str(session.get("available_stores_cache_uid") or "").strip()
-        cached_role = str(session.get("available_stores_cache_role") or "").strip().lower()
-        cached_tenant = str(session.get("available_stores_cache_tenant") or "").strip().lower()
-        if (
-            isinstance(cached_payload, list)
-            and (time.time() - cached_ts) < _AVAILABLE_STORES_CACHE_TTL_SECONDS
-            and cached_uid == cache_uid
-            and cached_role == cache_role
-            and cached_tenant == cache_tenant
-        ):
+        shared_entry = _AVAILABLE_STORES_SHARED_CACHE.get(shared_cache_key) or {}
+        cached_payload = shared_entry.get("stores")
+        cached_ts = float(shared_entry.get("ts") or 0)
+        if isinstance(cached_payload, list) and (time.time() - cached_ts) < _AVAILABLE_STORES_CACHE_TTL_SECONDS:
             return cached_payload
     except Exception:
         pass
@@ -1145,11 +1139,10 @@ def _available_stores_for_user(user_id: str | None):
         pass
 
     try:
-        session["available_stores_cache"] = stores or []
-        session["available_stores_cache_ts"] = time.time()
-        session["available_stores_cache_uid"] = cache_uid
-        session["available_stores_cache_role"] = cache_role
-        session["available_stores_cache_tenant"] = cache_tenant
+        _AVAILABLE_STORES_SHARED_CACHE[shared_cache_key] = {
+            "ts": time.time(),
+            "stores": stores or [],
+        }
     except Exception:
         pass
 
@@ -1203,6 +1196,14 @@ def _ensure_session_keys() -> None:
     session.setdefault("store_code", None)
     session.setdefault("store_name", None)
     session.setdefault("supplier_order_ddt_prefill", None)
+    for key in (
+        "available_stores_cache",
+        "available_stores_cache_ts",
+        "available_stores_cache_uid",
+        "available_stores_cache_role",
+        "available_stores_cache_tenant",
+    ):
+        session.pop(key, None)
 
 
 def _supplier_order_allowed_sites() -> list[dict]:

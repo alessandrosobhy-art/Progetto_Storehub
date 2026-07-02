@@ -124,7 +124,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.11"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.12"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
@@ -4274,24 +4274,6 @@ def inject_user():
 def _ai_store_fallback_from_session(user: dict | None = None) -> list[dict]:
     user = user or {}
     fallback: list[dict] = []
-    try:
-        cached = session.get('ai_available_stores_cache')
-        if isinstance(cached, list) and cached:
-            seen: set[str] = set()
-            for row in cached:
-                if not isinstance(row, dict):
-                    continue
-                code = str(row.get('code') or row.get('store_code') or '').strip()
-                name = str(row.get('name') or row.get('store_name') or code).strip()
-                if not code or code in seen:
-                    continue
-                seen.add(code)
-                fallback.append({'code': code, 'name': name})
-            if fallback:
-                return fallback
-    except Exception:
-        pass
-
     code = str(session.get('store_code') or '').strip()
     name = str(session.get('store_name') or code).strip()
     if code:
@@ -4323,11 +4305,6 @@ def _load_ai_available_stores_for_user(user: dict | None) -> list[dict]:
             continue
         seen.add(code)
         normalized.append({'code': code, 'name': name or code})
-    try:
-        if normalized:
-            session['ai_available_stores_cache'] = normalized
-    except Exception:
-        pass
     return _request_cache_set(cache_key, normalized)
 
 # ----------------- Google Business API -----------------
@@ -4691,6 +4668,12 @@ def login_post():
             "sp_resolved_folder_item_id",
             "sp_resolved_folder_name",
             "sp_resolved_web_url",
+            "available_stores_cache",
+            "available_stores_cache_ts",
+            "available_stores_cache_uid",
+            "available_stores_cache_role",
+            "available_stores_cache_tenant",
+            "ai_available_stores_cache",
         ):
             session.pop(k, None)
         nxt = _safe_next_url(nxt)
