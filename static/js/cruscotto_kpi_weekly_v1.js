@@ -23,6 +23,7 @@
     btnPrev: document.getElementById('btnPrevWeek'),
     btnThis: document.getElementById('btnThisWeek'),
     btnNext: document.getElementById('btnNextWeek'),
+    btnApply: document.getElementById('btnApplyWeek'),
 
     revHero: document.getElementById('revHero'),
     revProjectionHint: document.getElementById('revProjectionHint'),
@@ -166,7 +167,7 @@
   }
 
   function setLoading(isLoading) {
-    [els.btnPrev, els.btnThis, els.btnNext].forEach((b) => {
+    [els.btnPrev, els.btnThis, els.btnNext, els.btnApply].forEach((b) => {
       if (b) b.disabled = !!isLoading;
     });
     if (els.yearSelect) els.yearSelect.disabled = !!isLoading;
@@ -1247,6 +1248,9 @@
       syncSelectorsFromWeekStart();
       loadData();
     });
+    if (els.btnApply) els.btnApply.addEventListener('click', () => {
+      loadData();
+    });
 
     if (els.yearSelect) {
       els.yearSelect.addEventListener('change', () => {
@@ -1281,7 +1285,6 @@
     syncSelectorsFromWeekStart();
     wireEvents();
     setupTagging();
-    loadData();
   }
 
   if (document.readyState === 'loading') {

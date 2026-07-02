@@ -31,6 +31,7 @@
     btnPrev: document.getElementById('btnPrevWeek'),
     btnThis: document.getElementById('btnThisWeek'),
     btnNext: document.getElementById('btnNextWeek'),
+    btnApply: document.getElementById('btnApplyWeek'),
     thead: document.getElementById('weeklyThead'),
     tbody: document.getElementById('weeklyTbody'),
     kpiCards: document.getElementById('kpiCards'),
@@ -227,7 +228,7 @@
   }
 
   function setLoading(isLoading) {
-    [els.btnPrev, els.btnThis, els.btnNext].forEach((b) => {
+    [els.btnPrev, els.btnThis, els.btnNext, els.btnApply].forEach((b) => {
       if (b) b.disabled = !!isLoading;
     });
     if (els.yearSelect) els.yearSelect.disabled = !!isLoading;
@@ -727,6 +728,11 @@
         loadWeek();
       });
     }
+    if (els.btnApply) {
+      els.btnApply.addEventListener('click', () => {
+        loadWeek();
+      });
+    }
 
     if (els.yearSelect) {
       els.yearSelect.addEventListener('change', () => {
@@ -760,6 +766,5 @@
     buildYearOptions();
     syncSelectorsFromWeekStart();
     wireEvents();
-    loadWeek();
   });
 })();

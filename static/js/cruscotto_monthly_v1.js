@@ -20,6 +20,7 @@
     btnPrev: document.getElementById('btnPrevMonth'),
     btnThis: document.getElementById('btnThisMonth'),
     btnNext: document.getElementById('btnNextMonth'),
+    btnApply: document.getElementById('btnApplyMonth'),
     thead: document.getElementById('monthlyThead'),
     tbody: document.getElementById('monthlyTbody'),
     kpiCards: document.getElementById('kpiCards'),
@@ -571,6 +572,9 @@
       syncSelectorsFromMonthStart();
       loadMonth();
     });
+    if (els.btnApply) els.btnApply.addEventListener('click', () => {
+      loadMonth();
+    });
 
     if (els.yearSelect) {
       els.yearSelect.addEventListener('change', () => {
@@ -600,6 +604,5 @@
     buildMonthOptions();
     syncSelectorsFromMonthStart();
     wireEvents();
-    loadMonth();
   });
 })();
