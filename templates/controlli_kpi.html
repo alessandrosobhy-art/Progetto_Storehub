@@ -10,8 +10,7 @@
 {% include "_controlli_toolbar.html" %}
 
 <div class="container-fluid py-3">
-  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-    <h2 class="h5 mb-0">KPI</h2>
+  <div class="d-flex align-items-center justify-content-end flex-wrap gap-2 mb-3">
     <div class="text-muted small">Periodo: <span id="kpiPeriodLabel">—</span></div>
   </div>
 
@@ -104,3 +103,4 @@ window.__KpiCfg = {
 </script>
 <script src="{{ url_for('static', filename='js/controlli_kpi_v1.js') }}?v=1.0.4"></script>
 {% endblock %}
+

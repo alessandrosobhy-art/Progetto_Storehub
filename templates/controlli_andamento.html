@@ -11,8 +11,7 @@
 {% include "_controlli_toolbar.html" %}
 
 <div class="container-fluid py-3">
-  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-    <h2 class="h5 mb-0">Andamento</h2>
+  <div class="d-flex align-items-center justify-content-end flex-wrap gap-2 mb-3">
     <div class="text-muted small">Periodo: <span id="trendPeriodLabel">—</span></div>
   </div>
 
@@ -104,3 +103,4 @@ window.__TrendCfg = {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', filename='js/controlli_andamento_v1.js') }}?v=1.0.5"></script>
 {% endblock %}
+

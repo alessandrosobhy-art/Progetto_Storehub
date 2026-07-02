@@ -8,7 +8,7 @@
   <div class="container py-4">
     <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
       <div>
-        <h1 class="h4 mb-1">{{ tr('warehouse', 'search.heading', 'Ricerca movimentazioni') }}</h1>
+        <h1 class="h4 mb-1 app-page-title--redundant">{{ tr('warehouse', 'search.heading', 'Ricerca movimentazioni') }}</h1>
         {% if store_code %}
           <div class="text-muted small">{{ tr('warehouse', 'common.store', 'Store') }}: {{ store_name or store_code }}</div>
         {% endif %}
@@ -145,3 +145,4 @@
   })();
   </script>
 {% endblock %}
+

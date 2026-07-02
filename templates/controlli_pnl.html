@@ -10,8 +10,7 @@
 {% include "_controlli_toolbar.html" %}
 
 <div class="container-fluid py-3">
-  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-    <h2 class="h5 mb-0">P&amp;L</h2>
+  <div class="d-flex align-items-center justify-content-end flex-wrap gap-2 mb-3">
     <div class="text-muted small">Periodo: <span id="pnlPeriodLabel">—</span></div>
   </div>
 
@@ -145,3 +144,4 @@ window.__PnlCfg = {
 </script>
 <script src="{{ url_for('static', filename='js/controlli_pnl_v1.js') }}?v=1.2.0"></script>
 {% endblock %}
+

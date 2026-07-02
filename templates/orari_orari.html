@@ -3,8 +3,7 @@
 {% include "_orari_toolbar.html" %}
 
 <div class="container-fluid py-4">
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <h1 class="h4 mb-0">{{ tr('orari', 'schedule.title', 'Gestione Orari - Orari') }}</h1>
+  <div class="d-flex flex-wrap align-items-center justify-content-end gap-2 mb-3">
     <div class="d-flex align-items-center gap-2 flex-wrap">
       <div class="dropdown">
         <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="staffDropBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">{{ tr('orari', 'schedule.people', 'Persone') }}</button>
@@ -30,7 +29,6 @@
         <button class="btn btn-outline-primary" type="button" id="btnPdf">{{ tr('orari', 'schedule.pdf', 'PDF') }}</button>
       </form>
       <button class="btn btn-primary" type="button" id="btnSave">{{ tr('orari', 'schedule.save', 'Salva') }}</button>
-    </div>
   </div>
 
   <div class="card">

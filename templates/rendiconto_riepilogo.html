@@ -13,8 +13,8 @@
   <div class="container py-4 warehouse-riepilogo cruscotto-riepilogo">
     <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
       <div>
-        <h1 class="h4 mb-1">Dati Rendiconto</h1>
-        <div class="text-muted small">Riepilogo mensile multi-store (valori in €)</div>
+        <h1 class="h4 mb-1 app-page-title--redundant">Dati Rendiconto</h1>
+        <div class="app-page-meta">Riepilogo mensile multi-store (valori in €)</div>
       </div>
     </div>
 
@@ -78,3 +78,5 @@
   </script>
   <script src="{{ url_for('static', filename='js/cruscotto_riepilogo_v1.js') }}?v=1.0.11"></script>
 {% endblock %}
+
+

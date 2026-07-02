@@ -11,7 +11,7 @@
   <div class="container py-4 warehouse-ordini" data-store-code="{{ store_code }}">
     <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
       <div>
-        <h1 class="h4 mb-1">Ordini</h1>
+        <h1 class="h4 mb-1 app-page-title--redundant">Ordini</h1>
         <div class="text-muted small">Suggerimento ordine (stock + previsioni + safety)</div>
         <div class="text-muted small">Store: {{ store_code }}{% if store_name %} - {{ store_name }}{% endif %}</div>
       </div>
@@ -141,3 +141,4 @@
 
   <script src="{{ url_for('static', filename='js/warehouse_ordini_v1.js') }}?v=1.6.1"></script>
 {% endblock %}
+

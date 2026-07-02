@@ -2,7 +2,7 @@
 {% block content %}
 {% include "_warehouse_toolbar.html" %}
 <div class="container py-4">
-  <h1 class="h4 mb-3">DDT / Delivery - dati grezzi da Access</h1>
+  <h1 class="h4 mb-3 app-page-title--redundant">DDT / Delivery - dati grezzi da Access</h1>
 
   <p class="mb-2">
     Tabella Access utilizzata: <code>{{ delivery.table }}</code>
@@ -50,3 +50,4 @@
   <a href="{{ url_for('warehouse.home') }}" class="btn btn-secondary mt-4">Torna al Magazzino</a>
 </div>
 {% endblock %}
+

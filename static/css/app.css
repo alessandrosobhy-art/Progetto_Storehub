@@ -923,6 +923,21 @@ a:hover{
   border-radius: var(--app-radius-md);
 }
 
+.app-page-meta{
+  color: var(--app-text-muted);
+  font-size: .92rem;
+}
+
+@media (min-width: 1200px){
+  .app-page-title--redundant{
+    display: none !important;
+  }
+
+  .app-page-meta{
+    font-size: .9rem;
+  }
+}
+
 .btn{
   border-radius: 12px;
   font-weight: 600;

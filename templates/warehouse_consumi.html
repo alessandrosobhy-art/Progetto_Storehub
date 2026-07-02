@@ -12,7 +12,7 @@
   <div class="container py-4 warehouse-consumi">
     <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-3">
       <div>
-        <h1 class="h4 mb-1">{{ tr('warehouse', 'consumi.title', 'Consumi') }}</h1>
+        <h1 class="h4 mb-1 app-page-title--redundant">{{ tr('warehouse', 'consumi.title', 'Consumi') }}</h1>
         <div class="text-muted small">{{ tr('warehouse', 'consumi.subtitle', 'Consumo in pezzi per prodotto') }}</div>
       </div>
     </div>
@@ -185,3 +185,4 @@
   </script>
   <script src="{{ url_for('static', filename='js/warehouse_consumi_v1.js') }}?v=2"></script>
 {% endblock %}
+
