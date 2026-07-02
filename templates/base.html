@@ -220,7 +220,7 @@
   {% endif %}
   <main class="app-workspace-shell">
     {% if user and role_l != 'fornitore' and not is_master_only %}
-    <div class="store-subbar">
+    <div class="store-subbar d-xl-none">
       <div class="container-fluid store-subbar-inner">
         {% set active_code = session.get('store_code') %}
         {% set active_name = session.get('store_name') %}
