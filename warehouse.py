@@ -120,6 +120,7 @@ from supplier_order_flow_repository import (
 )
 
 warehouse_bp = Blueprint("warehouse", __name__, url_prefix="/magazzino")
+_AVAILABLE_STORES_CACHE_TTL_SECONDS = 60
 
 
 def _ensure_admin_warehouse_access():
@@ -1068,6 +1069,26 @@ def _available_stores_for_user(user_id: str | None):
     - Admin (ruolo verificato): tutti gli store
     - User: solo store assegnati in warehouse_user_stores
     """
+    cache_uid = str(user_id or "").strip()
+    cache_role = str(session.get("tenant_role") or session.get("role") or "").strip().lower()
+    cache_tenant = str(session.get("tenant_key") or session.get("master_admin_tenant_key") or "").strip().lower()
+    try:
+        cached_payload = session.get("available_stores_cache")
+        cached_ts = float(session.get("available_stores_cache_ts") or 0)
+        cached_uid = str(session.get("available_stores_cache_uid") or "").strip()
+        cached_role = str(session.get("available_stores_cache_role") or "").strip().lower()
+        cached_tenant = str(session.get("available_stores_cache_tenant") or "").strip().lower()
+        if (
+            isinstance(cached_payload, list)
+            and (time.time() - cached_ts) < _AVAILABLE_STORES_CACHE_TTL_SECONDS
+            and cached_uid == cache_uid
+            and cached_role == cache_role
+            and cached_tenant == cache_tenant
+        ):
+            return cached_payload
+    except Exception:
+        pass
+
     try:
         # Verifica ruolo con SERVICE_ROLE: l'elenco store deve riflettere subito
         # cambi ruolo fatti da Admin/Master, senza dipendere da cookie/sessioni vecchie.
@@ -1120,6 +1141,15 @@ def _available_stores_for_user(user_id: str | None):
                 str((s or {}).get("code") or "").strip().lower(),
             ),
         )
+    except Exception:
+        pass
+
+    try:
+        session["available_stores_cache"] = stores or []
+        session["available_stores_cache_ts"] = time.time()
+        session["available_stores_cache_uid"] = cache_uid
+        session["available_stores_cache_role"] = cache_role
+        session["available_stores_cache_tenant"] = cache_tenant
     except Exception:
         pass
 

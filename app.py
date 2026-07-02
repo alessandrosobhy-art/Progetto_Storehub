@@ -124,7 +124,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.7"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.8"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
@@ -4599,6 +4599,12 @@ def login_post():
         session['is_master'] = bool(prof.get('is_master')) or str(session.get('role') or '').strip().lower() == 'master'
         session['sb_token'] = token
         session['access_profile_id'] = prof.get('access_profile_id')
+        try:
+            if isinstance(prof, dict) and prof:
+                session['profile_cache'] = dict(prof)
+                session['profile_cache_ts'] = time.time()
+        except Exception:
+            pass
 
         if bool(session.get('is_master')) or str(session.get('role') or '').strip().lower() == 'master':
             _apply_tenant_to_session(None)
