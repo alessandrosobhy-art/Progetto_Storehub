@@ -1,8 +1,73 @@
 {% extends "base.html" %}
-{% block title %}Admin – Utenti{% endblock %}
+{% block title %}Admin - Utenti{% endblock %}
 {% block content %}
+<style>
+  .admin-users-toolbar{
+    gap: .75rem;
+  }
+  .admin-users-actions{
+    display: flex;
+    flex-wrap: wrap;
+    gap: .65rem;
+  }
+  .admin-users-table td,
+  .admin-users-table th{
+    white-space: nowrap;
+  }
+  .admin-users-table td:first-child,
+  .admin-users-table th:first-child,
+  .admin-users-table td:nth-child(2),
+  .admin-users-table th:nth-child(2){
+    white-space: normal;
+  }
+  .admin-users-mobile-list{
+    display: grid;
+    gap: .85rem;
+  }
+  .admin-users-mobile-card{
+    border: 1px solid var(--app-border, #dbe5f0);
+    border-radius: 18px;
+    background: linear-gradient(180deg, #fff 0%, #f9fbff 100%);
+    box-shadow: 0 10px 24px rgba(31, 51, 85, .06);
+  }
+  .admin-users-mobile-meta{
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .65rem .85rem;
+  }
+  .admin-users-mobile-meta .label{
+    display: block;
+    margin-bottom: .15rem;
+    font-size: .74rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: #7383a3;
+  }
+  .admin-users-mobile-actions{
+    display: grid;
+    gap: .5rem;
+  }
+  .admin-users-mobile-actions .btn,
+  .admin-users-mobile-actions form{
+    width: 100%;
+  }
+  @media (max-width: 991.98px){
+    .admin-users-toolbar{
+      align-items: stretch !important;
+    }
+    .admin-users-actions{
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+    .admin-users-actions .btn{
+      width: 100%;
+    }
+  }
+</style>
+
 <div class="container py-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap admin-users-toolbar">
     <div>
       <h1 class="h4 mb-1">Utenti</h1>
       <div class="small text-muted">
@@ -11,15 +76,15 @@
         {% endif %}
       </div>
     </div>
-    <div class="btn-group">
+    <div class="admin-users-actions">
       <a class="btn btn-primary" href="{{ url_for('admin_users_new_invite') }}">Nuovo utente (invito)</a>
       <a class="btn btn-outline-secondary" href="{{ url_for('admin_access_profiles') }}">Profili accesso</a>
     </div>
   </div>
 
   <div class="card">
-    <div class="table-responsive">
-      <table class="table align-middle mb-0">
+    <div class="table-responsive d-none d-lg-block">
+      <table class="table align-middle mb-0 admin-users-table">
         <thead>
           <tr><th>Email</th><th>Nome</th><th>Ruolo</th><th>Master</th><th>Fornitori</th><th>AI</th><th>Creato</th><th class="text-end">Azioni</th></tr>
         </thead>
@@ -60,7 +125,7 @@
               <form class="d-inline" method="post" action="{{ url_for('admin_users_recover', uid=u.id) }}" onsubmit="return confirm('Inviare email di reset?');">
                 <button class="btn btn-sm btn-outline-secondary ms-1">Reset password</button>
               </form>
-              <form class="d-inline" method="post" action="{{ url_for('admin_users_delete', uid=u.id) }}" onsubmit="return confirm('Confermi l\'eliminazione di ' + (u.email or 'utente') + '?');">
+              <form class="d-inline" method="post" action="{{ url_for('admin_users_delete', uid=u.id) }}" onsubmit="return confirm('Confermi l\'eliminazione di ' + ({{ (u.email or 'utente')|tojson }}) + '?');">
                 <button class="btn btn-sm btn-outline-danger ms-1">Elimina</button>
               </form>
             </td>
@@ -70,6 +135,67 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+
+    <div class="card-body d-lg-none">
+      <div class="admin-users-mobile-list">
+        {% for u in users %}
+        <section class="admin-users-mobile-card p-3">
+          <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+            <div class="min-w-0">
+              <div class="fw-semibold text-break">{{ u.name or 'Senza nome' }}</div>
+              <div class="text-muted small text-break">{{ u.email }}</div>
+            </div>
+            <span class="badge {{ 'bg-success' if u.role=='admin' else ('text-bg-primary' if u.role=='master' else ('bg-info text-dark' if u.role=='fornitore' else 'bg-secondary')) }}">
+              {{ u.role }}
+            </span>
+          </div>
+
+          <div class="admin-users-mobile-meta mb-3">
+            <div>
+              <span class="label">Master</span>
+              {% if u.is_master %}
+                <span class="badge text-bg-primary">Master</span>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </div>
+            <div>
+              <span class="label">AI</span>
+              {% if u.ai_enabled %}
+                <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Attiva</span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle">Disattiva</span>
+              {% endif %}
+            </div>
+            <div>
+              <span class="label">Fornitori</span>
+              {% if u.role == 'fornitore' %}
+                <span class="badge text-bg-light border">{{ u.supplier_assignments_count or 0 }}</span>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </div>
+            <div>
+              <span class="label">Creato</span>
+              <span class="text-muted">{{ u.created_at }}</span>
+            </div>
+          </div>
+
+          <div class="admin-users-mobile-actions">
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin_users_edit', uid=u.id) }}">Modifica</a>
+            <form method="post" action="{{ url_for('admin_users_recover', uid=u.id) }}" onsubmit="return confirm('Inviare email di reset?');">
+              <button class="btn btn-outline-secondary">Reset password</button>
+            </form>
+            <form method="post" action="{{ url_for('admin_users_delete', uid=u.id) }}" onsubmit="return confirm('Confermi l\'eliminazione di ' + ({{ (u.email or 'utente')|tojson }}) + '?');">
+              <button class="btn btn-outline-danger">Elimina</button>
+            </form>
+          </div>
+        </section>
+        {% else %}
+        <div class="text-muted text-center py-3">Nessun utente.</div>
+        {% endfor %}
+      </div>
     </div>
   </div>
 </div>

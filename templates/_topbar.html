@@ -22,20 +22,83 @@
   }
   @media (min-width: 992px) {
     .app-header .navbar-collapse {
-      align-items: flex-start;
+      align-items: center;
+      gap: .75rem;
     }
-    .app-header .navbar-nav {
-      flex-wrap: wrap;
-      row-gap: .15rem;
+    .app-header .nav-scroll-shell{
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      min-width: 0;
+      flex: 1 1 auto;
     }
-    .app-header .navbar-nav .nav-item {
+    .app-header .nav-scroll-track{
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: thin;
+      scroll-behavior: smooth;
+      padding-block: .1rem;
+    }
+    .app-header .nav-scroll-track::-webkit-scrollbar{
+      height: 6px;
+    }
+    .app-header .nav-scroll-track::-webkit-scrollbar-thumb{
+      background: rgba(79, 143, 207, .32);
+      border-radius: 999px;
+    }
+    .app-header .nav-scroll-track .navbar-nav {
+      flex-wrap: nowrap;
+      width: max-content;
+      row-gap: 0;
+      column-gap: .25rem;
+    }
+    .app-header .nav-scroll-track .navbar-nav .nav-item {
       flex: 0 0 auto;
     }
-    .app-header .navbar-nav .nav-link {
+    .app-header .nav-scroll-track .navbar-nav .nav-link {
       white-space: nowrap;
+    }
+    .app-header .nav-scroll-btn{
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid rgba(79, 143, 207, .16);
+      background: rgba(255,255,255,.88);
+      color: var(--app-heading, #1f3355);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 18px rgba(31, 51, 85, .08);
+      transition: opacity .18s ease, transform .18s ease, background-color .18s ease;
+      flex: 0 0 auto;
+    }
+    .app-header .nav-scroll-btn:hover{
+      background: #fff;
+      transform: translateY(-1px);
+    }
+    .app-header .nav-scroll-btn[hidden]{
+      display: none !important;
+    }
+    .app-header .nav-scroll-shell.is-start .nav-scroll-btn--prev,
+    .app-header .nav-scroll-shell.is-end .nav-scroll-btn--next{
+      opacity: .35;
+      pointer-events: none;
+    }
+    .app-header .navbar-nav.ms-auto{
+      flex: 0 0 auto;
+      margin-left: 0 !important;
     }
   }
   @media (max-width: 991.98px) {
+    .app-header .nav-scroll-shell{
+      display: block;
+      width: 100%;
+    }
+    .app-header .nav-scroll-btn{
+      display: none !important;
+    }
     .app-header .nav-link.is-pressing,
     .app-header .navbar-toggler.is-pressing {
       background: rgba(79, 143, 207, .18);
@@ -58,7 +121,12 @@
     </button>
 
     <div class="collapse navbar-collapse" id="mainNav">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+      <div class="nav-scroll-shell" data-nav-scroll-shell>
+        <button class="nav-scroll-btn nav-scroll-btn--prev" type="button" aria-label="Scorri menu a sinistra" data-nav-scroll-prev hidden>
+          <span aria-hidden="true">&lsaquo;</span>
+        </button>
+        <div class="nav-scroll-track" data-nav-scroll-track>
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
 {% if user and user.mod_dashboard %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint == 'dashboard' %} active{% endif %}"
@@ -211,7 +279,12 @@
           </ul>
         </li>
         {% endif %}
-      </ul>
+          </ul>
+        </div>
+        <button class="nav-scroll-btn nav-scroll-btn--next" type="button" aria-label="Scorri menu a destra" data-nav-scroll-next hidden>
+          <span aria-hidden="true">&rsaquo;</span>
+        </button>
+      </div>
 
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         {% if user %}
@@ -271,3 +344,40 @@
     </div>
   </div>
 </nav>
+
+<script>
+(function () {
+  const mq = window.matchMedia('(min-width: 992px)');
+  const shell = document.querySelector('[data-nav-scroll-shell]');
+  if (!shell) return;
+  const track = shell.querySelector('[data-nav-scroll-track]');
+  const prevBtn = shell.querySelector('[data-nav-scroll-prev]');
+  const nextBtn = shell.querySelector('[data-nav-scroll-next]');
+  if (!track || !prevBtn || !nextBtn) return;
+
+  function update() {
+    const desktop = mq.matches;
+    const overflow = desktop && (track.scrollWidth - track.clientWidth > 8);
+    prevBtn.hidden = !overflow;
+    nextBtn.hidden = !overflow;
+    shell.classList.toggle('is-start', !overflow || track.scrollLeft <= 4);
+    shell.classList.toggle('is-end', !overflow || (track.scrollLeft + track.clientWidth >= track.scrollWidth - 4));
+  }
+
+  function scrollByAmount(dir) {
+    const amount = Math.max(220, Math.round(track.clientWidth * 0.55)) * dir;
+    track.scrollBy({ left: amount, behavior: 'smooth' });
+  }
+
+  prevBtn.addEventListener('click', function () { scrollByAmount(-1); });
+  nextBtn.addEventListener('click', function () { scrollByAmount(1); });
+  track.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+  if (typeof mq.addEventListener === 'function') {
+    mq.addEventListener('change', update);
+  } else if (typeof mq.addListener === 'function') {
+    mq.addListener(update);
+  }
+  window.requestAnimationFrame(update);
+})();
+</script>
