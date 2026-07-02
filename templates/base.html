@@ -210,30 +210,6 @@
   <script src="{{ url_for('static', filename='js/ai_quick_panel_v1.js') }}?v={{ app_build_version }}"></script>
   <script src="{{ url_for('static', filename='js/user_theme_v1.js') }}?v={{ app_build_version }}"></script>
   <script src="{{ url_for('static', filename='js/desktop_nav_layout_v1.js') }}?v={{ app_build_version }}"></script>
-  {% if user and role_l != 'fornitore' and not is_master_only %}
-  <div class="store-subbar">
-    <div class="container-fluid store-subbar-inner">
-      {% set active_code = session.get('store_code') %}
-      {% set active_name = session.get('store_name') %}
-      <div class="store-subbar-left">
-        <span class="store-subbar-label">{{ tr('common', 'active_store', 'Store attivo:') }}</span>
-        <span class="store-subbar-value text-truncate">
-          {% if active_code %}
-            {{ active_code }}{% if active_name %} - {{ active_name }}{% endif %}
-          {% else %}
-            <span class="text-muted">{{ tr('common', 'no_store_selected', 'Nessuno store selezionato') }}</span>
-          {% endif %}
-        </span>
-        <button class="btn btn-sm btn-outline-secondary store-subbar-btn" type="button"
-                data-bs-toggle="modal" data-bs-target="#storeSelectModal">
-          {{ tr('common', 'change_store', 'Cambia store') }}
-        </button>
-      </div>
-      <div class="store-subbar-spacer"></div>
-    </div>
-  </div>
-  {% endif %}
-
   <!-- Messaggi flash: popup (toast) -->
   <div class="toast-container position-fixed top-0 end-0 p-3" id="globalFlashToastContainer" style="z-index: 2005;"></div>
   {% set _flash_toasts = get_flashed_messages(with_categories=true) %}
@@ -242,8 +218,35 @@
   window.__flashToasts = {{ _flash_toasts|tojson }};
   </script>
   {% endif %}
-  
-  {% block content %}{% endblock %}
+  <main class="app-workspace-shell">
+    {% if user and role_l != 'fornitore' and not is_master_only %}
+    <div class="store-subbar">
+      <div class="container-fluid store-subbar-inner">
+        {% set active_code = session.get('store_code') %}
+        {% set active_name = session.get('store_name') %}
+        <div class="store-subbar-left">
+          <span class="store-subbar-label">{{ tr('common', 'active_store', 'Store attivo:') }}</span>
+          <span class="store-subbar-value text-truncate">
+            {% if active_code %}
+              {{ active_code }}{% if active_name %} - {{ active_name }}{% endif %}
+            {% else %}
+              <span class="text-muted">{{ tr('common', 'no_store_selected', 'Nessuno store selezionato') }}</span>
+            {% endif %}
+          </span>
+          <button class="btn btn-sm btn-outline-secondary store-subbar-btn" type="button"
+                  data-bs-toggle="modal" data-bs-target="#storeSelectModal">
+            {{ tr('common', 'change_store', 'Cambia store') }}
+          </button>
+        </div>
+        <div class="store-subbar-spacer"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="app-workspace-panel">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{{ url_for('static', filename='js/pwa_install_prompt.js') }}?v=20260430pwa1"></script>
   <script>

@@ -1,7 +1,7 @@
 (function () {
-  const STORAGE_KEY = 'storehub-desktop-nav-layout-v1';
   const DESKTOP_QUERY = '(min-width: 1200px)';
-  const MODES = ['top', 'top-compact', 'sidebar', 'sidebar-compact'];
+  const RAIL_KEY = 'storehub-desktop-rail-collapsed-v1';
+  const SECTIONBAR_KEY = 'storehub-desktop-sectionbar-collapsed-v1';
 
   function isDesktop() {
     try {
@@ -11,109 +11,94 @@
     }
   }
 
-  function getMode() {
+  function readBool(key) {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY) || 'top';
-      return MODES.includes(stored) ? stored : 'top';
+      return localStorage.getItem(key) === '1';
     } catch (e) {
-      return 'top';
+      return false;
     }
   }
 
-  function setMode(mode) {
+  function writeBool(key, value) {
     try {
-      localStorage.setItem(STORAGE_KEY, mode);
+      localStorage.setItem(key, value ? '1' : '0');
     } catch (e) {}
   }
 
-  function applyMode(mode) {
+  function applyDesktopShellState() {
     const desktop = isDesktop();
-    document.body.classList.toggle('app-shell--sidebar', desktop && (mode === 'sidebar' || mode === 'sidebar-compact'));
-    document.body.classList.toggle('app-shell--sidebar-collapsed', desktop && mode === 'sidebar-compact');
-    document.body.classList.toggle('app-shell--top-compact', desktop && mode === 'top-compact');
-    const btn = document.getElementById('toggleDesktopNavLayout');
-    const inlineBtn = document.getElementById('toggleDesktopNavLayoutInline');
-    const compactBtns = [
-      document.getElementById('toggleDesktopNavCompact'),
-      document.getElementById('toggleDesktopNavCompactInline')
-    ].filter(Boolean);
-    if (btn) {
-      const labels = {
-        'top': 'Layout desktop: orizzontale',
-        'top-compact': 'Layout desktop: orizzontale compatto',
-        'sidebar': 'Layout desktop: laterale',
-        'sidebar-compact': 'Layout desktop: laterale compatto'
-      };
-      btn.textContent = labels[mode] || 'Layout barra desktop';
+    const railCollapsed = readBool(RAIL_KEY);
+    const sectionbarCollapsed = readBool(SECTIONBAR_KEY);
+
+    document.body.classList.toggle('app-shell--rail-collapsed', desktop && railCollapsed);
+    document.body.classList.toggle('app-shell--sectionbar-collapsed', desktop && sectionbarCollapsed);
+
+    const railBtn = document.getElementById('toggleDesktopRail');
+    if (railBtn) {
+      const title = railCollapsed ? 'Espandi barra laterale' : 'Comprimi barra laterale';
+      railBtn.title = title;
+      railBtn.setAttribute('aria-label', title);
     }
-    if (inlineBtn) {
-      inlineBtn.title = mode.startsWith('sidebar')
-        ? 'Passa alla barra orizzontale'
-        : 'Passa alla barra laterale';
-      inlineBtn.setAttribute('aria-label', inlineBtn.title);
+
+    const sectionBtn = document.getElementById('toggleDesktopSectionbar');
+    if (sectionBtn) {
+      const title = sectionbarCollapsed ? 'Espandi barra sezioni' : 'Comprimi barra sezioni';
+      sectionBtn.title = title;
+      sectionBtn.setAttribute('aria-label', title);
     }
-    const compact = mode === 'top-compact' || mode === 'sidebar-compact';
-    compactBtns.forEach(function (compactBtn) {
-      compactBtn.title = compact ? 'Espandi menu desktop' : 'Comprimi menu desktop';
-      compactBtn.setAttribute('aria-label', compactBtn.title);
-      compactBtn.dataset.compact = compact ? '1' : '0';
-    });
   }
 
-  function nextMode(current) {
-    if (current === 'sidebar' || current === 'sidebar-compact') {
-      return current === 'sidebar-compact' ? 'top-compact' : 'top';
-    }
-    return current === 'top-compact' ? 'sidebar-compact' : 'sidebar';
-  }
+  function initSectionbarScroll() {
+    const track = document.getElementById('desktopSectionTrack');
+    const prev = document.getElementById('desktopSectionPrev');
+    const next = document.getElementById('desktopSectionNext');
+    if (!track || !prev || !next) return;
 
-  function toggleCompact(current) {
-    if (current === 'sidebar') return 'sidebar-compact';
-    if (current === 'sidebar-compact') return 'sidebar';
-    if (current === 'top') return 'top-compact';
-    return 'top';
+    function update() {
+      const overflow = track.scrollWidth - track.clientWidth > 8;
+      const desktop = isDesktop() && !document.body.classList.contains('app-shell--sectionbar-collapsed');
+      prev.hidden = !desktop || !overflow || track.scrollLeft <= 4;
+      next.hidden = !desktop || !overflow || (track.scrollLeft + track.clientWidth >= track.scrollWidth - 4);
+    }
+
+    function scrollByAmount(dir) {
+      const amount = Math.max(220, Math.round(track.clientWidth * 0.45)) * dir;
+      track.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+
+    prev.addEventListener('click', function () { scrollByAmount(-1); });
+    next.addEventListener('click', function () { scrollByAmount(1); });
+    track.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    window.setTimeout(update, 0);
   }
 
   function init() {
-    let mode = getMode();
-    applyMode(mode);
+    applyDesktopShellState();
+    initSectionbarScroll();
 
-    const btn = document.getElementById('toggleDesktopNavLayout');
-    const inlineBtn = document.getElementById('toggleDesktopNavLayoutInline');
-    const compactBtns = [
-      document.getElementById('toggleDesktopNavCompact'),
-      document.getElementById('toggleDesktopNavCompactInline')
-    ].filter(Boolean);
-    if (btn) {
-      btn.addEventListener('click', function () {
-        mode = nextMode(getMode());
-        setMode(mode);
-        applyMode(mode);
+    const railBtn = document.getElementById('toggleDesktopRail');
+    if (railBtn) {
+      railBtn.addEventListener('click', function () {
+        writeBool(RAIL_KEY, !readBool(RAIL_KEY));
+        applyDesktopShellState();
       });
     }
-    if (inlineBtn) {
-      inlineBtn.addEventListener('click', function () {
-        mode = nextMode(getMode());
-        setMode(mode);
-        applyMode(mode);
+
+    const sectionBtn = document.getElementById('toggleDesktopSectionbar');
+    if (sectionBtn) {
+      sectionBtn.addEventListener('click', function () {
+        writeBool(SECTIONBAR_KEY, !readBool(SECTIONBAR_KEY));
+        applyDesktopShellState();
       });
     }
-    compactBtns.forEach(function (compactBtn) {
-      compactBtn.addEventListener('click', function () {
-        mode = toggleCompact(getMode());
-        setMode(mode);
-        applyMode(mode);
-      });
-    });
 
     try {
       window.matchMedia(DESKTOP_QUERY).addEventListener('change', function () {
-        applyMode(getMode());
+        applyDesktopShellState();
       });
     } catch (e) {
-      window.addEventListener('resize', function () {
-        applyMode(getMode());
-      });
+      window.addEventListener('resize', applyDesktopShellState);
     }
   }
 
