@@ -537,6 +537,8 @@ a:hover{
 @media (min-width: 1200px){
   body.app-shell{
     padding: 18px 18px 18px 248px;
+    height: 100vh;
+    overflow: hidden;
   }
 
   .app-desktop-shell{
@@ -826,6 +828,7 @@ a:hover{
 
   .app-workspace-shell{
     position: relative;
+    overflow: hidden;
   }
 
   .app-workspace-panel{
@@ -834,7 +837,10 @@ a:hover{
     border-radius: 28px;
     box-shadow: 0 18px 38px rgba(15, 23, 42, .08);
     padding: 18px;
-    min-height: calc(100vh - 110px);
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
   }
 
   .app-header.navbar{
