@@ -494,7 +494,11 @@
 
   
 <script>
-  window.__DAILY_SUMMARY__ = {% if daily_summary %}{{ daily_summary|tojson }}{% else %}null{% endif %};
+  window.__DAILY_SUMMARY__ = null;
+  window.__DAILY_SUMMARY_CONFIG__ = {
+    shouldLoad: {{ 'true' if show_daily_summary_popup else 'false' }},
+    url: "{{ url_for('api_dashboard_day_summary') }}"
+  };
   window.__RENDICONTO_VALIDATE__ = {
     canValidate: {{ 'true' if can_validate_period else 'false' }},
     previewUrl: "{{ url_for('rendiconto.api_dashboard_validate_period_preview') }}",

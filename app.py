@@ -124,7 +124,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.5"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.6"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
@@ -8780,33 +8780,7 @@ def dashboard():
     role_l = str(session.get('role') or '').strip().lower()
     convalide_store = []
 
-    daily_summary = None
-    # Mostra il pop-up solo se lo store è selezionato (es. admin senza store: mai) e solo una volta per login.
-    if store_code and session.get('show_day_summary_popup'):
-        try:
-            from datetime import date
-            from cruscotto_repository import get_day_summary_kpis
-            from cash_statement_config_repository import list_cash_statement_dashboard_customizations
-
-            today = date.today()
-            kpis = get_day_summary_kpis(store_code=str(store_code), day=today) or {}
-            tenant_key = str(session.get("tenant_key") or "default").strip() or "default"
-            cash_customizations = list_cash_statement_dashboard_customizations(tenant_key=tenant_key)
-            daily_summary = {
-                "store_code": str(store_code),
-                "store_name": str(store_name or store_code),
-                "day": kpis.get("day") or today.isoformat(),
-                "budget_net": float(kpis.get("budget_net") or 0.0),
-                "ly_date": kpis.get("ly_date"),
-                "ly_revenues_net": float(kpis.get("ly_revenues_net") or 0.0),
-                "forecast_net": kpis.get("forecast_net"),
-                "cash_statement_customizations": cash_customizations,
-            }
-        except Exception:
-            daily_summary = None
-
-        # Consuma il flag solo se abbiamo realmente uno store selezionato (così chi ha il modal store obbligatorio non lo perde).
-        session.pop('show_day_summary_popup', None)
+    show_daily_summary_popup = bool(store_code and session.get('show_day_summary_popup'))
 
     if store_code and role_l == 'admin':
         try:
@@ -8819,9 +8793,47 @@ def dashboard():
         'dashboard.html',
         user=user,
         page_title='Dashboard',
-        daily_summary=daily_summary,
+        show_daily_summary_popup=show_daily_summary_popup,
         convalide_store=convalide_store,
     )
+
+
+@app.get('/api/dashboard/day-summary')
+@login_required
+@module_required('dashboard')
+def api_dashboard_day_summary():
+    store_code = (session.get('store_code') or '').strip()
+    if not store_code:
+        return jsonify({"ok": False, "error": "store_not_selected"}), 400
+
+    if not session.get('show_day_summary_popup'):
+        return jsonify({"ok": True, "data": None})
+
+    try:
+        from datetime import date
+        from cruscotto_repository import get_day_summary_kpis
+        from cash_statement_config_repository import list_cash_statement_dashboard_customizations
+
+        today = date.today()
+        store_name = session.get('store_name') or store_code
+        kpis = get_day_summary_kpis(store_code=str(store_code), day=today) or {}
+        tenant_key = str(session.get("tenant_key") or "default").strip() or "default"
+        cash_customizations = list_cash_statement_dashboard_customizations(tenant_key=tenant_key)
+        data = {
+            "store_code": str(store_code),
+            "store_name": str(store_name or store_code),
+            "day": kpis.get("day") or today.isoformat(),
+            "budget_net": float(kpis.get("budget_net") or 0.0),
+            "ly_date": kpis.get("ly_date"),
+            "ly_revenues_net": float(kpis.get("ly_revenues_net") or 0.0),
+            "forecast_net": kpis.get("forecast_net"),
+            "cash_statement_customizations": cash_customizations,
+        }
+        session.pop('show_day_summary_popup', None)
+        return jsonify({"ok": True, "data": data})
+    except Exception as e:
+        current_app.logger.exception("Errore api_dashboard_day_summary")
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 

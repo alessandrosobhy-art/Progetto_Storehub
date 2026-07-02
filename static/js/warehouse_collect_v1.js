@@ -577,6 +577,21 @@ if (st && st.should_alert && rcOverdueModalEl && window.bootstrap){
 let dailySummaryPending = false;
 let pendingOverduePayload = null;
 
+async function fetchDailySummaryIfNeeded(){
+  const cfg = window.__DAILY_SUMMARY_CONFIG__ || {};
+  if (!cfg || !cfg.shouldLoad || !cfg.url) return null;
+  try {
+    const data = await fetchJSON(cfg.url, { headers: { 'Accept': 'application/json' } });
+    const payload = data && data.ok ? (data.data || null) : null;
+    window.__DAILY_SUMMARY__ = payload;
+    return payload;
+  } catch (e) {
+    console.error(e);
+    window.__DAILY_SUMMARY__ = null;
+    return null;
+  }
+}
+
 function showDailySummaryIfAny(){
   const data = (window.__DAILY_SUMMARY__ || null);
   if (!data || !dsModalEl || !window.bootstrap) return false;
@@ -1138,10 +1153,10 @@ function init(){
   rvPreviewBtn && rvPreviewBtn.addEventListener('click', previewValidatePeriod);
   rvConfirmBtn && rvConfirmBtn.addEventListener('click', confirmValidatePeriod);
 
-  // Pop-up riepilogo giornata (se presente) prima dell'eventuale alert versamenti
-  showDailySummaryIfAny();
-
   refresh();
+  fetchDailySummaryIfNeeded().then(() => {
+    showDailySummaryIfAny();
+  });
 }
 
 if (document.readyState === 'loading'){
