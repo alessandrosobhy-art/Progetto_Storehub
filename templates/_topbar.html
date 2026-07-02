@@ -1,4 +1,25 @@
 <style>
+  .app-header .nav-link,
+  .app-header .dropdown-item,
+  .app-header .navbar-toggler {
+    transition: background-color .14s ease, color .14s ease, transform .12s ease, opacity .12s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app-header .nav-link:active,
+  .app-header .dropdown-item:active,
+  .app-header .navbar-toggler:active,
+  .app-header .nav-link.is-pressing,
+  .app-header .dropdown-item.is-pressing,
+  .app-header .navbar-toggler.is-pressing {
+    transform: scale(.985);
+  }
+  .app-header .nav-link.is-pressing,
+  .app-header .navbar-toggler.is-pressing {
+    background: rgba(79, 143, 207, .14);
+  }
+  .app-header .dropdown-item.is-pressing {
+    background: rgba(79, 143, 207, .12);
+  }
   @media (min-width: 992px) {
     .app-header .navbar-collapse {
       align-items: flex-start;
@@ -12,6 +33,16 @@
     }
     .app-header .navbar-nav .nav-link {
       white-space: nowrap;
+    }
+  }
+  @media (max-width: 991.98px) {
+    .app-header .nav-link.is-pressing,
+    .app-header .navbar-toggler.is-pressing {
+      background: rgba(79, 143, 207, .18);
+      border-radius: .5rem;
+    }
+    .app-header .dropdown-item.is-pressing {
+      background: rgba(79, 143, 207, .16);
     }
   }
 </style>

@@ -20,7 +20,22 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/store_subbar_v1.css') }}?v=20260419a">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile_modal_no_overflow_v1.css') }}?v=1.0.1">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/loading_overlay_v1.css') }}?v=1.0.2">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/loading_overlay_v1.css') }}?v=1.0.3">
+  <script>
+    (function () {
+      try {
+        var raw = sessionStorage.getItem('storehubNavLoading');
+        if (!raw) return;
+        var data = JSON.parse(raw);
+        if (!data || !data.ts || (Date.now() - Number(data.ts)) > 15000) {
+          sessionStorage.removeItem('storehubNavLoading');
+          return;
+        }
+        window.__storehubPendingNavigationMessage = data.message || '';
+        document.documentElement.classList.add('storehub-page-loading');
+      } catch (e) {}
+    })();
+  </script>
 {% block head_extra %}{% endblock %}
 </head>
 <body class="app-shell">
@@ -161,7 +176,7 @@
       operationInProgress: {{ tr('common', 'operation_in_progress', 'Operazione in corso...')|tojson }}
     });
   </script>
-  <script src="{{ url_for('static', filename='js/loading_overlay_v1.js') }}?v=1.0.2"></script>
+  <script src="{{ url_for('static', filename='js/loading_overlay_v1.js') }}?v=1.0.3"></script>
   <script src="{{ url_for('static', filename='js/ai_quick_panel_v1.js') }}?v=20260419b"></script>
   <script src="{{ url_for('static', filename='js/user_theme_v1.js') }}?v=20260429a"></script>
   <script src="{{ url_for('static', filename='js/desktop_nav_layout_v1.js') }}?v=20260503a"></script>

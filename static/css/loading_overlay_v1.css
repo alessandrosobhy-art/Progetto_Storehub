@@ -13,6 +13,10 @@
   display: flex;
 }
 
+html.storehub-page-loading #globalLoadingOverlay {
+  display: flex;
+}
+
 #globalLoadingOverlay .overlay-box {
   background: #fff;
   border-radius: 16px;
@@ -22,6 +26,31 @@
   align-items: center;
   gap: 12px;
   max-width: min(520px, 92vw);
+}
+
+@media (max-width: 767.98px) {
+  #globalLoadingOverlay {
+    background: rgba(10, 18, 34, .42);
+  }
+  #globalLoadingOverlay .overlay-box {
+    width: min(92vw, 420px);
+    border-radius: 18px;
+    padding: 18px 16px;
+    gap: 14px;
+    box-shadow: 0 16px 34px rgba(0,0,0,.28);
+  }
+  #globalLoadingOverlay .overlay-spinner {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+  }
+  #globalLoadingOverlay .overlay-title {
+    font-size: 1rem;
+  }
+  #globalLoadingOverlay .overlay-message {
+    font-size: .98rem;
+    opacity: .92;
+  }
 }
 
 #globalLoadingOverlay .overlay-spinner {

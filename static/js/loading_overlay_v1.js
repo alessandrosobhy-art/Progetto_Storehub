@@ -1,15 +1,20 @@
-/* Global loading overlay (v1.0.1)
+/* Global loading overlay (v1.0.3)
    - Blocks clicks while long operations are running
    - Auto-hooks form submit + fetch (with delay to avoid flicker)
+   - Persists feedback across full-page navigations
 */
 (function () {
   const OVERLAY_ID = 'globalLoadingOverlay';
   const SHOW_DELAY_MS = 250;
+  const NAV_STORAGE_KEY = 'storehubNavLoading';
+  const NAV_STORAGE_TTL_MS = 15000;
+  const PRESS_CLASS = 'is-pressing';
 
   let overlayEl = null;
   let msgEl = null;
   let pending = 0;
   let showTimer = null;
+  let navRestoreVisible = false;
   const i18n = window.StoreHubI18n || {};
   const defaultLoading = i18n.loading || 'Caricamento...';
   const defaultSaving = i18n.saving || 'Salvataggio in corso...';
@@ -46,6 +51,18 @@
     if (pending === 1) scheduleShow();
   }
 
+  function showNow(message) {
+    if (message) setMessage(message);
+    if (showTimer) {
+      window.clearTimeout(showTimer);
+      showTimer = null;
+    }
+    if (!ensureElements()) return;
+    overlayEl.classList.add('show');
+    document.body.classList.add('loading-overlay-open');
+    setMessage(lastMessage);
+  }
+
   function hide() {
     if (pending > 0) pending -= 1;
     if (pending !== 0) return;
@@ -64,10 +81,51 @@
   window.loadingOverlay = {
     push: show,
     pop: hide,
-    show: function (message) { show(message); },
+    show: function (message) { showNow(message); },
     hide: function () { while (pending > 0) hide(); },
     setMessage: setMessage
   };
+
+  function markPress(target) {
+    if (!target || !target.classList) return;
+    target.classList.add(PRESS_CLASS);
+    window.setTimeout(function () {
+      try { target.classList.remove(PRESS_CLASS); } catch (_) {}
+    }, 180);
+  }
+
+  function rememberNavigation(message) {
+    try {
+      sessionStorage.setItem(NAV_STORAGE_KEY, JSON.stringify({
+        ts: Date.now(),
+        message: message || defaultLoading,
+      }));
+    } catch (_) {}
+  }
+
+  function clearRememberedNavigation() {
+    try { sessionStorage.removeItem(NAV_STORAGE_KEY); } catch (_) {}
+    document.documentElement.classList.remove('storehub-page-loading');
+  }
+
+  function beginNavigationLoad(message) {
+    rememberNavigation(message);
+    showNow(message || defaultLoading);
+  }
+
+  function isNavigationalAnchor(anchor) {
+    if (!anchor || !anchor.href) return false;
+    if (anchor.hasAttribute('download') || anchor.getAttribute('target') === '_blank') return false;
+    if (anchor.dataset.noOverlay === '1' || anchor.hasAttribute('data-no-overlay')) return false;
+    const href = anchor.getAttribute('href') || '';
+    if (!href || href === '#' || href.startsWith('javascript:')) return false;
+    try {
+      const url = new URL(anchor.href, window.location.href);
+      return url.origin === window.location.origin;
+    } catch (_) {
+      return false;
+    }
+  }
 
   // Hook form submissions (full page or background)
   document.addEventListener('submit', function (ev) {
@@ -76,7 +134,21 @@
     if (form.hasAttribute('data-no-overlay') || form.dataset.noOverlay === '1') return;
 
     const msg = form.dataset.overlayMessage || defaultLoading;
-    show(msg);
+    beginNavigationLoad(msg);
+  }, true);
+
+  document.addEventListener('pointerdown', function (ev) {
+    const tapTarget = ev.target && ev.target.closest
+      ? ev.target.closest('.app-header .nav-link, .app-header .dropdown-item, .app-header .navbar-toggler')
+      : null;
+    if (tapTarget) markPress(tapTarget);
+  }, true);
+
+  document.addEventListener('click', function (ev) {
+    const anchor = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
+    if (!isNavigationalAnchor(anchor)) return;
+    const message = anchor.dataset.overlayMessage || defaultLoading;
+    beginNavigationLoad(message);
   }, true);
 
   // Navigation: show overlay while browser navigates away
@@ -87,8 +159,7 @@
     // is still active and there is no pending operation.
     try {
       if (!ensureElements()) return;
-      overlayEl.classList.add('show');
-      document.body.classList.add('loading-overlay-open');
+      showNow(lastMessage || defaultLoading);
 
       window.setTimeout(function () {
         try {
@@ -143,5 +214,29 @@
   // Ensure overlay elements exist after DOM is ready
   document.addEventListener('DOMContentLoaded', function () {
     ensureElements();
+    try {
+      const raw = sessionStorage.getItem(NAV_STORAGE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!data || !data.ts || (Date.now() - Number(data.ts)) > NAV_STORAGE_TTL_MS) {
+        clearRememberedNavigation();
+        return;
+      }
+      navRestoreVisible = true;
+      showNow(data.message || defaultLoading);
+    } catch (_) {
+      clearRememberedNavigation();
+    }
+  });
+
+  window.addEventListener('load', function () {
+    clearRememberedNavigation();
+    if (!navRestoreVisible) return;
+    navRestoreVisible = false;
+    if (pending === 0 && ensureElements()) {
+      overlayEl.classList.remove('show');
+      document.body.classList.remove('loading-overlay-open');
+      setMessage(defaultLoading);
+    }
   });
 })();
