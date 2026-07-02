@@ -63,6 +63,8 @@
 {% set desktop_section_title = tr('navigation', 'nav.dashboard', 'Dashboard') %}
 {% if request.endpoint and request.endpoint.startswith('cruscotto.') %}
   {% set desktop_section_title = tr('navigation', 'nav.cruscotto', 'Cruscotto') %}
+{% elif request.endpoint in ['warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] %}
+  {% set desktop_section_title = tr('navigation', 'nav.supplier_orders', 'Ordini al fornitore') %}
 {% elif request.endpoint and request.endpoint.startswith('warehouse.') %}
   {% set desktop_section_title = tr('navigation', 'nav.magazzino', 'Magazzino') %}
 {% elif request.endpoint and request.endpoint.startswith('mbo.') %}
@@ -77,7 +79,7 @@
   {% set desktop_section_title = tr('navigation', 'nav.controlli', 'Controlli di gestione') %}
 {% elif request.endpoint and (request.endpoint == 'estrazioni.delivery_weekly' or request.endpoint == 'warehouse.riepilogo') %}
   {% set desktop_section_title = tr('navigation', 'nav.estrazioni', 'Estrazioni') %}
-{% elif request.endpoint and (request.endpoint == 'estrazioni.scheduling' or request.endpoint == 'estrazioni.verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto_export_xlsx' or request.endpoint == 'estrazioni.finance' or request.endpoint == 'rendiconto.riepilogo' or request.endpoint == 'admin_versamenti_finance_match_test' or request.endpoint == 'admin_versamenti_finance_match_test_save') %}
+{% elif request.endpoint and (request.endpoint == 'estrazioni.scheduling' or request.endpoint == 'estrazioni.verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto_export_xlsx' or request.endpoint == 'estrazioni.finance' or request.endpoint == 'rendiconto.riepilogo' or request.endpoint == 'admin_versamenti_finance_match_test' or request.endpoint == 'admin_versamenti_finance_match_test_save' or request.endpoint == 'admin_pos_finance_match_test' or request.endpoint == 'admin_pos_finance_match_test_save') %}
   {% set desktop_section_title = tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') %}
 {% elif request.endpoint and request.endpoint.startswith('master_') %}
   {% set desktop_section_title = tr('navigation', 'nav.master', 'Master') %}
@@ -303,6 +305,82 @@
       <a class="app-desktop-sectionbar__link{% if is_inventory_edit %} active{% endif %}" href="{{ url_for('warehouse.inventory_edit') }}">{{ tr('warehouse', 'toolbar.inventory_edit', 'Modifica Dati Inventario') }}</a>
       <a class="app-desktop-sectionbar__link{% if is_search %} active{% endif %}" href="{{ url_for('warehouse.ricerca') }}">{{ tr('warehouse', 'toolbar.search', 'Ricerca') }}</a>
       <a class="app-desktop-sectionbar__link{% if is_ordini %} active{% endif %}" href="{{ url_for('warehouse.ordini') }}">{{ tr('warehouse', 'toolbar.orders', 'Ordini') }}</a>
+      {% elif request.endpoint in ['warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] %}
+      {% set is_invia = request.path.startswith('/magazzino/ordini-fornitore/invia') %}
+      {% set is_inviati = request.path.startswith('/magazzino/ordini-fornitore/inviati') %}
+      {% set is_ricevuti = request.path.startswith('/magazzino/ordini-fornitore/ricevuti') %}
+      {% if user and user.role != 'fornitore' %}
+      <a class="app-desktop-sectionbar__link{% if is_invia %} active{% endif %}" href="{{ url_for('warehouse.supplier_orders_send') }}">Invia Ordine</a>
+      <a class="app-desktop-sectionbar__link{% if is_inviati %} active{% endif %}" href="{{ url_for('warehouse.supplier_orders_sent') }}">Ordini inviati</a>
+      {% endif %}
+      {% if user and (user.role == 'fornitore' or user.role == 'admin') %}
+      <a class="app-desktop-sectionbar__link{% if is_ricevuti %} active{% endif %}" href="{{ url_for('warehouse.supplier_orders_received') }}">Ordini ricevuti</a>
+      {% endif %}
+      {% elif request.endpoint and request.endpoint.startswith('rendiconto.') and request.endpoint != 'rendiconto.riepilogo' %}
+      {% set cs_ns = 'cash_statement' %}
+      {% set is_ricerca = request.path.startswith('/rendiconto/ricerca') %}
+      {% set is_spese = request.path.startswith('/rendiconto/spese') %}
+      {% set is_distinta = request.path.startswith('/rendiconto/distinta-cassa') %}
+      {% set is_versamenti = request.path.startswith('/rendiconto/versamenti') %}
+      {% set is_delivery = request.path.startswith('/rendiconto/gestione-delivery') %}
+      <a class="app-desktop-sectionbar__link{% if is_distinta %} active{% endif %}" href="{{ url_for('rendiconto.distinta_cassa') }}">{{ tr(cs_ns, 'ui.title', 'Distinta cassa') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_spese %} active{% endif %}" href="{{ url_for('rendiconto.spese') }}">{{ tr(cs_ns, 'toolbar.spese', 'Spese') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_versamenti %} active{% endif %}" href="{{ url_for('rendiconto.versamenti') }}">{{ tr(cs_ns, 'toolbar.versamenti', 'Versamenti') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_delivery %} active{% endif %}" href="{{ url_for('rendiconto.gestione_delivery') }}">{{ tr(cs_ns, 'toolbar.gestione_delivery', 'Gestione delivery') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_ricerca %} active{% endif %}" href="{{ url_for('rendiconto.ricerca') }}">{{ tr(cs_ns, 'toolbar.ricerca', 'Ricerca') }}</a>
+      {% elif request.endpoint and request.endpoint.startswith('mbo.') %}
+      {% set is_home = request.path == '/mbo' or request.path == '/mbo/' %}
+      {% set is_audit = request.path == '/mbo/audit' %}
+      {% set is_audit_addresses = request.path.startswith('/mbo/audit/indirizzi') %}
+      {% set is_pnl_scores = request.path.startswith('/mbo/calcoli-pl') %}
+      {% set is_google_scores = request.path.startswith('/mbo/calcoli-google') %}
+      {% set is_glovo_scores = request.path.startswith('/mbo/calcoli-glovo') %}
+      {% set is_deliveroo_scores = request.path.startswith('/mbo/calcoli-deliveroo') %}
+      {% set is_soft_skills = request.path.startswith('/mbo/soft-skills') %}
+      {% set is_custom_survey = request.path.startswith('/mbo/survey') %}
+      {% set is_settings = request.path.startswith('/mbo/impostazioni') %}
+      <a class="app-desktop-sectionbar__link{% if is_home %} active{% endif %}" href="{{ url_for('mbo.home') }}">Riepilogo</a>
+      <a class="app-desktop-sectionbar__link{% if is_audit %} active{% endif %}" href="{{ url_for('mbo.audit') }}">Dati audit</a>
+      <a class="app-desktop-sectionbar__link{% if is_audit_addresses %} active{% endif %}" href="{{ url_for('mbo.audit_address_mapping') }}">Address-store</a>
+      <a class="app-desktop-sectionbar__link{% if is_pnl_scores %} active{% endif %}" href="{{ url_for('mbo.pnl_scores') }}">Calcoli P&amp;L</a>
+      <a class="app-desktop-sectionbar__link{% if is_google_scores %} active{% endif %}" href="{{ url_for('mbo.google_scores') }}">Calcoli Google</a>
+      <a class="app-desktop-sectionbar__link{% if is_glovo_scores %} active{% endif %}" href="{{ url_for('mbo.glovo_scores') }}">Calcoli Glovo</a>
+      <a class="app-desktop-sectionbar__link{% if is_deliveroo_scores %} active{% endif %}" href="{{ url_for('mbo.deliveroo_scores') }}">Calcoli Deliveroo</a>
+      <a class="app-desktop-sectionbar__link{% if is_soft_skills %} active{% endif %}" href="{{ url_for('mbo.soft_skills') }}">Soft skills</a>
+      <a class="app-desktop-sectionbar__link{% if is_custom_survey %} active{% endif %}" href="{{ url_for('mbo.custom_surveys') }}">Survey</a>
+      {% if user and user.role == 'admin' %}
+      <a class="app-desktop-sectionbar__link{% if is_settings %} active{% endif %}" href="{{ url_for('mbo.settings') }}">Impostazioni</a>
+      {% endif %}
+      {% elif request.endpoint and request.endpoint.startswith('orari.') %}
+      {% set is_anagrafica = request.path.startswith('/orari/anagrafica') %}
+      {% set is_orari = request.path.startswith('/orari/orari') %}
+      <a class="app-desktop-sectionbar__link{% if is_anagrafica %} active{% endif %}" href="{{ url_for('orari.anagrafica') }}">{{ tr('orari', 'toolbar.registry', 'Anagrafica') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_orari %} active{% endif %}" href="{{ url_for('orari.orari_page') }}">{{ tr('orari', 'toolbar.schedules', 'Orari') }}</a>
+      {% elif request.endpoint and request.endpoint.startswith('controlli.') %}
+      {% set is_pnl = request.path.startswith('/controlli/pnl') %}
+      {% set is_andamento = request.path.startswith('/controlli/andamento') %}
+      {% set is_kpi = request.path.startswith('/controlli/kpi') %}
+      <a class="app-desktop-sectionbar__link{% if is_pnl %} active{% endif %}" href="{{ url_for('controlli.pnl') }}">P&amp;L</a>
+      <a class="app-desktop-sectionbar__link{% if is_andamento %} active{% endif %}" href="{{ url_for('controlli.andamento') }}">Andamento</a>
+      <a class="app-desktop-sectionbar__link{% if is_kpi %} active{% endif %}" href="{{ url_for('controlli.kpi') }}">KPI</a>
+      {% elif request.endpoint and (request.endpoint == 'estrazioni.delivery_weekly' or request.endpoint == 'warehouse.riepilogo') %}
+      {% set is_delivery_weekly = request.path.startswith('/estrazioni/delivery-weekly') %}
+      {% set is_dati_magazzino = request.endpoint == 'warehouse.riepilogo' %}
+      <a class="app-desktop-sectionbar__link{% if is_delivery_weekly %} active{% endif %}" href="{{ url_for('estrazioni.delivery_weekly') }}">{{ tr('estrazioni', 'toolbar.delivery_data', 'Dati Delivery') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_dati_magazzino %} active{% endif %}" href="{{ url_for('warehouse.riepilogo') }}">{{ tr('estrazioni', 'toolbar.warehouse_data', 'Dati Magazzino') }}</a>
+      {% elif request.endpoint and (request.endpoint == 'estrazioni.scheduling' or request.endpoint == 'estrazioni.verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto_export_xlsx' or request.endpoint == 'estrazioni.finance' or request.endpoint == 'rendiconto.riepilogo' or request.endpoint == 'admin_versamenti_finance_match_test' or request.endpoint == 'admin_versamenti_finance_match_test_save' or request.endpoint == 'admin_pos_finance_match_test' or request.endpoint == 'admin_pos_finance_match_test_save') %}
+      {% set is_scheduling = request.path.startswith('/estrazioni/scheduling') %}
+      {% set is_verifica_rendiconto = request.path.startswith('/estrazioni/verifica-rendiconto') %}
+      {% set is_dati_rendiconto = request.endpoint == 'rendiconto.riepilogo' %}
+      {% set is_finance = request.path.startswith('/estrazioni/finance') %}
+      {% set is_convalida_versamenti = request.endpoint in ['admin_versamenti_finance_match_test', 'admin_versamenti_finance_match_test_save'] %}
+      {% set is_convalida_pos = request.endpoint in ['admin_pos_finance_match_test', 'admin_pos_finance_match_test_save'] %}
+      <a class="app-desktop-sectionbar__link{% if is_scheduling %} active{% endif %}" href="{{ url_for('estrazioni.scheduling') }}">Scheduling</a>
+      <a class="app-desktop-sectionbar__link{% if is_verifica_rendiconto %} active{% endif %}" href="{{ url_for('estrazioni.verifica_rendiconto') }}">Verifica Rendiconto</a>
+      <a class="app-desktop-sectionbar__link{% if is_dati_rendiconto %} active{% endif %}" href="{{ url_for('rendiconto.riepilogo') }}">Dati Rendiconto</a>
+      <a class="app-desktop-sectionbar__link{% if is_finance %} active{% endif %}" href="{{ url_for('estrazioni.finance') }}">Finance</a>
+      <a class="app-desktop-sectionbar__link{% if is_convalida_versamenti %} active{% endif %}" href="{{ url_for('admin_versamenti_finance_match_test') }}">Convalida Versamenti</a>
+      <a class="app-desktop-sectionbar__link{% if is_convalida_pos %} active{% endif %}" href="{{ url_for('admin_pos_finance_match_test') }}">Convalida POS</a>
       {% elif is_admin_section %}
       <a class="app-desktop-sectionbar__link{% if is_admin_users_section %} active{% endif %}" href="{{ url_for('admin_users') }}">{{ tr('navigation', 'admin.users', 'Utenti') }}</a>
       <a class="app-desktop-sectionbar__link{% if request.endpoint == 'admin_users_import_csv' %} active{% endif %}" href="{{ url_for('admin_users_import_csv') }}">Import CSV utenti</a>
