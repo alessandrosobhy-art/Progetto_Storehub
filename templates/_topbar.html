@@ -1,3 +1,37 @@
+{% macro nav_icon(name) -%}
+  {% if name == 'dashboard' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.2"/><rect x="11" y="3" width="6" height="4" rx="1.2"/><rect x="11" y="9" width="6" height="8" rx="1.2"/><rect x="3" y="11" width="6" height="6" rx="1.2"/></svg>
+  {% elif name == 'cruscotto' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13a6 6 0 1 1 12 0"/><path d="M10 10l3-3"/><path d="M10 13h.01"/></svg>
+  {% elif name == 'magazzino' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 7 7-4 7 4"/><path d="M3 7v6l7 4 7-4V7"/><path d="M10 3v14"/></svg>
+  {% elif name == 'supplier_orders' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h11l3 3v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 5V3h8v5H3"/><path d="M7 14h6"/></svg>
+  {% elif name == 'mbo' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15V9"/><path d="M10 15V5"/><path d="M16 15v-7"/><path d="M3 17h14"/></svg>
+  {% elif name == 'rendiconto' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="12" height="14" rx="2"/><path d="M7 7h6M7 10h6M7 13h4"/></svg>
+  {% elif name == 'orari' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
+  {% elif name == 'links' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12 6.5 13.5a3 3 0 1 1-4.2-4.2L5 6.6"/><path d="M12 8 13.5 6.5a3 3 0 1 1 4.2 4.2L15 13.4"/><path d="m7 13 6-6"/></svg>
+  {% elif name == 'controlli' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14 8 9l3 3 5-7"/><path d="M4 17h12"/></svg>
+  {% elif name == 'estrazioni' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v9"/><path d="m6.5 8.5 3.5 3.5 3.5-3.5"/><rect x="4" y="14" width="12" height="3" rx="1"/></svg>
+  {% elif name == 'estrazioni_hq' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16h14"/><path d="M5 16V8"/><path d="M10 16V4"/><path d="M15 16v-6"/></svg>
+  {% elif name == 'master' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 3 2.2 4.4 4.8.7-3.5 3.4.8 4.8-4.3-2.3-4.3 2.3.8-4.8L3 8.1l4.8-.7z"/></svg>
+  {% elif name == 'admin' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="2.5"/><path d="M10 3.5v2M10 14.5v2M16.5 10h-2M5.5 10h-2M14.6 5.4l-1.4 1.4M6.8 13.2l-1.4 1.4M14.6 14.6l-1.4-1.4M6.8 6.8 5.4 5.4"/></svg>
+  {% elif name == 'user' %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4.5 16a5.5 5.5 0 0 1 11 0"/></svg>
+  {% else %}
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6"/></svg>
+  {% endif %}
+{%- endmacro %}
+
 <style>
   .app-header .nav-link,
   .app-header .dropdown-item,
@@ -45,16 +79,13 @@
       max-width: 100%;
       overflow-x: auto;
       overflow-y: hidden;
-      scrollbar-width: thin;
+      scrollbar-width: none;
       scroll-behavior: smooth;
       padding-block: .1rem;
+      -ms-overflow-style: none;
     }
     .app-header .nav-scroll-track::-webkit-scrollbar{
-      height: 6px;
-    }
-    .app-header .nav-scroll-track::-webkit-scrollbar-thumb{
-      background: rgba(79, 143, 207, .32);
-      border-radius: 999px;
+      display: none;
     }
     .app-header .nav-scroll-track .navbar-nav {
       flex-wrap: nowrap;
@@ -123,7 +154,10 @@
   {% set is_master_user = user and (user.is_master or role_l == 'master') %}
   {% set show_admin_menu = user and (role_l == 'admin' or (is_master_user and master_can_admin_active)) %}
   <div class="container-fluid nav-wrap">
-    <a class="navbar-brand fw-semibold" href="{{ home_url }}">Store Hub 360</a>
+    <a class="navbar-brand fw-semibold app-brand" href="{{ home_url }}" title="Store Hub 360" aria-label="Store Hub 360">
+      <span class="app-nav__icon app-brand__icon">{{ nav_icon('dashboard') }}</span>
+      <span class="app-nav__label app-brand__label">Store Hub 360</span>
+    </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
             aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
@@ -139,8 +173,9 @@
 {% if user and user.mod_dashboard %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint == 'dashboard' %} active{% endif %}"
-             href="{{ url_for('dashboard') }}">
-            {{ tr('navigation', 'nav.dashboard', 'Dashboard') }}
+             href="{{ url_for('dashboard') }}" title="{{ tr('navigation', 'nav.dashboard', 'Dashboard') }}">
+            <span class="app-nav__icon">{{ nav_icon('dashboard') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.dashboard', 'Dashboard') }}</span>
           </a>
         </li>
 {% endif %}
@@ -148,8 +183,9 @@
 {% if user and user.mod_cruscotto %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint and request.endpoint.startswith('cruscotto.') %} active{% endif %}"
-             href="{{ url_for('cruscotto.analisi_settimanale') }}">
-            {{ tr('navigation', 'nav.cruscotto', 'Cruscotto') }}
+             href="{{ url_for('cruscotto.analisi_settimanale') }}" title="{{ tr('navigation', 'nav.cruscotto', 'Cruscotto') }}">
+            <span class="app-nav__icon">{{ nav_icon('cruscotto') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.cruscotto', 'Cruscotto') }}</span>
           </a>
         </li>
 {% endif %}
@@ -157,8 +193,9 @@
 {% if user and user.mod_magazzino and user.role != 'fornitore' %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint and request.endpoint.startswith('warehouse.') and request.endpoint not in ['warehouse.fornitori', 'warehouse.listini_anagrafica', 'warehouse.listini_prezzi', 'warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] and request.endpoint != 'warehouse.riepilogo' %} active{% endif %}"
-             href="{{ url_for('warehouse.inventory_new') }}">
-            {{ tr('navigation', 'nav.magazzino', 'Magazzino') }}
+             href="{{ url_for('warehouse.inventory_new') }}" title="{{ tr('navigation', 'nav.magazzino', 'Magazzino') }}">
+            <span class="app-nav__icon">{{ nav_icon('magazzino') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.magazzino', 'Magazzino') }}</span>
           </a>
         </li>
 {% endif %}
@@ -166,8 +203,9 @@
 {% if user and user.mod_supplier_orders %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint in ['warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] %} active{% endif %}"
-             href="{{ url_for('warehouse.supplier_orders_home') }}">
-            {{ tr('navigation', 'nav.supplier_orders', 'Ordini al fornitore') }}
+             href="{{ url_for('warehouse.supplier_orders_home') }}" title="{{ tr('navigation', 'nav.supplier_orders', 'Ordini al fornitore') }}">
+            <span class="app-nav__icon">{{ nav_icon('supplier_orders') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.supplier_orders', 'Ordini al fornitore') }}</span>
           </a>
         </li>
 {% endif %}
@@ -175,8 +213,9 @@
 {% if user and user.mod_mbo %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint and request.endpoint.startswith('mbo.') %} active{% endif %}"
-             href="{{ url_for('mbo.home') }}">
-            {{ tr('navigation', 'nav.mbo', 'MBO') }}
+             href="{{ url_for('mbo.home') }}" title="{{ tr('navigation', 'nav.mbo', 'MBO') }}">
+            <span class="app-nav__icon">{{ nav_icon('mbo') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.mbo', 'MBO') }}</span>
           </a>
         </li>
 {% endif %}
@@ -184,8 +223,9 @@
 {% if user and user.mod_rendiconto %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint and request.endpoint.startswith('rendiconto.') and request.endpoint != 'rendiconto.riepilogo' %} active{% endif %}"
-             href="{{ url_for('rendiconto.distinta_cassa') }}">
-            {{ tr('navigation', 'nav.rendiconto', 'Rendiconto') }}
+             href="{{ url_for('rendiconto.distinta_cassa') }}" title="{{ tr('navigation', 'nav.rendiconto', 'Rendiconto') }}">
+            <span class="app-nav__icon">{{ nav_icon('rendiconto') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.rendiconto', 'Rendiconto') }}</span>
           </a>
         </li>
 {% endif %}
@@ -193,8 +233,9 @@
 {% if user and user.mod_orari %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint and request.endpoint.startswith('orari.') %} active{% endif %}"
-             href="{{ url_for('orari.anagrafica') }}">
-            {{ tr('navigation', 'nav.orari', 'Gestione Orari') }}
+             href="{{ url_for('orari.anagrafica') }}" title="{{ tr('navigation', 'nav.orari', 'Gestione Orari') }}">
+            <span class="app-nav__icon">{{ nav_icon('orari') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.orari', 'Gestione Orari') }}</span>
           </a>
         </li>
 {% endif %}
@@ -202,8 +243,9 @@
 {% if user and user.mod_links %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint and request.endpoint.startswith('links.') %} active{% endif %}"
-             href="{{ url_for('links.home') }}">
-            {{ tr('navigation', 'nav.links', 'Link') }}
+             href="{{ url_for('links.home') }}" title="{{ tr('navigation', 'nav.links', 'Link') }}">
+            <span class="app-nav__icon">{{ nav_icon('links') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.links', 'Link') }}</span>
           </a>
         </li>
 {% endif %}
@@ -211,15 +253,16 @@
 {% if user and user.mod_controlli %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint and request.endpoint.startswith('controlli.') %} active{% endif %}"
-             href="{{ url_for('controlli.pnl') }}">{{ tr('navigation', 'nav.controlli', 'Controlli di gestione') }}</a>
+             href="{{ url_for('controlli.pnl') }}" title="{{ tr('navigation', 'nav.controlli', 'Controlli di gestione') }}"><span class="app-nav__icon">{{ nav_icon('controlli') }}</span><span class="app-nav__label">{{ tr('navigation', 'nav.controlli', 'Controlli di gestione') }}</span></a>
         </li>
 {% endif %}
 
 {% if user and user.mod_estrazioni %}
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint and (request.endpoint == 'estrazioni.delivery_weekly' or request.endpoint == 'warehouse.riepilogo') %} active{% endif %}"
-             href="{{ url_for('estrazioni.delivery_weekly') }}">
-            {{ tr('navigation', 'nav.estrazioni', 'Estrazioni') }}
+             href="{{ url_for('estrazioni.delivery_weekly') }}" title="{{ tr('navigation', 'nav.estrazioni', 'Estrazioni') }}">
+            <span class="app-nav__icon">{{ nav_icon('estrazioni') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.estrazioni', 'Estrazioni') }}</span>
           </a>
         </li>
 {% endif %}
@@ -227,8 +270,9 @@
 {% if user and user.mod_estrazioni_hq %}
         <li class="nav-item">
             <a class="nav-link{% if request.endpoint and (request.endpoint == 'estrazioni.scheduling' or request.endpoint == 'estrazioni.verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto_export_xlsx' or request.endpoint == 'estrazioni.finance' or request.endpoint == 'rendiconto.riepilogo' or request.endpoint == 'admin_versamenti_finance_match_test' or request.endpoint == 'admin_versamenti_finance_match_test_save') %} active{% endif %}"
-             href="{{ url_for('estrazioni.scheduling') }}">
-            {{ tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') }}
+             href="{{ url_for('estrazioni.scheduling') }}" title="{{ tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') }}">
+            <span class="app-nav__icon">{{ nav_icon('estrazioni_hq') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') }}</span>
           </a>
         </li>
 {% endif %}
@@ -236,8 +280,9 @@
         {% if is_master_user %}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="adminMenu" role="button"
-             data-bs-toggle="dropdown" aria-expanded="false">
-            {{ tr('navigation', 'nav.master', 'Master') }}
+             data-bs-toggle="dropdown" aria-expanded="false" title="{{ tr('navigation', 'nav.master', 'Master') }}">
+            <span class="app-nav__icon">{{ nav_icon('master') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.master', 'Master') }}</span>
           </a>
           <ul class="dropdown-menu" aria-labelledby="adminMenu">
             <li><a class="dropdown-item" href="{{ url_for('master_tenant_wizard') }}">{{ tr('navigation', 'master.wizard', 'Wizard nuovo tenant') }}</a></li>
@@ -266,8 +311,9 @@
         {% if show_admin_menu %}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="adminOpsMenu" role="button"
-             data-bs-toggle="dropdown" aria-expanded="false">
-            {{ tr('navigation', 'nav.admin', 'Admin') }}
+             data-bs-toggle="dropdown" aria-expanded="false" title="{{ tr('navigation', 'nav.admin', 'Admin') }}">
+            <span class="app-nav__icon">{{ nav_icon('admin') }}</span>
+            <span class="app-nav__label">{{ tr('navigation', 'nav.admin', 'Admin') }}</span>
           </a>
           <ul class="dropdown-menu" aria-labelledby="adminOpsMenu">
             <li><h6 class="dropdown-header">{{ tr('navigation', 'nav.cruscotto', 'Cruscotto') }}</h6></li>
@@ -299,8 +345,9 @@
         {% if user %}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button"
-             data-bs-toggle="dropdown" aria-expanded="false">
-            {{ user.name or user.email or tr('common', 'account', 'Account') }}
+             data-bs-toggle="dropdown" aria-expanded="false" title="{{ user.name or user.email or tr('common', 'account', 'Account') }}">
+            <span class="app-nav__icon">{{ nav_icon('user') }}</span>
+            <span class="app-nav__label">{{ user.name or user.email or tr('common', 'account', 'Account') }}</span>
           </a>
           <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
             <li class="dropdown-item-text text-muted small">{{ user.email }}</li>

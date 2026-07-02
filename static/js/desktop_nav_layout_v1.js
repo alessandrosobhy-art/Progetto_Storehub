@@ -1,6 +1,7 @@
 (function () {
   const STORAGE_KEY = 'storehub-desktop-nav-layout-v1';
   const DESKTOP_QUERY = '(min-width: 1200px)';
+  const MODES = ['top', 'top-compact', 'sidebar', 'sidebar-compact'];
 
   function isDesktop() {
     try {
@@ -12,7 +13,8 @@
 
   function getMode() {
     try {
-      return localStorage.getItem(STORAGE_KEY) || 'top';
+      const stored = localStorage.getItem(STORAGE_KEY) || 'top';
+      return MODES.includes(stored) ? stored : 'top';
     } catch (e) {
       return 'top';
     }
@@ -25,13 +27,25 @@
   }
 
   function applyMode(mode) {
-    document.body.classList.toggle('app-shell--sidebar', mode === 'sidebar' && isDesktop());
+    const desktop = isDesktop();
+    document.body.classList.toggle('app-shell--sidebar', desktop && (mode === 'sidebar' || mode === 'sidebar-compact'));
+    document.body.classList.toggle('app-shell--sidebar-collapsed', desktop && mode === 'sidebar-compact');
+    document.body.classList.toggle('app-shell--top-compact', desktop && mode === 'top-compact');
     const btn = document.getElementById('toggleDesktopNavLayout');
     if (btn) {
-      btn.textContent = mode === 'sidebar'
-        ? 'Barra desktop orizzontale'
-        : 'Barra desktop laterale';
+      const labels = {
+        'top': 'Layout desktop: orizzontale',
+        'top-compact': 'Layout desktop: orizzontale compatto',
+        'sidebar': 'Layout desktop: laterale',
+        'sidebar-compact': 'Layout desktop: laterale compatto'
+      };
+      btn.textContent = labels[mode] || 'Layout barra desktop';
     }
+  }
+
+  function nextMode(current) {
+    const idx = MODES.indexOf(current);
+    return MODES[(idx + 1) % MODES.length];
   }
 
   function init() {
@@ -41,7 +55,7 @@
     const btn = document.getElementById('toggleDesktopNavLayout');
     if (btn) {
       btn.addEventListener('click', function () {
-        mode = (getMode() === 'sidebar') ? 'top' : 'sidebar';
+        mode = nextMode(getMode());
         setMode(mode);
         applyMode(mode);
       });
