@@ -57,13 +57,13 @@
   @media (min-width: 992px) {
     .app-header .container-fluid.nav-wrap {
       min-width: 0;
-      overflow: hidden;
+      overflow: visible;
     }
     .app-header .navbar-collapse {
       align-items: center;
       gap: .75rem;
       min-width: 0;
-      overflow: hidden;
+      overflow: visible;
     }
     .app-header .nav-scroll-shell{
       display: flex;
@@ -71,17 +71,17 @@
       gap: .35rem;
       min-width: 0;
       flex: 1 1 auto;
-      overflow: hidden;
+      overflow: visible;
     }
     .app-header .nav-scroll-track{
       min-width: 0;
       flex: 1 1 auto;
       max-width: 100%;
       overflow-x: auto;
-      overflow-y: hidden;
+      overflow-y: visible;
       scrollbar-width: none;
       scroll-behavior: smooth;
-      padding-block: .1rem;
+      padding-block: .1rem .75rem;
       -ms-overflow-style: none;
     }
     .app-header .nav-scroll-track::-webkit-scrollbar{
@@ -98,6 +98,12 @@
     }
     .app-header .nav-scroll-track .navbar-nav .nav-link {
       white-space: nowrap;
+    }
+    .app-header .nav-item.dropdown{
+      position: relative;
+    }
+    .app-header .nav-item.dropdown .dropdown-menu{
+      z-index: 1085;
     }
     .app-header .nav-scroll-btn{
       width: 34px;
