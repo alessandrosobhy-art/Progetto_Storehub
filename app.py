@@ -14,7 +14,7 @@ if os.path.exists(_DOTENV_FILE):
 else:
     load_dotenv(find_dotenv(".env", usecwd=True), override=True)
 
-from flask import request, jsonify, session, current_app, abort, Response
+from flask import request, jsonify, session, current_app, abort, Response, g, has_request_context
 import time
 from ui_enrichment import enrich_reviews_for_template
 from urllib.parse import unquote
@@ -974,9 +974,12 @@ def sb_set_user_locations(token: str, uid: str, loc_names: list[str]):
 
 # ----------------- AUTH helpers -----------------
 def current_user():
+    cached = _request_cache_get("_storehub_current_user_cache", "__missing__")
+    if cached != "__missing__":
+        return cached
     uid = session.get('uid')
     if not uid:
-        return None
+        return _request_cache_set("_storehub_current_user_cache", None)
     base = {
         'uid': uid,
         'email': session.get('email'),
@@ -1055,7 +1058,7 @@ def current_user():
         session['access_modules'] = {k: bool(v) for k, v in mods.items() if k.startswith('mod_')}
     except Exception:
         pass
-    return base
+    return _request_cache_set("_storehub_current_user_cache", base)
 
 def login_required(view):
     @wraps(view)
@@ -1109,6 +1112,19 @@ ACCESS_MODULES = [
 # Cache in-memory (best-effort) per evitare roundtrip ripetuti
 _ACCESS_PROFILE_CACHE: dict[str, dict] = {}
 _ACCESS_PROFILE_TENANT_COLUMN: bool | None = None
+
+
+def _request_cache_get(key: str, default=None):
+    if not has_request_context():
+        return default
+    return getattr(g, key, default)
+
+
+def _request_cache_set(key: str, value):
+    if not has_request_context():
+        return value
+    setattr(g, key, value)
+    return value
 
 
 def _all_module_flags(value: bool) -> dict:
@@ -1203,16 +1219,20 @@ def _master_admin_context_is_active() -> bool:
     tenant_key = _master_admin_tenant_key()
     if not tenant_key:
         return False
+    cache_key = f"_storehub_master_admin_context_active_{tenant_key}"
+    cached = _request_cache_get(cache_key, "__missing__")
+    if cached != "__missing__":
+        return bool(cached)
     try:
         from tenant_config_repository import get_tenant
 
         tenant = get_tenant(tenant_key)
         if not bool(tenant.get("master_can_admin")) or not bool(tenant.get("is_active", True)):
             session.pop("master_admin_tenant_key", None)
-            return False
+            return _request_cache_set(cache_key, False)
         session["master_admin_tenant_key"] = str(tenant.get("tenant_key") or tenant_key).strip()
         session["tenant_database"] = str(tenant.get("database_name") or "").strip()
-        return True
+        return _request_cache_set(cache_key, True)
     except Exception:
         current_app.logger.exception("Errore verifica contesto admin master")
         return False
@@ -1230,12 +1250,17 @@ def _resolve_master_admin_tenant(*, allow_query: bool = True) -> dict | None:
         tenant_key = tenant_key or _master_admin_tenant_key()
         if not tenant_key:
             return None
+        cache_key = f"_storehub_master_admin_tenant_{tenant_key}"
+        if not allow_query or not str(request.values.get("tenant_key") or "").strip():
+            cached = _request_cache_get(cache_key, "__missing__")
+            if cached != "__missing__":
+                return cached
         tenant = get_tenant(tenant_key)
         if not bool(tenant.get("master_can_admin")):
             session.pop("master_admin_tenant_key", None)
             return None
         session["master_admin_tenant_key"] = str(tenant.get("tenant_key") or tenant_key).strip()
-        return tenant
+        return _request_cache_set(cache_key, tenant)
     except Exception:
         current_app.logger.exception("Errore risoluzione tenant admin master")
         return None
@@ -1421,6 +1446,29 @@ def _get_access_profile_cached(profile_id: str) -> dict | None:
     _ACCESS_PROFILE_CACHE[profile_id] = {"ts": now, "data": data}
     return data
 
+
+def _tenant_module_enabled_map(tenant_key: str) -> dict[str, bool]:
+    key = str(tenant_key or "").strip()
+    if not key:
+        return {}
+    cache_key = f"_storehub_tenant_modules_{key}"
+    cached = _request_cache_get(cache_key, "__missing__")
+    if cached != "__missing__":
+        return cached or {}
+    try:
+        from tenant_config_repository import list_tenant_modules
+
+        rows = list_tenant_modules(key) or []
+        enabled = {
+            str(row.get("module_key") or "").strip(): bool(row.get("is_enabled"))
+            for row in rows
+            if str(row.get("module_key") or "").strip()
+        }
+        return _request_cache_set(cache_key, enabled)
+    except Exception:
+        current_app.logger.exception("Errore cache moduli tenant")
+        return {}
+
 def _normalize_user_modules(u: dict) -> dict:
     """Ritorna flag mod_* per i moduli.
 
@@ -1468,14 +1516,7 @@ def _apply_tenant_module_gates(mods: dict, u: dict | None) -> dict:
     if not tenant_key:
         return mods
     try:
-        from tenant_config_repository import list_tenant_modules
-
-        rows = list_tenant_modules(tenant_key) or []
-        enabled = {
-            str(row.get("module_key") or "").strip(): bool(row.get("is_enabled"))
-            for row in rows
-            if str(row.get("module_key") or "").strip()
-        }
+        enabled = _tenant_module_enabled_map(tenant_key)
         if not enabled:
             return mods
         gated = dict(mods)
@@ -1513,12 +1554,13 @@ def _enforce_module(module_key: str):
     if not _is_platform_master(u):
         enabled = True
         try:
-            from tenant_config_repository import current_tenant_key, is_tenant_module_enabled
+            from tenant_config_repository import current_tenant_key
 
             tenant_key = str(session.get("tenant_key") or current_tenant_key()).strip() or current_tenant_key()
-            enabled = is_tenant_module_enabled(module_key, tenant_key)
+            enabled_map = _tenant_module_enabled_map(tenant_key)
+            enabled = bool(enabled_map.get(module_key, True)) if enabled_map else True
             if module_key == "cruscotto_pnl_store":
-                enabled = bool(enabled) and is_tenant_module_enabled("controlli", tenant_key)
+                enabled = bool(enabled) and (bool(enabled_map.get("controlli", True)) if enabled_map else True)
         except Exception:
             current_app.logger.exception("Errore verifica modulo tenant")
             abort(403)
@@ -4246,6 +4288,11 @@ def _ai_store_fallback_from_session(user: dict | None = None) -> list[dict]:
 
 def _load_ai_available_stores_for_user(user: dict | None) -> list[dict]:
     user = user or {}
+    user_key = str(user.get('uid') or user.get('email') or user.get('role') or 'anon').strip().lower() or 'anon'
+    cache_key = f"_storehub_ai_available_stores_{user_key}"
+    cached = _request_cache_get(cache_key, "__missing__")
+    if cached != "__missing__":
+        return cached or []
     role_l = str(user.get('role') or '').strip().lower()
     try:
         if role_l == 'admin':
@@ -4268,7 +4315,7 @@ def _load_ai_available_stores_for_user(user: dict | None) -> list[dict]:
             session['ai_available_stores_cache'] = normalized
     except Exception:
         pass
-    return normalized
+    return _request_cache_set(cache_key, normalized)
 
 # ----------------- Google Business API -----------------
 def list_locations():
