@@ -1,4 +1,4 @@
-/* Global loading overlay (v1.0.4)
+/* Global loading overlay (v1.0.5)
    - Blocks clicks while long operations are running
    - Auto-hooks form submit + fetch (with delay to avoid flicker)
    - Persists feedback across full-page navigations
@@ -15,6 +15,7 @@
   let pending = 0;
   let showTimer = null;
   let navRestoreVisible = false;
+  let rememberedNavigationActive = Boolean(window.__storehubBootNavigation);
   const i18n = window.StoreHubI18n || {};
   const defaultLoading = i18n.loading || 'Caricamento...';
   const defaultSaving = i18n.saving || 'Salvataggio in corso...';
@@ -105,11 +106,16 @@
 
   function clearRememberedNavigation() {
     try { sessionStorage.removeItem(NAV_STORAGE_KEY); } catch (_) {}
+    rememberedNavigationActive = false;
+    window.__storehubBootNavigation = false;
     document.documentElement.classList.remove('storehub-page-loading');
   }
 
   function beginNavigationLoad(message) {
     rememberNavigation(message);
+    rememberedNavigationActive = true;
+    window.__storehubBootNavigation = true;
+    document.documentElement.classList.add('storehub-page-loading');
     showNow(message || defaultLoading);
   }
 
@@ -182,10 +188,12 @@
     try {
       if (!ensureElements()) return;
       showNow(lastMessage || defaultLoading);
+      document.documentElement.classList.add('storehub-page-loading');
+      document.body.classList.add('loading-overlay-open');
 
       window.setTimeout(function () {
         try {
-          if (pending === 0 && document.visibilityState === 'visible') {
+          if (!rememberedNavigationActive && pending === 0 && document.visibilityState === 'visible') {
             overlayEl.classList.remove('show');
             document.body.classList.remove('loading-overlay-open');
           }
@@ -245,20 +253,36 @@
         return;
       }
       navRestoreVisible = true;
-      showNow(data.message || defaultLoading);
+      rememberedNavigationActive = true;
+      window.__storehubBootNavigation = true;
+      document.documentElement.classList.add('storehub-page-loading');
+      document.body.classList.add('loading-overlay-open');
+      setMessage(data.message || defaultLoading);
+      if (ensureElements()) {
+        overlayEl.classList.add('show');
+      }
     } catch (_) {
       clearRememberedNavigation();
     }
   });
 
   window.addEventListener('load', function () {
-    clearRememberedNavigation();
     if (!navRestoreVisible) return;
-    navRestoreVisible = false;
-    if (pending === 0 && ensureElements()) {
-      overlayEl.classList.remove('show');
-      document.body.classList.remove('loading-overlay-open');
-      setMessage(defaultLoading);
-    }
+    window.requestAnimationFrame(function () {
+      window.setTimeout(function () {
+        clearRememberedNavigation();
+        navRestoreVisible = false;
+        if (pending === 0 && ensureElements()) {
+          overlayEl.classList.remove('show');
+          document.body.classList.remove('loading-overlay-open');
+          setMessage(defaultLoading);
+        }
+      }, 120);
+    });
+  });
+
+  window.addEventListener('pageshow', function () {
+    if (navRestoreVisible || pending > 0) return;
+    clearRememberedNavigation();
   });
 })();
