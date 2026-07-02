@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app_db import get_connection, sql_date
 from daily_sales_repository import list_daily_sales_range
-from primanota_repository import load_primanota_day
+from primanota_repository import load_primanota_day, load_primanota_range_agg
 from orari_repository import list_turni_week
 from sales_repository import list_sales_week
 from delivery_repository import list_delivery_providers, list_weekly_rows
@@ -596,6 +596,25 @@ def get_weekly_analysis(*, store_code: str, week_start: date, delivery_voci: Lis
     ly_week_end = ly_week_start + timedelta(days=6)
     ly_by_day = fetch_dati_database_range(store_code=str(store_code), start_day=ly_week_start, end_day=ly_week_end)
     budget_by_day = fetch_budget_range(store_code=str(store_code), start_day=week_start, end_day=week_end)
+    primanota_rows = load_primanota_range_agg(
+        store_code=str(store_code),
+        start_date=week_start,
+        end_date=week_end,
+        categories=["Dati chiusura", "Delivery"],
+    )
+    primanota_by_day: Dict[str, List[Dict[str, Any]]] = {}
+    for row in primanota_rows:
+        d_iso = str(row.get("date") or "").strip()
+        if not d_iso:
+            continue
+        primanota_by_day.setdefault(d_iso, []).append(
+            {
+                "categoria": row.get("categoria"),
+                "voce": row.get("voce"),
+                "tipo": row.get("tipo"),
+                "valore": row.get("sum"),
+            }
+        )
 
     provider_aliases = _delivery_provider_aliases()
     days_out: List[Dict[str, Any]] = []
@@ -606,7 +625,7 @@ def get_weekly_analysis(*, store_code: str, week_start: date, delivery_voci: Lis
 
         rev_forecast = float(sales_by_day.get(d_iso, 0.0) or 0.0)
 
-        primanota = load_primanota_day(store_code=str(store_code), data_iso=d_iso, categories=["Dati chiusura", "Delivery"])
+        primanota = primanota_by_day.get(d_iso, [])
 
         vendite_lorde = 0.0
         annullati = 0.0
@@ -839,6 +858,25 @@ def get_monthly_analysis(*, store_code: str, month_start: date, delivery_voci: L
     ly_month_end = _align_last_year_same_weekday(me)
     ly_by_day = fetch_dati_database_range(store_code=str(store_code), start_day=ly_month_start, end_day=ly_month_end)
     budget_by_day = fetch_budget_range(store_code=str(store_code), start_day=ms, end_day=me)
+    primanota_rows = load_primanota_range_agg(
+        store_code=str(store_code),
+        start_date=ms,
+        end_date=me,
+        categories=["Dati chiusura", "Delivery"],
+    )
+    primanota_by_day: Dict[str, List[Dict[str, Any]]] = {}
+    for row in primanota_rows:
+        d_iso = str(row.get("date") or "").strip()
+        if not d_iso:
+            continue
+        primanota_by_day.setdefault(d_iso, []).append(
+            {
+                "categoria": row.get("categoria"),
+                "voce": row.get("voce"),
+                "tipo": row.get("tipo"),
+                "valore": row.get("sum"),
+            }
+        )
 
     provider_aliases = _delivery_provider_aliases()
     days_out: List[Dict[str, Any]] = []
@@ -852,7 +890,7 @@ def get_monthly_analysis(*, store_code: str, month_start: date, delivery_voci: L
         has_forecast = d_iso in sales_by_day
         rev_forecast = float(sales_by_day.get(d_iso, 0.0) or 0.0)
 
-        primanota = load_primanota_day(store_code=str(store_code), data_iso=d_iso, categories=["Dati chiusura", "Delivery"])
+        primanota = primanota_by_day.get(d_iso, [])
 
         vendite_lorde = 0.0
         annullati = 0.0

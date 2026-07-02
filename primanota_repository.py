@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -465,6 +465,82 @@ def get_elenchi_options(*, store_code: str) -> Dict[str, Any]:
         deliveries = _fetch_elenchi_options(cur, value_col=cols.delivery_col, flag_col=cols.dc_col)
         coupons = _fetch_elenchi_options(cur, value_col=cols.coupon_col, flag_col=cols.cc_col)
         return {"tickets": tickets, "deliveries": deliveries, "coupons": coupons}
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def load_primanota_range_agg(
+    store_code: str,
+    *,
+    start_date: date,
+    end_date: date,
+    categories: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Carica aggregati per giorno nel range [start_date, end_date] inclusivo."""
+    if not start_date or not end_date:
+        return []
+    if end_date < start_date:
+        start_date, end_date = end_date, start_date
+
+    cols = _resolve_primanota_columns(str(store_code))
+    end_exclusive = end_date + timedelta(days=1)
+
+    cats = categories or ["Dati chiusura", "Distinte", "Ticket", "Delivery", "Coupon"]
+    in_placeholders = ",".join(["?"] * len(cats))
+
+    where = [
+        f"{sql_date(_qname(cols.date_col))} >= ?",
+        f"{sql_date(_qname(cols.date_col))} < ?",
+        f"{_qname(cols.categoria_col)} IN ({in_placeholders})",
+    ]
+    params: List[Any] = [start_date, end_exclusive] + cats
+
+    if cols.site_col:
+        where.append(f"{sql_trim(_qname(cols.site_col))} = ?")
+        params.append(str(store_code).strip())
+
+    sql = f"""
+    SELECT
+      {sql_date(_qname(cols.date_col))} AS d,
+      {_qname(cols.categoria_col)} AS c,
+      {_qname(cols.voce_col)} AS v,
+      {_qname(cols.tipo_col)} AS t,
+      SUM({_qname(cols.valore_col)}) AS s
+    FROM {_qname('DATIPRIMANOTA')}
+    WHERE {' AND '.join(where)}
+    GROUP BY {sql_date(_qname(cols.date_col))}, {_qname(cols.categoria_col)}, {_qname(cols.voce_col)}, {_qname(cols.tipo_col)}
+    ORDER BY {sql_date(_qname(cols.date_col))}, {_qname(cols.categoria_col)}, {_qname(cols.voce_col)}
+    """
+
+    conn = get_connection(store_code, read_only=True)
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        rows = cur.fetchall() or []
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            dt_val = r[0]
+            if isinstance(dt_val, datetime):
+                dt_val = dt_val.date()
+            if isinstance(dt_val, date):
+                d_iso = dt_val.isoformat()
+            else:
+                d_iso = str(dt_val or "").strip()
+                if not d_iso:
+                    continue
+            cat = str(r[1] or "")
+            voce = str(r[2] or "")
+            tipo = _norm_si_no(r[3])
+            s = r[4]
+            try:
+                s_dec = s if isinstance(s, Decimal) else Decimal(str(s))
+            except Exception:
+                s_dec = Decimal("0")
+            out.append({"date": d_iso, "categoria": cat, "voce": voce, "tipo": tipo, "sum": float(s_dec)})
+        return out
     finally:
         try:
             conn.close()

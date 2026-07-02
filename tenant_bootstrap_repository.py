@@ -41,6 +41,7 @@ def initialize_tenant_database(database_name: str, tenant_key: str | None = None
         from mbo_repository import ensure_mbo_schema
         from orari_repository import ensure_turni_schema
         from orari_visibility_repository import ensure_orari_visibility_table
+        from performance_repository import ensure_tenant_performance_indexes
         from rendiconto_legacy_schema_repository import ensure_rendiconto_legacy_schema
         from rendiconto_convalide_repository import _ensure_table as ensure_rendiconto_convalide_table
         from sales_repository import ensure_sales_forecast_schema
@@ -75,6 +76,7 @@ def initialize_tenant_database(database_name: str, tenant_key: str | None = None
         run_step("Finance store mapping", ensure_finance_store_mapping_tables)
         run_step("Traduzioni", ensure_translations_schema)
         run_step("Traduzioni base", seed_pilot_translations)
+        run_step("Ottimizzazione indici tenant", ensure_tenant_performance_indexes)
         if db_name.upper() in {"APP_STOREHUB", "APP_STOREHUB_DEFAULT"}:
             def seed_default_store_registry() -> None:
                 try:
