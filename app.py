@@ -124,7 +124,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.2"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.3"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
@@ -994,17 +994,27 @@ def current_user():
         **_session_tenant_snapshot(),
     }
 
+    cached_profile = None
+    try:
+        cached_payload = session.get("profile_cache")
+        cached_ts = float(session.get("profile_cache_ts") or 0)
+        if isinstance(cached_payload, dict) and (time.time() - cached_ts) < _SESSION_PROFILE_CACHE_TTL_SECONDS:
+            cached_profile = cached_payload
+    except Exception:
+        cached_profile = None
+
     # Arricchisci con i flag profilo se presenti (best-effort)
     try:
         token = base.get('sb_token')
-        prof = None
-        try:
-            prof = sb_get_profile_by_id(token, uid, fields='id,email,name,role,access_profile_id,ai_enabled,theme_key,is_master')
-        except Exception:
-            # compat: se la colonna non esiste ancora
-            prof = sb_get_profile_by_id(token, uid, fields='id,email,name,role')
+        prof = cached_profile
+        if prof is None:
+            try:
+                prof = sb_get_profile_by_id(token, uid, fields='id,email,name,role,access_profile_id,ai_enabled,theme_key,is_master')
+            except Exception:
+                # compat: se la colonna non esiste ancora
+                prof = sb_get_profile_by_id(token, uid, fields='id,email,name,role')
 
-        if (not prof or not prof.get('access_profile_id')) and uid:
+        if prof is None and (not prof or not prof.get('access_profile_id')) and uid:
             try:
                 admin_prof = sb_admin_get_profile_by_id(str(uid))
                 if admin_prof:
@@ -1013,6 +1023,11 @@ def current_user():
                 pass
 
         if prof:
+            try:
+                session['profile_cache'] = dict(prof)
+                session['profile_cache_ts'] = time.time()
+            except Exception:
+                pass
             # campi base da DB (preferisci DB alla sessione)
             for k in ['email', 'name', 'role', 'access_profile_id', 'ai_enabled', 'theme_key', 'is_master']:
                 if k in prof and prof.get(k) is not None:
@@ -1112,6 +1127,9 @@ ACCESS_MODULES = [
 # Cache in-memory (best-effort) per evitare roundtrip ripetuti
 _ACCESS_PROFILE_CACHE: dict[str, dict] = {}
 _ACCESS_PROFILE_TENANT_COLUMN: bool | None = None
+_TENANT_MODULE_CACHE: dict[str, dict] = {}
+_SESSION_PROFILE_CACHE_TTL_SECONDS = 30
+_TENANT_MODULE_CACHE_TTL_SECONDS = 30
 
 
 def _request_cache_get(key: str, default=None):
@@ -1455,6 +1473,10 @@ def _tenant_module_enabled_map(tenant_key: str) -> dict[str, bool]:
     cached = _request_cache_get(cache_key, "__missing__")
     if cached != "__missing__":
         return cached or {}
+    now = time.time()
+    shared = _TENANT_MODULE_CACHE.get(key)
+    if isinstance(shared, dict) and (now - float(shared.get("ts") or 0)) < _TENANT_MODULE_CACHE_TTL_SECONDS:
+        return _request_cache_set(cache_key, dict(shared.get("data") or {}))
     try:
         from tenant_config_repository import list_tenant_modules
 
@@ -1464,6 +1486,7 @@ def _tenant_module_enabled_map(tenant_key: str) -> dict[str, bool]:
             for row in rows
             if str(row.get("module_key") or "").strip()
         }
+        _TENANT_MODULE_CACHE[key] = {"ts": now, "data": dict(enabled)}
         return _request_cache_set(cache_key, enabled)
     except Exception:
         current_app.logger.exception("Errore cache moduli tenant")
