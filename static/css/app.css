@@ -541,7 +541,7 @@ a:hover{
 
   .app-desktop-shell{
     position: relative;
-    z-index: 1065;
+    z-index: 1000;
   }
 
   .app-desktop-rail{
@@ -549,7 +549,7 @@ a:hover{
     top: 18px;
     left: 18px;
     bottom: 18px;
-    width: 214px;
+    width: 208px;
     background: rgba(255,255,255,.94);
     border: 1px solid var(--app-nav-border);
     border-radius: 28px;
@@ -557,7 +557,7 @@ a:hover{
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 14px 12px;
+    padding: 14px 10px;
     gap: 16px;
     overflow: hidden;
   }
@@ -583,6 +583,7 @@ a:hover{
     align-items: center;
     justify-content: center;
     box-shadow: 0 10px 24px rgba(15, 23, 42, .08);
+    flex: 0 0 auto;
   }
 
   .app-desktop-rail__toggle svg{
@@ -612,12 +613,23 @@ a:hover{
     min-height: 46px;
     border-radius: 14px;
     color: var(--app-text-muted);
-    display: inline-flex;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr);
     align-items: center;
     justify-content: flex-start;
-    gap: 12px;
-    padding: 0 14px;
+    column-gap: 8px;
+    padding: 0 8px;
     transition: background-color .18s ease, color .18s ease, transform .18s ease;
+  }
+
+  .app-desktop-rail__link .app-nav__icon{
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: start;
+    flex: 0 0 auto;
   }
 
   .app-desktop-rail__link:hover{
@@ -637,17 +649,19 @@ a:hover{
     align-items: center;
     min-width: 0;
     flex: 1 1 auto;
-    font-size: .98rem;
-    font-weight: 700;
+    font-size: .88rem;
+    font-weight: 600;
+    line-height: 1.15;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    opacity: .92;
   }
 
   .app-desktop-header{
     position: sticky;
     top: 18px;
-    z-index: 1058;
+    z-index: 1002;
     background: rgba(255,255,255,.92);
     border: 1px solid var(--app-nav-border);
     border-radius: 24px;
@@ -690,7 +704,7 @@ a:hover{
   .app-desktop-sectionbar{
     position: sticky;
     top: 104px;
-    z-index: 1057;
+    z-index: 1001;
     background: rgba(255,255,255,.92);
     border: 1px solid var(--app-nav-border);
     border-radius: 20px;
@@ -805,12 +819,12 @@ a:hover{
   }
 
   body.app-shell.app-shell--rail-collapsed .app-desktop-rail__link{
-    width: 38px;
+    width: 100%;
     min-height: 38px;
     border-radius: 12px;
-    justify-content: center;
-    padding-inline: 0;
-    gap: 0;
+    grid-template-columns: 38px 0;
+    column-gap: 0;
+    padding-inline: 2px;
   }
 
   body.app-shell.app-shell--rail-collapsed .app-desktop-rail__toggle-icon{
