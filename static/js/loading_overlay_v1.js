@@ -1,4 +1,4 @@
-/* Global loading overlay (v1.0.3)
+/* Global loading overlay (v1.0.4)
    - Blocks clicks while long operations are running
    - Auto-hooks form submit + fetch (with delay to avoid flicker)
    - Persists feedback across full-page navigations
@@ -127,6 +127,15 @@
     }
   }
 
+  function shouldHandleNavigationClick(ev, anchor) {
+    if (!isNavigationalAnchor(anchor)) return false;
+    if (!ev) return true;
+    if (ev.defaultPrevented) return false;
+    if (typeof ev.button === 'number' && ev.button !== 0) return false;
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return false;
+    return true;
+  }
+
   // Hook form submissions (full page or background)
   document.addEventListener('submit', function (ev) {
     const form = ev.target;
@@ -144,11 +153,24 @@
     if (tapTarget) markPress(tapTarget);
   }, true);
 
+  document.addEventListener('touchstart', function (ev) {
+    const tapTarget = ev.target && ev.target.closest
+      ? ev.target.closest('.app-header .nav-link, .app-header .dropdown-item, .app-header .navbar-toggler')
+      : null;
+    if (tapTarget) markPress(tapTarget);
+  }, { capture: true, passive: true });
+
   document.addEventListener('click', function (ev) {
     const anchor = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
-    if (!isNavigationalAnchor(anchor)) return;
+    if (!shouldHandleNavigationClick(ev, anchor)) return;
     const message = anchor.dataset.overlayMessage || defaultLoading;
+    ev.preventDefault();
     beginNavigationLoad(message);
+    window.requestAnimationFrame(function () {
+      window.setTimeout(function () {
+        window.location.assign(anchor.href);
+      }, 24);
+    });
   }, true);
 
   // Navigation: show overlay while browser navigates away

@@ -8,19 +8,19 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="StoreHub">
   <title>{% block title %}App{% endblock %}</title>
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=20260430pwa1">
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/app-icons/favicon-20260429userlogos1.ico') }}">
-  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/app-icons/icon-32x32-20260429userlogos1.png') }}">
-  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/app-icons/icon-16x16-20260429userlogos1.png') }}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/app-icons/icon-180x180-20260429userlogos1.png') }}">
-  <link rel="apple-touch-icon" sizes="167x167" href="{{ url_for('static', filename='img/app-icons/icon-167x167-20260429userlogos1.png') }}">
-  <link rel="apple-touch-icon" sizes="152x152" href="{{ url_for('static', filename='img/app-icons/icon-152x152-20260429userlogos1.png') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v={{ app_build_version }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/app-icons/favicon-20260429userlogos1.ico') }}?v={{ app_build_version }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/app-icons/icon-32x32-20260429userlogos1.png') }}?v={{ app_build_version }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/app-icons/icon-16x16-20260429userlogos1.png') }}?v={{ app_build_version }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/app-icons/icon-180x180-20260429userlogos1.png') }}?v={{ app_build_version }}">
+  <link rel="apple-touch-icon" sizes="167x167" href="{{ url_for('static', filename='img/app-icons/icon-167x167-20260429userlogos1.png') }}?v={{ app_build_version }}">
+  <link rel="apple-touch-icon" sizes="152x152" href="{{ url_for('static', filename='img/app-icons/icon-152x152-20260429userlogos1.png') }}?v={{ app_build_version }}">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=20260429a">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/store_subbar_v1.css') }}?v=20260419a">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v={{ app_build_version }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/store_subbar_v1.css') }}?v={{ app_build_version }}">
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile_modal_no_overflow_v1.css') }}?v=1.0.1">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/loading_overlay_v1.css') }}?v=1.0.3">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile_modal_no_overflow_v1.css') }}?v={{ app_build_version }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/loading_overlay_v1.css') }}?v={{ app_build_version }}">
   <script>
     (function () {
       try {
@@ -176,10 +176,10 @@
       operationInProgress: {{ tr('common', 'operation_in_progress', 'Operazione in corso...')|tojson }}
     });
   </script>
-  <script src="{{ url_for('static', filename='js/loading_overlay_v1.js') }}?v=1.0.3"></script>
-  <script src="{{ url_for('static', filename='js/ai_quick_panel_v1.js') }}?v=20260419b"></script>
-  <script src="{{ url_for('static', filename='js/user_theme_v1.js') }}?v=20260429a"></script>
-  <script src="{{ url_for('static', filename='js/desktop_nav_layout_v1.js') }}?v=20260503a"></script>
+  <script src="{{ url_for('static', filename='js/loading_overlay_v1.js') }}?v={{ app_build_version }}"></script>
+  <script src="{{ url_for('static', filename='js/ai_quick_panel_v1.js') }}?v={{ app_build_version }}"></script>
+  <script src="{{ url_for('static', filename='js/user_theme_v1.js') }}?v={{ app_build_version }}"></script>
+  <script src="{{ url_for('static', filename='js/desktop_nav_layout_v1.js') }}?v={{ app_build_version }}"></script>
   {% if user and role_l != 'fornitore' and not is_master_only %}
   <div class="store-subbar">
     <div class="container-fluid store-subbar-inner">
@@ -231,7 +231,7 @@
         })
         .catch(function(){})
         .then(function(){
-          return navigator.serviceWorker.register('/service-worker.js?v=20260430pwa1', { scope: '/' });
+          return navigator.serviceWorker.register('/service-worker.js?v={{ app_build_version }}', { scope: '/' });
         })
         .catch(function(){});
     });

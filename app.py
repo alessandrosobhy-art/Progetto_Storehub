@@ -124,7 +124,8 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-ADMIN_USERS_UI_VERSION = "v2026.04.20.1"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.1"
+ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
   
@@ -4190,6 +4191,7 @@ def inject_user():
         master_can_admin_active = False
     return {
         'user': u,
+        'app_build_version': APP_BUILD_VERSION,
         'ai_available_stores': ai_available_stores,
         'master_can_admin_active': master_can_admin_active,
         'master_admin_tenant_key': _master_admin_tenant_key(),

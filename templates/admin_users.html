@@ -6,9 +6,8 @@
     <div>
       <h1 class="h4 mb-1">Utenti</h1>
       <div class="small text-muted">
-        Versione interfaccia: <span class="badge text-bg-light border">{{ admin_users_ui_version }}</span>
         {% if not is_platform_master and selected_tenant_key %}
-          <span class="badge text-bg-light border ms-1">Tenant {{ selected_tenant_key }}</span>
+          <span class="badge text-bg-light border">Tenant {{ selected_tenant_key }}</span>
         {% endif %}
       </div>
     </div>

@@ -237,6 +237,10 @@
             </li>
             <li><hr class="dropdown-divider"></li>
             {% endif %}
+            <li class="dropdown-item-text text-muted small">
+              Build: <span class="badge text-bg-light border">{{ app_build_version }}</span>
+            </li>
+            <li><hr class="dropdown-divider"></li>
             {% if user.ai_enabled %}
             <li><a class="dropdown-item{% if request.endpoint == 'ai_assistant' %} active{% endif %}" href="{{ url_for('ai_assistant') }}">Assistente AI</a></li>
             {% endif %}
