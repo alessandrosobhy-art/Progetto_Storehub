@@ -50,6 +50,12 @@
 
 {% set is_master_user = user and (user.is_master or role_l == 'master') %}
 {% set show_admin_menu = user and (role_l == 'admin' or (is_master_user and master_can_admin_active)) %}
+{% set _endpoint = request.endpoint or '' %}
+{% set is_admin_section = _endpoint.startswith('admin_')
+  or _endpoint in ['cruscotto.pnl_store_visibility', 'warehouse.fornitori', 'warehouse.listini_anagrafica', 'warehouse.listini_prezzi'] %}
+{% set is_admin_users_section = _endpoint in ['admin_users', 'admin_users_import_csv', 'admin_users_new_invite', 'admin_users_edit', 'admin_users_recover', 'admin_users_delete'] %}
+{% set is_admin_profiles_section = _endpoint in ['admin_access_profiles', 'admin_access_profiles_new', 'admin_access_profiles_edit', 'admin_access_profiles_delete', 'admin_access_profiles_assign'] %}
+{% set is_admin_links_section = _endpoint in ['admin_links', 'admin_links_new', 'admin_links_edit', 'admin_links_delete'] %}
 {% set desktop_section_title = tr('navigation', 'nav.dashboard', 'Dashboard') %}
 {% if request.endpoint and request.endpoint.startswith('cruscotto.') %}
   {% set desktop_section_title = tr('navigation', 'nav.cruscotto', 'Cruscotto') %}
@@ -71,7 +77,7 @@
   {% set desktop_section_title = tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') %}
 {% elif request.endpoint and request.endpoint.startswith('master_') %}
   {% set desktop_section_title = tr('navigation', 'nav.master', 'Master') %}
-{% elif request.endpoint in ['admin_users', 'admin_users_import_csv', 'admin_access_profiles', 'admin_links', 'admin_stores', 'admin_area_managers'] %}
+{% elif is_admin_section %}
   {% set desktop_section_title = tr('navigation', 'nav.admin', 'Admin') %}
 {% endif %}
 
@@ -208,43 +214,43 @@
     </div>
     <nav class="app-desktop-rail__nav" aria-label="Navigazione principale desktop">
       {% if user and user.mod_dashboard %}
-      <a class="app-desktop-rail__link{% if request.endpoint == 'dashboard' %} active{% endif %}" href="{{ url_for('dashboard') }}" title="{{ tr('navigation', 'nav.dashboard', 'Dashboard') }}"><span class="app-nav__icon">{{ nav_icon('dashboard') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint == 'dashboard' %} active{% endif %}" href="{{ url_for('dashboard') }}" title="{{ tr('navigation', 'nav.dashboard', 'Dashboard') }}"><span class="app-nav__icon">{{ nav_icon('dashboard') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.dashboard', 'Dashboard') }}</span></a>
       {% endif %}
       {% if user and user.mod_cruscotto %}
-      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('cruscotto.') %} active{% endif %}" href="{{ url_for('cruscotto.analisi_settimanale') }}" title="{{ tr('navigation', 'nav.cruscotto', 'Cruscotto') }}"><span class="app-nav__icon">{{ nav_icon('cruscotto') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('cruscotto.') %} active{% endif %}" href="{{ url_for('cruscotto.analisi_settimanale') }}" title="{{ tr('navigation', 'nav.cruscotto', 'Cruscotto') }}"><span class="app-nav__icon">{{ nav_icon('cruscotto') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.cruscotto', 'Cruscotto') }}</span></a>
       {% endif %}
       {% if user and user.mod_magazzino and user.role != 'fornitore' %}
-      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('warehouse.') and request.endpoint not in ['warehouse.fornitori', 'warehouse.listini_anagrafica', 'warehouse.listini_prezzi', 'warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] and request.endpoint != 'warehouse.riepilogo' %} active{% endif %}" href="{{ url_for('warehouse.inventory_new') }}" title="{{ tr('navigation', 'nav.magazzino', 'Magazzino') }}"><span class="app-nav__icon">{{ nav_icon('magazzino') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('warehouse.') and request.endpoint not in ['warehouse.fornitori', 'warehouse.listini_anagrafica', 'warehouse.listini_prezzi', 'warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] and request.endpoint != 'warehouse.riepilogo' %} active{% endif %}" href="{{ url_for('warehouse.inventory_new') }}" title="{{ tr('navigation', 'nav.magazzino', 'Magazzino') }}"><span class="app-nav__icon">{{ nav_icon('magazzino') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.magazzino', 'Magazzino') }}</span></a>
       {% endif %}
       {% if user and user.mod_supplier_orders %}
-      <a class="app-desktop-rail__link{% if request.endpoint in ['warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] %} active{% endif %}" href="{{ url_for('warehouse.supplier_orders_home') }}" title="{{ tr('navigation', 'nav.supplier_orders', 'Ordini al fornitore') }}"><span class="app-nav__icon">{{ nav_icon('supplier_orders') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint in ['warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] %} active{% endif %}" href="{{ url_for('warehouse.supplier_orders_home') }}" title="{{ tr('navigation', 'nav.supplier_orders', 'Ordini al fornitore') }}"><span class="app-nav__icon">{{ nav_icon('supplier_orders') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.supplier_orders', 'Ordini al fornitore') }}</span></a>
       {% endif %}
       {% if user and user.mod_mbo %}
-      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('mbo.') %} active{% endif %}" href="{{ url_for('mbo.home') }}" title="{{ tr('navigation', 'nav.mbo', 'MBO') }}"><span class="app-nav__icon">{{ nav_icon('mbo') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('mbo.') %} active{% endif %}" href="{{ url_for('mbo.home') }}" title="{{ tr('navigation', 'nav.mbo', 'MBO') }}"><span class="app-nav__icon">{{ nav_icon('mbo') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.mbo', 'MBO') }}</span></a>
       {% endif %}
       {% if user and user.mod_rendiconto %}
-      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('rendiconto.') and request.endpoint != 'rendiconto.riepilogo' %} active{% endif %}" href="{{ url_for('rendiconto.distinta_cassa') }}" title="{{ tr('navigation', 'nav.rendiconto', 'Rendiconto') }}"><span class="app-nav__icon">{{ nav_icon('rendiconto') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('rendiconto.') and request.endpoint != 'rendiconto.riepilogo' %} active{% endif %}" href="{{ url_for('rendiconto.distinta_cassa') }}" title="{{ tr('navigation', 'nav.rendiconto', 'Rendiconto') }}"><span class="app-nav__icon">{{ nav_icon('rendiconto') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.rendiconto', 'Rendiconto') }}</span></a>
       {% endif %}
       {% if user and user.mod_orari %}
-      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('orari.') %} active{% endif %}" href="{{ url_for('orari.anagrafica') }}" title="{{ tr('navigation', 'nav.orari', 'Gestione Orari') }}"><span class="app-nav__icon">{{ nav_icon('orari') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('orari.') %} active{% endif %}" href="{{ url_for('orari.anagrafica') }}" title="{{ tr('navigation', 'nav.orari', 'Gestione Orari') }}"><span class="app-nav__icon">{{ nav_icon('orari') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.orari', 'Gestione Orari') }}</span></a>
       {% endif %}
       {% if user and user.mod_links %}
-      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('links.') %} active{% endif %}" href="{{ url_for('links.home') }}" title="{{ tr('navigation', 'nav.links', 'Link') }}"><span class="app-nav__icon">{{ nav_icon('links') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('links.') %} active{% endif %}" href="{{ url_for('links.home') }}" title="{{ tr('navigation', 'nav.links', 'Link') }}"><span class="app-nav__icon">{{ nav_icon('links') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.links', 'Link') }}</span></a>
       {% endif %}
       {% if user and user.mod_controlli %}
-      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('controlli.') %} active{% endif %}" href="{{ url_for('controlli.pnl') }}" title="{{ tr('navigation', 'nav.controlli', 'Controlli di gestione') }}"><span class="app-nav__icon">{{ nav_icon('controlli') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('controlli.') %} active{% endif %}" href="{{ url_for('controlli.pnl') }}" title="{{ tr('navigation', 'nav.controlli', 'Controlli di gestione') }}"><span class="app-nav__icon">{{ nav_icon('controlli') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.controlli', 'Controlli di gestione') }}</span></a>
       {% endif %}
       {% if user and user.mod_estrazioni %}
-      <a class="app-desktop-rail__link{% if request.endpoint and (request.endpoint == 'estrazioni.delivery_weekly' or request.endpoint == 'warehouse.riepilogo') %} active{% endif %}" href="{{ url_for('estrazioni.delivery_weekly') }}" title="{{ tr('navigation', 'nav.estrazioni', 'Estrazioni') }}"><span class="app-nav__icon">{{ nav_icon('estrazioni') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint and (request.endpoint == 'estrazioni.delivery_weekly' or request.endpoint == 'warehouse.riepilogo') %} active{% endif %}" href="{{ url_for('estrazioni.delivery_weekly') }}" title="{{ tr('navigation', 'nav.estrazioni', 'Estrazioni') }}"><span class="app-nav__icon">{{ nav_icon('estrazioni') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.estrazioni', 'Estrazioni') }}</span></a>
       {% endif %}
       {% if user and user.mod_estrazioni_hq %}
-      <a class="app-desktop-rail__link{% if request.endpoint and (request.endpoint == 'estrazioni.scheduling' or request.endpoint == 'estrazioni.verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto_export_xlsx' or request.endpoint == 'estrazioni.finance' or request.endpoint == 'rendiconto.riepilogo' or request.endpoint == 'admin_versamenti_finance_match_test' or request.endpoint == 'admin_versamenti_finance_match_test_save') %} active{% endif %}" href="{{ url_for('estrazioni.scheduling') }}" title="{{ tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') }}"><span class="app-nav__icon">{{ nav_icon('estrazioni_hq') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint and (request.endpoint == 'estrazioni.scheduling' or request.endpoint == 'estrazioni.verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto_export_xlsx' or request.endpoint == 'estrazioni.finance' or request.endpoint == 'rendiconto.riepilogo' or request.endpoint == 'admin_versamenti_finance_match_test' or request.endpoint == 'admin_versamenti_finance_match_test_save') %} active{% endif %}" href="{{ url_for('estrazioni.scheduling') }}" title="{{ tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') }}"><span class="app-nav__icon">{{ nav_icon('estrazioni_hq') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') }}</span></a>
       {% endif %}
       {% if is_master_user %}
-      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('master_') %} active{% endif %}" href="{{ url_for('master_tenants') }}" title="{{ tr('navigation', 'nav.master', 'Master') }}"><span class="app-nav__icon">{{ nav_icon('master') }}</span></a>
+      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('master_') %} active{% endif %}" href="{{ url_for('master_tenants') }}" title="{{ tr('navigation', 'nav.master', 'Master') }}"><span class="app-nav__icon">{{ nav_icon('master') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.master', 'Master') }}</span></a>
       {% endif %}
       {% if show_admin_menu %}
-      <a class="app-desktop-rail__link{% if request.endpoint in ['admin_users', 'admin_users_import_csv', 'admin_access_profiles', 'admin_links', 'admin_stores', 'admin_area_managers'] %} active{% endif %}" href="{{ url_for('admin_users') }}" title="{{ tr('navigation', 'nav.admin', 'Admin') }}"><span class="app-nav__icon">{{ nav_icon('admin') }}</span></a>
+      <a class="app-desktop-rail__link{% if is_admin_section %} active{% endif %}" href="{{ url_for('admin_users') }}" title="{{ tr('navigation', 'nav.admin', 'Admin') }}"><span class="app-nav__icon">{{ nav_icon('admin') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.admin', 'Admin') }}</span></a>
       {% endif %}
     </nav>
   </aside>
@@ -289,30 +295,72 @@
     </div>
   </div>
 
+  {% if request.endpoint and request.endpoint.startswith('cruscotto.') %}
   <div class="app-desktop-sectionbar">
     <button type="button" class="app-desktop-sectionbar__toggle" id="toggleDesktopSectionbar" aria-label="Comprimi barra sezioni" title="Comprimi barra sezioni">
-      <span class="app-desktop-sectionbar__toggle-up">{{ nav_chevron('up') }}</span>
-      <span class="app-desktop-sectionbar__toggle-down">{{ nav_chevron('down') }}</span>
+      <span class="app-desktop-sectionbar__toggle-up">{{ nav_chevron('up') }}</span><span class="app-desktop-sectionbar__toggle-down">{{ nav_chevron('down') }}</span>
     </button>
     <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionPrev" aria-label="Scorri sezioni a sinistra">&lsaquo;</button>
     <div class="app-desktop-sectionbar__track" id="desktopSectionTrack">
-      {% if user and user.mod_dashboard %}<a class="app-desktop-sectionbar__link{% if request.endpoint == 'dashboard' %} active{% endif %}" href="{{ url_for('dashboard') }}">{{ tr('navigation', 'nav.dashboard', 'Dashboard') }}</a>{% endif %}
-      {% if user and user.mod_cruscotto %}<a class="app-desktop-sectionbar__link{% if request.endpoint and request.endpoint.startswith('cruscotto.') %} active{% endif %}" href="{{ url_for('cruscotto.analisi_settimanale') }}">{{ tr('navigation', 'nav.cruscotto', 'Cruscotto') }}</a>{% endif %}
-      {% if user and user.mod_magazzino and user.role != 'fornitore' %}<a class="app-desktop-sectionbar__link{% if request.endpoint and request.endpoint.startswith('warehouse.') and request.endpoint not in ['warehouse.fornitori', 'warehouse.listini_anagrafica', 'warehouse.listini_prezzi', 'warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] and request.endpoint != 'warehouse.riepilogo' %} active{% endif %}" href="{{ url_for('warehouse.inventory_new') }}">{{ tr('navigation', 'nav.magazzino', 'Magazzino') }}</a>{% endif %}
-      {% if user and user.mod_supplier_orders %}<a class="app-desktop-sectionbar__link{% if request.endpoint in ['warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] %} active{% endif %}" href="{{ url_for('warehouse.supplier_orders_home') }}">{{ tr('navigation', 'nav.supplier_orders', 'Ordini al fornitore') }}</a>{% endif %}
-      {% if user and user.mod_mbo %}<a class="app-desktop-sectionbar__link{% if request.endpoint and request.endpoint.startswith('mbo.') %} active{% endif %}" href="{{ url_for('mbo.home') }}">{{ tr('navigation', 'nav.mbo', 'MBO') }}</a>{% endif %}
-      {% if user and user.mod_rendiconto %}<a class="app-desktop-sectionbar__link{% if request.endpoint and request.endpoint.startswith('rendiconto.') and request.endpoint != 'rendiconto.riepilogo' %} active{% endif %}" href="{{ url_for('rendiconto.distinta_cassa') }}">{{ tr('navigation', 'nav.rendiconto', 'Rendiconto') }}</a>{% endif %}
-      {% if user and user.mod_orari %}<a class="app-desktop-sectionbar__link{% if request.endpoint and request.endpoint.startswith('orari.') %} active{% endif %}" href="{{ url_for('orari.anagrafica') }}">{{ tr('navigation', 'nav.orari', 'Gestione Orari') }}</a>{% endif %}
-      {% if user and user.mod_links %}<a class="app-desktop-sectionbar__link{% if request.endpoint and request.endpoint.startswith('links.') %} active{% endif %}" href="{{ url_for('links.home') }}">{{ tr('navigation', 'nav.links', 'Link') }}</a>{% endif %}
-      {% if user and user.mod_controlli %}<a class="app-desktop-sectionbar__link{% if request.endpoint and request.endpoint.startswith('controlli.') %} active{% endif %}" href="{{ url_for('controlli.pnl') }}">{{ tr('navigation', 'nav.controlli', 'Controlli di gestione') }}</a>{% endif %}
-      {% if user and user.mod_estrazioni %}<a class="app-desktop-sectionbar__link{% if request.endpoint and (request.endpoint == 'estrazioni.delivery_weekly' or request.endpoint == 'warehouse.riepilogo') %} active{% endif %}" href="{{ url_for('estrazioni.delivery_weekly') }}">{{ tr('navigation', 'nav.estrazioni', 'Estrazioni') }}</a>{% endif %}
-      {% if user and user.mod_estrazioni_hq %}<a class="app-desktop-sectionbar__link{% if request.endpoint and (request.endpoint == 'estrazioni.scheduling' or request.endpoint == 'estrazioni.verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto_export_xlsx' or request.endpoint == 'estrazioni.finance' or request.endpoint == 'rendiconto.riepilogo' or request.endpoint == 'admin_versamenti_finance_match_test' or request.endpoint == 'admin_versamenti_finance_match_test_save') %} active{% endif %}" href="{{ url_for('estrazioni.scheduling') }}">{{ tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') }}</a>{% endif %}
-      {% if is_master_user %}<a class="app-desktop-sectionbar__link{% if request.endpoint and request.endpoint.startswith('master_') %} active{% endif %}" href="{{ url_for('master_tenants') }}">{{ tr('navigation', 'nav.master', 'Master') }}</a>{% endif %}
-      {% if show_admin_menu %}<a class="app-desktop-sectionbar__link{% if request.endpoint in ['admin_users', 'admin_users_import_csv', 'admin_access_profiles', 'admin_links', 'admin_stores', 'admin_area_managers'] %} active{% endif %}" href="{{ url_for('admin_users') }}">{{ tr('navigation', 'nav.admin', 'Admin') }}</a>{% endif %}
+      {% set is_weekly = request.path.startswith('/cruscotto/analisi-settimanale') %}
+      {% set is_kpi_weekly = request.path.startswith('/cruscotto/analisi-kpi-settimanale') %}
+      {% set is_monthly = request.path.startswith('/cruscotto/analisi-mensile') %}
+      {% set is_pnl_store = request.path.startswith('/cruscotto/pnl-store') and not request.path.startswith('/cruscotto/pnl-store/visibilita') %}
+      <a class="app-desktop-sectionbar__link{% if is_weekly %} active{% endif %}" href="{{ url_for('cruscotto.analisi_settimanale') }}">{{ tr('cruscotto', 'toolbar.weekly_analysis', 'Analisi Settimanale') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_kpi_weekly %} active{% endif %}" href="{{ url_for('cruscotto.analisi_kpi_settimanale') }}">{{ tr('cruscotto', 'toolbar.weekly_kpi_analysis', 'Analisi KPI Settimanale') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_monthly %} active{% endif %}" href="{{ url_for('cruscotto.analisi_mensile') }}">{{ tr('cruscotto', 'toolbar.monthly_analysis', 'Analisi Mensile') }}</a>
+      {% if user and user.mod_cruscotto_pnl_store %}<a class="app-desktop-sectionbar__link{% if is_pnl_store %} active{% endif %}" href="{{ url_for('cruscotto.pnl_store') }}">{{ tr('cruscotto', 'toolbar.pnl_store', 'P&L store') }}</a>{% endif %}
     </div>
     <div class="app-desktop-sectionbar__summary">{{ desktop_section_title }}</div>
     <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionNext" aria-label="Scorri sezioni a destra">&rsaquo;</button>
   </div>
+  {% elif request.endpoint and request.endpoint.startswith('warehouse.') and request.endpoint not in ['warehouse.fornitori', 'warehouse.listini_anagrafica', 'warehouse.listini_prezzi', 'warehouse.supplier_orders_home', 'warehouse.supplier_orders_send', 'warehouse.supplier_orders_sent', 'warehouse.supplier_orders_sent_to_ddt', 'warehouse.supplier_orders_received', 'warehouse.supplier_orders_received_line', 'warehouse.supplier_orders_received_complete', 'warehouse.supplier_order_pdf'] and request.endpoint != 'warehouse.riepilogo' %}
+  <div class="app-desktop-sectionbar">
+    <button type="button" class="app-desktop-sectionbar__toggle" id="toggleDesktopSectionbar" aria-label="Comprimi barra sezioni" title="Comprimi barra sezioni"><span class="app-desktop-sectionbar__toggle-up">{{ nav_chevron('up') }}</span><span class="app-desktop-sectionbar__toggle-down">{{ nav_chevron('down') }}</span></button>
+    <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionPrev" aria-label="Scorri sezioni a sinistra">&lsaquo;</button>
+    <div class="app-desktop-sectionbar__track" id="desktopSectionTrack">
+      {% set is_delivery_new = request.path.startswith('/magazzino/delivery/nuovo') %}
+      {% set is_spesa_new = request.path.startswith('/magazzino/spesa') %}
+      {% set is_delivery_edit = request.path.startswith('/magazzino/delivery/modifica') %}
+      {% set is_inventory_new = request.path.startswith('/magazzino/inventario/nuovo') %}
+      {% set is_inventory_edit = request.path.startswith('/magazzino/inventario/modifica') %}
+      {% set is_search = request.path.startswith('/magazzino/ricerca') %}
+      {% set is_analysis = request.path.startswith('/magazzino/analisi') %}
+      {% set is_consumi = request.path.startswith('/magazzino/consumi') %}
+      {% set is_ordini = request.path.startswith('/magazzino/ordini') %}
+      <a class="app-desktop-sectionbar__link{% if is_analysis %} active{% endif %}" href="{{ url_for('warehouse.analysis') }}">{{ tr('warehouse', 'toolbar.analysis', 'Analisi') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_consumi %} active{% endif %}" href="{{ url_for('warehouse.consumi') }}">{{ tr('warehouse', 'toolbar.consumption', 'Consumi') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_delivery_new %} active{% endif %}" href="{{ url_for('warehouse.delivery_new') }}">{{ tr('warehouse', 'toolbar.delivery_entry', 'Inserimento DDT') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_spesa_new %} active{% endif %}" href="{{ url_for('warehouse.spesa_new') }}">{{ tr('warehouse', 'toolbar.expense', 'Spesa') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_delivery_edit %} active{% endif %}" href="{{ url_for('warehouse.delivery_edit') }}">{{ tr('warehouse', 'toolbar.delivery_edit', 'Modifica DDT') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_inventory_new %} active{% endif %}" href="{{ url_for('warehouse.inventory_new') }}">{{ tr('warehouse', 'toolbar.inventory_data', 'Dati Inventario') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_inventory_edit %} active{% endif %}" href="{{ url_for('warehouse.inventory_edit') }}">{{ tr('warehouse', 'toolbar.inventory_edit', 'Modifica Dati Inventario') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_search %} active{% endif %}" href="{{ url_for('warehouse.ricerca') }}">{{ tr('warehouse', 'toolbar.search', 'Ricerca') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_ordini %} active{% endif %}" href="{{ url_for('warehouse.ordini') }}">{{ tr('warehouse', 'toolbar.orders', 'Ordini') }}</a>
+    </div>
+    <div class="app-desktop-sectionbar__summary">{{ desktop_section_title }}</div>
+    <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionNext" aria-label="Scorri sezioni a destra">&rsaquo;</button>
+  </div>
+  {% elif is_admin_section %}
+  <div class="app-desktop-sectionbar">
+    <button type="button" class="app-desktop-sectionbar__toggle" id="toggleDesktopSectionbar" aria-label="Comprimi barra sezioni" title="Comprimi barra sezioni"><span class="app-desktop-sectionbar__toggle-up">{{ nav_chevron('up') }}</span><span class="app-desktop-sectionbar__toggle-down">{{ nav_chevron('down') }}</span></button>
+    <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionPrev" aria-label="Scorri sezioni a sinistra">&lsaquo;</button>
+    <div class="app-desktop-sectionbar__track" id="desktopSectionTrack">
+      <a class="app-desktop-sectionbar__link{% if is_admin_users_section %} active{% endif %}" href="{{ url_for('admin_users') }}">{{ tr('navigation', 'admin.users', 'Utenti') }}</a>
+      <a class="app-desktop-sectionbar__link{% if request.endpoint == 'admin_users_import_csv' %} active{% endif %}" href="{{ url_for('admin_users_import_csv') }}">Import CSV utenti</a>
+      <a class="app-desktop-sectionbar__link{% if is_admin_profiles_section %} active{% endif %}" href="{{ url_for('admin_access_profiles') }}">Profili accesso</a>
+      <a class="app-desktop-sectionbar__link{% if is_admin_links_section %} active{% endif %}" href="{{ url_for('admin_links') }}">{{ tr('navigation', 'nav.links', 'Link') }}</a>
+      <a class="app-desktop-sectionbar__link{% if request.endpoint == 'admin_stores' %} active{% endif %}" href="{{ url_for('admin_stores') }}">{{ tr('navigation', 'admin.stores', 'Store') }}</a>
+      <a class="app-desktop-sectionbar__link{% if request.endpoint == 'admin_area_managers' %} active{% endif %}" href="{{ url_for('admin_area_managers') }}">{{ tr('navigation', 'admin.area_managers', 'Area manager') }}</a>
+      <a class="app-desktop-sectionbar__link{% if request.endpoint == 'warehouse.fornitori' %} active{% endif %}" href="{{ url_for('warehouse.fornitori') }}">{{ tr('navigation', 'admin.suppliers', 'Fornitori') }}</a>
+      <a class="app-desktop-sectionbar__link{% if request.endpoint == 'warehouse.listini_anagrafica' %} active{% endif %}" href="{{ url_for('warehouse.listini_anagrafica') }}">{{ tr('navigation', 'admin.price_registry', 'Anagrafica Listini Prezzi') }}</a>
+      <a class="app-desktop-sectionbar__link{% if request.endpoint == 'warehouse.listini_prezzi' %} active{% endif %}" href="{{ url_for('warehouse.listini_prezzi') }}">{{ tr('navigation', 'admin.price_lists', 'Listini Prezzi') }}</a>
+      <a class="app-desktop-sectionbar__link{% if request.endpoint == 'cruscotto.pnl_store_visibility' %} active{% endif %}" href="{{ url_for('cruscotto.pnl_store_visibility') }}">Visualizzazione P&amp;L store</a>
+    </div>
+    <div class="app-desktop-sectionbar__summary">{{ desktop_section_title }}</div>
+    <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionNext" aria-label="Scorri sezioni a destra">&rsaquo;</button>
+  </div>
+  {% endif %}
 </div>
 
 <div class="d-xl-none">

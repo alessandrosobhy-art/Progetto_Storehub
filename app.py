@@ -124,7 +124,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.19"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.02.20"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
