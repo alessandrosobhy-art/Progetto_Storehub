@@ -541,7 +541,6 @@ a:hover{
 
   .app-desktop-shell{
     position: relative;
-    z-index: 1000;
   }
 
   .app-desktop-rail{
@@ -549,7 +548,7 @@ a:hover{
     top: 18px;
     left: 18px;
     bottom: 18px;
-    width: 208px;
+    width: 204px;
     background: rgba(255,255,255,.94);
     border: 1px solid var(--app-nav-border);
     border-radius: 28px;
@@ -610,21 +609,21 @@ a:hover{
 
   .app-desktop-rail__link{
     width: 100%;
-    min-height: 46px;
+    min-height: 44px;
     border-radius: 14px;
     color: var(--app-text-muted);
     display: grid;
-    grid-template-columns: 38px minmax(0, 1fr);
+    grid-template-columns: 28px minmax(0, 1fr);
     align-items: center;
     justify-content: flex-start;
-    column-gap: 8px;
-    padding: 0 8px;
+    column-gap: 10px;
+    padding: 0 10px;
     transition: background-color .18s ease, color .18s ease, transform .18s ease;
   }
 
   .app-desktop-rail__link .app-nav__icon{
-    width: 38px;
-    height: 38px;
+    width: 28px;
+    height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -649,7 +648,7 @@ a:hover{
     align-items: center;
     min-width: 0;
     flex: 1 1 auto;
-    font-size: .88rem;
+    font-size: .82rem;
     font-weight: 600;
     line-height: 1.15;
     white-space: nowrap;
@@ -822,9 +821,9 @@ a:hover{
     width: 100%;
     min-height: 38px;
     border-radius: 12px;
-    grid-template-columns: 38px 0;
+    grid-template-columns: 28px 0;
     column-gap: 0;
-    padding-inline: 2px;
+    padding-inline: 10px;
   }
 
   body.app-shell.app-shell--rail-collapsed .app-desktop-rail__toggle-icon{
@@ -845,7 +844,6 @@ a:hover{
 
   .app-workspace-shell{
     position: relative;
-    z-index: 1;
   }
 
   .app-workspace-panel{
@@ -1017,6 +1015,22 @@ a:hover{
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius-lg);
   box-shadow: 0 24px 60px rgba(15, 23, 42, .22);
+}
+
+.modal{
+  z-index: 1080;
+}
+
+.modal-backdrop{
+  z-index: 1070;
+}
+
+.offcanvas{
+  z-index: 1080;
+}
+
+.offcanvas-backdrop{
+  z-index: 1070;
 }
 
 .modal-header{
