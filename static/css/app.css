@@ -177,6 +177,8 @@ a:hover{
   background: linear-gradient(180deg, var(--app-header-top) 0%, var(--app-nav-bg) 100%) !important;
   border-bottom: 1px solid var(--app-nav-border) !important;
   box-shadow: var(--app-shadow-sm);
+  position: relative;
+  z-index: 1060;
 }
 
 .app-header .navbar-brand{
@@ -245,6 +247,7 @@ a:hover{
   border-radius: var(--app-radius-md);
   box-shadow: var(--app-shadow-md);
   padding: .5rem;
+  z-index: 1090;
 }
 
 .app-header .dropdown-item{
