@@ -430,11 +430,46 @@ except Exception:
     log = logging.getLogger('app')
 
 # ----------------- HTTP session -----------------
+_HTTP_SESSION: requests.Session | None = None
+
 def _session():
-    s = requests.Session()
-    retries = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
-    s.mount('https://', HTTPAdapter(max_retries=retries))
-    return s
+    global _HTTP_SESSION
+    if _HTTP_SESSION is None:
+        s = requests.Session()
+        retries = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+        adapter = HTTPAdapter(max_retries=retries, pool_connections=20, pool_maxsize=20)
+        s.mount('https://', adapter)
+        s.mount('http://', adapter)
+        _HTTP_SESSION = s
+    return _HTTP_SESSION
+
+
+def _decode_jwt_payload(token: str | None) -> dict:
+    raw = str(token or "").strip()
+    if not raw or "." not in raw:
+        return {}
+    try:
+        payload_b64 = raw.split(".")[1]
+        padding = "=" * (-len(payload_b64) % 4)
+        decoded = base64.urlsafe_b64decode((payload_b64 + padding).encode("ascii"))
+        data = json.loads(decoded.decode("utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _extract_auth_user(auth_payload: dict | None, fallback_token: str | None = None) -> dict:
+    payload = auth_payload if isinstance(auth_payload, dict) else {}
+    user_obj = payload.get("user")
+    if isinstance(user_obj, dict) and (user_obj.get("id") or user_obj.get("email")):
+        return user_obj
+    jwt_payload = _decode_jwt_payload(payload.get("access_token") or fallback_token)
+    if not jwt_payload:
+        return {}
+    return {
+        "id": jwt_payload.get("sub"),
+        "email": jwt_payload.get("email"),
+    }
 
 def _raise_with_body(resp: requests.Response):
     try:
@@ -1520,9 +1555,10 @@ def _normalize_user_modules(u: dict) -> dict:
 
     prof_id = str(u.get("access_profile_id") or "").strip()
     if not prof_id:
-        if role_l == "fornitore":
-            return _all_module_flags(False)
-        return _all_module_flags(True)
+        snap = _module_flags_from_session_snapshot(u.get("access_modules"))
+        if snap is not None:
+            return snap
+        return _all_module_flags(False)
 
     prof = _get_access_profile_cached(prof_id) if prof_id else None
     mods = (prof.get("modules") or {}) if isinstance(prof, dict) else None
@@ -4542,7 +4578,9 @@ def login_post():
         if not token:
             flash("Accesso non riuscito.", 'danger')
             return redirect(url_for('login', next=_safe_next_url(nxt)))
-        user_obj = sb_auth_user(token)
+        user_obj = _extract_auth_user(auth, token)
+        if not user_obj.get('id'):
+            user_obj = sb_auth_user(token)
         uid = user_obj.get('id')
         prof = sb_get_my_profile(token, uid) or {}
         if uid and not prof.get('access_profile_id'):
