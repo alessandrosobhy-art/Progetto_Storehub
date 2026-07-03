@@ -1170,6 +1170,7 @@ ACCESS_MODULES = [
 _ACCESS_PROFILE_CACHE: dict[str, dict] = {}
 _ACCESS_PROFILE_TENANT_COLUMN: bool | None = None
 _TENANT_MODULE_CACHE: dict[str, dict] = {}
+_ACCESS_PROFILE_CACHE_TTL_SECONDS = 900
 _SESSION_PROFILE_CACHE_TTL_SECONDS = 900
 _TENANT_MODULE_CACHE_TTL_SECONDS = 300
 
@@ -1525,7 +1526,7 @@ def _get_access_profile_cached(profile_id: str) -> dict | None:
         return None
     now = time.time()
     ent = _ACCESS_PROFILE_CACHE.get(profile_id)
-    if ent and (now - ent.get("ts", 0)) < 60:
+    if ent and (now - ent.get("ts", 0)) < _ACCESS_PROFILE_CACHE_TTL_SECONDS:
         return ent.get("data")
     try:
         data = sb_admin_get_access_profile(profile_id)
@@ -1581,22 +1582,21 @@ def _normalize_user_modules(u: dict) -> dict:
     if role_l == "admin":
         return _all_module_flags(True)
 
+    snap = _module_flags_from_session_snapshot(u.get("access_modules"))
     prof_id = str(u.get("access_profile_id") or "").strip()
     if not prof_id:
-        snap = _module_flags_from_session_snapshot(u.get("access_modules"))
         if snap is not None:
             return snap
         return _all_module_flags(False)
+
+    if snap is not None:
+        return snap
 
     prof = _get_access_profile_cached(prof_id) if prof_id else None
     mods = (prof.get("modules") or {}) if isinstance(prof, dict) else None
     out = _module_flags_from_modules_dict(mods)
     if out is not None:
         return out
-
-    snap = _module_flags_from_session_snapshot(u.get("access_modules"))
-    if snap is not None:
-        return snap
 
     return _all_module_flags(False)
 
