@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 
 from datetime import date as _date, datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app, jsonify, Response
@@ -31,6 +32,39 @@ ORARI_COLOR_SWATCHES = [
 
 
 orari_bp = Blueprint("orari", __name__, url_prefix="/orari")
+_ORARI_TTL_CACHE: dict[str, dict] = {}
+
+
+def _orari_ttl_cached(key: str, ttl_seconds: int, loader):
+    now = time.time()
+    cached = _ORARI_TTL_CACHE.get(key)
+    if isinstance(cached, dict) and (now - float(cached.get("ts") or 0)) < ttl_seconds:
+        return cached.get("value")
+    value = loader()
+    _ORARI_TTL_CACHE[key] = {"ts": now, "value": value}
+    return value
+
+
+def _orari_tenant_key() -> str:
+    return str(session.get("tenant_key") or "default").strip() or "default"
+
+
+def _orari_config_for_frontend_cached() -> dict:
+    tenant_key = _orari_tenant_key()
+    return _orari_ttl_cached(
+        f"orari_frontend_cfg:{tenant_key}",
+        300,
+        lambda: orari_config_for_frontend(tenant_key),
+    ) or {"inquadramenti": [], "causali": [], "inquadramenti_by_key": {}, "causali_by_key": {}}
+
+
+def _list_orari_inquadramenti_cached(*, active_only: bool = True) -> list[dict]:
+    tenant_key = _orari_tenant_key()
+    return _orari_ttl_cached(
+        f"orari_inquadramenti:{tenant_key}:{1 if active_only else 0}",
+        300,
+        lambda: list_orari_inquadramenti(tenant_key, active_only=active_only),
+    ) or []
 
 
 def _ensure_session_keys() -> None:
@@ -302,7 +336,7 @@ def anagrafica():
 
     inquadramenti = []
     try:
-        inquadramenti = list_orari_inquadramenti(active_only=True)
+        inquadramenti = _list_orari_inquadramenti_cached(active_only=True)
     except Exception:
         current_app.logger.exception("Errore list_orari_inquadramenti")
 
@@ -344,7 +378,7 @@ def orari_page():
 
     orari_config = {"inquadramenti": [], "causali": [], "inquadramenti_by_key": {}, "causali_by_key": {}}
     try:
-        orari_config = orari_config_for_frontend()
+        orari_config = _orari_config_for_frontend_cached()
     except Exception:
         current_app.logger.exception("Errore orari_config_for_frontend")
 

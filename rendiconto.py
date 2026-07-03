@@ -2485,6 +2485,16 @@ def _get_elenchi_options_cached(*, store_code: str) -> Dict[str, Any]:
     }
 
 
+def _get_delivery_providers_cached(*, active_only: bool = True) -> List[Dict[str, Any]]:
+    tenant_key = _session_tenant_key()
+    cache_key = f"delivery_providers:{tenant_key}:{1 if active_only else 0}"
+    return _rendiconto_ttl_cached(
+        cache_key,
+        300,
+        lambda: list_delivery_providers(active_only=active_only),
+    ) or []
+
+
 def _label_norm(v: str) -> str:
     return "".join(ch for ch in str(v or "").strip().lower() if ch.isalnum())
 
@@ -4207,7 +4217,7 @@ def gestione_delivery():
         save_scope = str(request.form.get("save_scope") or "all").strip().lower()
         providers_config = {
             str(p.get("provider_key") or "").strip().lower(): p
-            for p in list_delivery_providers(active_only=True)
+            for p in _get_delivery_providers_cached(active_only=True)
             if str(p.get("provider_key") or "").strip()
         }
         allowed_scopes = {"all"} | set(providers_config.keys())
@@ -4257,7 +4267,7 @@ def gestione_delivery():
         return redirect(url_for("rendiconto.gestione_delivery", week_start=week_start.isoformat()))
 
     # Load current week rows + prev week rating (for delta)
-    providers = list_delivery_providers(active_only=True)
+    providers = _get_delivery_providers_cached(active_only=True)
     provider_rows: list[dict[str, Any]] = []
     if store_code:
         try:

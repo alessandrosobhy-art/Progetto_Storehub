@@ -124,7 +124,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.03.4"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.03.5"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
@@ -1170,6 +1170,7 @@ ACCESS_MODULES = [
 _ACCESS_PROFILE_CACHE: dict[str, dict] = {}
 _ACCESS_PROFILE_TENANT_COLUMN: bool | None = None
 _TENANT_MODULE_CACHE: dict[str, dict] = {}
+_DASHBOARD_ROUTE_CACHE: dict[str, dict] = {}
 _ACCESS_PROFILE_CACHE_TTL_SECONDS = 900
 _SESSION_PROFILE_CACHE_TTL_SECONDS = 900
 _TENANT_MODULE_CACHE_TTL_SECONDS = 300
@@ -1185,6 +1186,16 @@ def _request_cache_set(key: str, value):
     if not has_request_context():
         return value
     setattr(g, key, value)
+    return value
+
+
+def _ttl_cache_get_or_set(cache: dict[str, dict], key: str, ttl_seconds: int, loader):
+    now = time.time()
+    cached = cache.get(key)
+    if isinstance(cached, dict) and (now - float(cached.get("ts") or 0)) < ttl_seconds:
+        return cached.get("value")
+    value = loader()
+    cache[key] = {"ts": now, "value": value}
     return value
 
 
@@ -8801,7 +8812,6 @@ def dashboard():
     user = current_user()
 
     store_code = session.get('store_code')
-    store_name = session.get('store_name') or store_code
     role_l = str(session.get('role') or '').strip().lower()
     convalide_store = []
 
@@ -8810,7 +8820,13 @@ def dashboard():
     if store_code and role_l == 'admin':
         try:
             from rendiconto_convalide_repository import list_convalide_store
-            convalide_store = list_convalide_store(store_code=str(store_code))
+            tenant_key = str(session.get("tenant_key") or "default").strip() or "default"
+            convalide_store = _ttl_cache_get_or_set(
+                _DASHBOARD_ROUTE_CACHE,
+                f"convalide_store:{tenant_key}:{str(store_code).strip()}",
+                60,
+                lambda: list_convalide_store(store_code=str(store_code)),
+            ) or []
         except Exception:
             convalide_store = []
 

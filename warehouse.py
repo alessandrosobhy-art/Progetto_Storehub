@@ -120,6 +120,41 @@ from supplier_order_flow_repository import (
 )
 
 warehouse_bp = Blueprint("warehouse", __name__, url_prefix="/magazzino")
+_WAREHOUSE_TTL_CACHE: dict[str, dict] = {}
+
+
+def _warehouse_ttl_cached(key: str, ttl_seconds: int, loader):
+    now = time.time()
+    cached = _WAREHOUSE_TTL_CACHE.get(key)
+    if isinstance(cached, dict) and (now - float(cached.get("ts") or 0)) < ttl_seconds:
+        return cached.get("value")
+    value = loader()
+    _WAREHOUSE_TTL_CACHE[key] = {"ts": now, "value": value}
+    return value
+
+
+def _warehouse_tenant_key() -> str:
+    return str(session.get("tenant_key") or "default").strip() or "default"
+
+
+def _get_suppliers_for_store_cached(store_code: str) -> dict:
+    tenant_key = _warehouse_tenant_key()
+    code = str(store_code or "").strip()
+    return _warehouse_ttl_cached(
+        f"suppliers:{tenant_key}:{code}",
+        300,
+        lambda: get_suppliers_for_store(code),
+    ) or {}
+
+
+def _get_recent_deliveries_cached(store_code: str, *, limit: int = 50) -> dict:
+    tenant_key = _warehouse_tenant_key()
+    code = str(store_code or "").strip()
+    return _warehouse_ttl_cached(
+        f"recent_deliveries:{tenant_key}:{code}:{int(limit)}",
+        60,
+        lambda: get_recent_deliveries(code, limit=limit),
+    ) or {"table": get_delivery_table_name(), "columns": [], "rows": [], "error": None}
 _AVAILABLE_STORES_CACHE_TTL_SECONDS = 60
 _AVAILABLE_STORES_SHARED_CACHE: dict[str, dict] = {}
 
@@ -320,7 +355,7 @@ def ricerca():
 
         # Mappa codice->nome fornitore (DDT usa il codice, in UI preferiamo il nome)
         try:
-            suppliers_info = get_suppliers_for_store(store_code)
+            suppliers_info = _get_suppliers_for_store_cached(store_code)
             suppliers = suppliers_info.get("suppliers") if suppliers_info and not suppliers_info.get("error") else []
             sup_map = {str(s.get("code")): (s.get("name") or str(s.get("code"))) for s in (suppliers or [])}
         except Exception:
@@ -440,7 +475,7 @@ def analysis():
     store_code = session.get("store_code")
     store_name = session.get("store_name")
 
-    suppliers_info = get_suppliers_for_store(store_code) if store_code else {}
+    suppliers_info = _get_suppliers_for_store_cached(store_code) if store_code else {}
     suppliers = suppliers_info.get("suppliers") if suppliers_info and not suppliers_info.get("error") else []
     suppliers_error = suppliers_info.get("error") if suppliers_info else None
 
@@ -975,7 +1010,7 @@ def consumi():
     store_code = session.get("store_code")
     store_name = session.get("store_name")
 
-    suppliers_info = get_suppliers_for_store(store_code) if store_code else {}
+    suppliers_info = _get_suppliers_for_store_cached(store_code) if store_code else {}
     suppliers = suppliers_info.get("suppliers") if suppliers_info and not suppliers_info.get("error") else []
     suppliers_error = suppliers_info.get("error") if suppliers_info else None
 
@@ -1350,7 +1385,7 @@ def _supplier_order_effective_rows(detail: dict | None) -> list[dict]:
 
 
 def _supplier_order_access_supplier_code(store_code: str, supplier_name: str) -> str:
-    info = get_suppliers_for_store(store_code) or {}
+    info = _get_suppliers_for_store_cached(store_code) or {}
     suppliers = info.get("suppliers") or []
     target = str(supplier_name or "").strip().lower()
     for s in suppliers:
@@ -1425,7 +1460,7 @@ def delivery():
         flash("Seleziona prima uno store.", "warning")
         return redirect(url_for("warehouse.home"))
 
-    info = get_recent_deliveries(store_code, limit=50)
+    info = _get_recent_deliveries_cached(store_code, limit=50)
     return render_template(
         "warehouse_delivery.html",
         store_code=store_code,
@@ -1454,7 +1489,7 @@ def delivery_new():
     }
 
     # Elenco fornitori da Access
-    suppliers_info = get_suppliers_for_store(store_code)
+    suppliers_info = _get_suppliers_for_store_cached(store_code)
     suppliers = suppliers_info.get("suppliers") if suppliers_info and not suppliers_info.get("error") else []
     suppliers_error = suppliers_info.get("error") if suppliers_info else None
 
@@ -1834,7 +1869,7 @@ def delivery_edit():
         "supplier_code": "",
     }
 
-    suppliers_info = get_suppliers_for_store(store_code)
+    suppliers_info = _get_suppliers_for_store_cached(store_code)
     suppliers = suppliers_info.get("suppliers") if suppliers_info and not suppliers_info.get("error") else []
     suppliers_error = suppliers_info.get("error") if suppliers_info else None
 
@@ -2057,7 +2092,7 @@ def inventory_new():
         flash("Seleziona prima uno store.", "warning")
         return redirect(url_for("warehouse.home"))
 
-    suppliers_info = get_suppliers_for_store(store_code)
+    suppliers_info = _get_suppliers_for_store_cached(store_code)
     suppliers = suppliers_info.get("suppliers") if suppliers_info and not suppliers_info.get("error") else []
     suppliers_error = suppliers_info.get("error") if suppliers_info else None
 
@@ -2272,7 +2307,7 @@ def inventory_edit():
         flash("Seleziona prima uno store.", "warning")
         return redirect(url_for("warehouse.home"))
 
-    suppliers_info = get_suppliers_for_store(store_code)
+    suppliers_info = _get_suppliers_for_store_cached(store_code)
     suppliers = suppliers_info.get("suppliers") if suppliers_info and not suppliers_info.get("error") else []
     suppliers_error = suppliers_info.get("error") if suppliers_info else None
 
@@ -2658,7 +2693,7 @@ def ordini():
         raw = {"suppliers": [{"name": r.get("Fornitore"), "code": r.get("Fornitore")} for r in list_sql_fornitori()]}
     except Exception:
         try:
-            raw = get_suppliers_for_store(store_code)
+            raw = _get_suppliers_for_store_cached(store_code)
         except Exception:
             raw = []
 
