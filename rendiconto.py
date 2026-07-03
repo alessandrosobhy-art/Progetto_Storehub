@@ -117,6 +117,25 @@ from rendiconto_legacy_schema_repository import ensure_rendiconto_legacy_schema
 
 rendiconto_bp = Blueprint("rendiconto", __name__, url_prefix="/rendiconto")
 _REN_SCHEMA_ENSURED: set[str] = set()
+_RENDICONTO_TTL_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def _rendiconto_ttl_cached(key: str, ttl_seconds: int, loader):
+    now = time.time()
+    cached = _RENDICONTO_TTL_CACHE.get(key)
+    if isinstance(cached, dict) and (now - float(cached.get("ts") or 0)) < ttl_seconds:
+        return cached.get("value")
+    value = loader()
+    _RENDICONTO_TTL_CACHE[key] = {"ts": now, "value": value}
+    return value
+
+
+def _session_tenant_key() -> str:
+    return str(session.get("tenant_key") or "default").strip() or "default"
+
+
+def _session_ui_language() -> str:
+    return str(session.get("ui_language") or "it").strip().lower() or "it"
 
 
 @rendiconto_bp.before_request
@@ -2305,12 +2324,14 @@ _VOICE_TO_KEY = {lbl: key for (key, lbl, _t) in _CHIUSURA_FIELDS}
 _KEY_TO_TYPE = {key: t for (key, _lbl, t) in _CHIUSURA_FIELDS}
 
 
-def _distinta_custom_config() -> List[Dict[str, Any]]:
-    try:
-        cfg = list_cash_statement_config()
-    except Exception:
-        current_app.logger.exception("Errore lettura configurazione dinamica Distinta cassa")
-        return []
+def _get_cash_statement_config_cached() -> Dict[str, List[Dict[str, Any]]]:
+    tenant_key = _session_tenant_key()
+    language_code = _session_ui_language()
+    cache_key = f"cash_statement_config:{tenant_key}:{language_code}"
+    return _rendiconto_ttl_cached(cache_key, 300, list_cash_statement_config) or {"sections": [], "fields": []}
+
+
+def _distinta_custom_config_from_cfg(cfg: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
     sections = {
         str(s.get("section_key") or ""): s
         for s in (cfg.get("sections") or [])
@@ -2342,12 +2363,15 @@ def _distinta_custom_config() -> List[Dict[str, Any]]:
     return sorted(out, key=lambda s: int(sections[s["section_key"]].get("sort_order") or 0))
 
 
-def _distinta_custom_option_list_config() -> List[Dict[str, Any]]:
+def _distinta_custom_config() -> List[Dict[str, Any]]:
     try:
-        cfg = list_cash_statement_config()
+        return _distinta_custom_config_from_cfg(_get_cash_statement_config_cached())
     except Exception:
-        current_app.logger.exception("Errore lettura configurazione elenchi dinamici Distinta cassa")
+        current_app.logger.exception("Errore lettura configurazione dinamica Distinta cassa")
         return []
+
+
+def _distinta_custom_option_list_config_from_cfg(cfg: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
     sections = [
         s for s in (cfg.get("sections") or [])
         if s.get("is_active") and s.get("is_visible") and str(s.get("section_kind") or "") == "option_list"
@@ -2378,6 +2402,14 @@ def _distinta_custom_option_list_config() -> List[Dict[str, Any]]:
             }
         )
     return sorted(out, key=lambda s: (s["sort_order"], s["label"]))
+
+
+def _distinta_custom_option_list_config() -> List[Dict[str, Any]]:
+    try:
+        return _distinta_custom_option_list_config_from_cfg(_get_cash_statement_config_cached())
+    except Exception:
+        current_app.logger.exception("Errore lettura configurazione elenchi dinamici Distinta cassa")
+        return []
 
 
 def _custom_field_form_name(section_key: str, field_key: str) -> str:
@@ -2415,6 +2447,42 @@ def _distinta_entry_categories(
         add(section.get("label"))
 
     return cats
+
+
+def _cash_statement_labels_from_cfg(cfg: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Dict[str, str]]:
+    return {
+        "sections": {
+            str(section.get("section_key") or ""): str(section.get("label") or section.get("section_key") or "")
+            for section in (cfg.get("sections") or [])
+        },
+        "fields": {
+            str(field.get("field_key") or ""): str(field.get("label") or field.get("field_key") or "")
+            for field in (cfg.get("fields") or [])
+            if str(field.get("section_key") or "") == "dati_chiusura"
+        },
+    }
+
+
+def _get_ipratico_enabled_cached() -> bool:
+    tenant_key = _session_tenant_key()
+    cache_key = f"ipratico_enabled:{tenant_key}"
+    return bool(
+        _rendiconto_ttl_cached(
+            cache_key,
+            300,
+            lambda: bool(get_ipratico_config().get("enabled")),
+        )
+    )
+
+
+def _get_elenchi_options_cached(*, store_code: str) -> Dict[str, Any]:
+    tenant_key = _session_tenant_key()
+    cache_key = f"distinta_elenchi:{tenant_key}:{str(store_code).strip()}"
+    return _rendiconto_ttl_cached(cache_key, 120, lambda: get_elenchi_options(store_code=str(store_code))) or {
+        "tickets": [],
+        "deliveries": [],
+        "coupons": [],
+    }
 
 
 def _label_norm(v: str) -> str:
@@ -2721,6 +2789,8 @@ def distinta_cassa_import_ipratico():
 
 @rendiconto_bp.get("/distinta-cassa")
 def distinta_cassa():
+    route_started_at = time.perf_counter()
+    timings: Dict[str, float] = {}
     _ensure_session_keys()
     store_code = session.get("store_code")
     store_name = session.get("store_name")
@@ -2738,27 +2808,18 @@ def distinta_cassa():
 
     options = {"tickets": [], "deliveries": [], "coupons": []}
     existing_rows: List[Dict[str, Any]] = []
-    custom_config = _distinta_custom_config()
-    custom_option_lists = _distinta_custom_option_list_config()
-    distinta_categories = _distinta_entry_categories(custom_config, custom_option_lists)
     cash_statement_labels = {"sections": {}, "fields": {}}
+    cash_statement_cfg: Dict[str, List[Dict[str, Any]]] = {"sections": [], "fields": []}
     try:
-        from cash_statement_config_repository import seed_cash_statement_translations, seed_default_cash_statement_config
-
-        seed_default_cash_statement_config()
-        seed_cash_statement_translations()
-        cfg_labels = list_cash_statement_config()
-        cash_statement_labels["sections"] = {
-            str(section.get("section_key") or ""): str(section.get("label") or section.get("section_key") or "")
-            for section in (cfg_labels.get("sections") or [])
-        }
-        cash_statement_labels["fields"] = {
-            str(field.get("field_key") or ""): str(field.get("label") or field.get("field_key") or "")
-            for field in (cfg_labels.get("fields") or [])
-            if str(field.get("section_key") or "") == "dati_chiusura"
-        }
+        started_at = time.perf_counter()
+        cash_statement_cfg = _get_cash_statement_config_cached()
+        cash_statement_labels = _cash_statement_labels_from_cfg(cash_statement_cfg)
+        timings["cash_cfg"] = time.perf_counter() - started_at
     except Exception:
         current_app.logger.exception("Errore lettura etichette tradotte Distinta cassa")
+    custom_config = _distinta_custom_config_from_cfg(cash_statement_cfg)
+    custom_option_lists = _distinta_custom_option_list_config_from_cfg(cash_statement_cfg)
+    distinta_categories = _distinta_entry_categories(custom_config, custom_option_lists)
     custom_field_index = {}
     for section in custom_config:
         for field in section.get("fields") or []:
@@ -2773,7 +2834,9 @@ def distinta_cassa():
     spese_info = {"total": 0.0, "note_credito": 0.0, "net": 0.0}
     ipratico_enabled = True
     try:
-        ipratico_enabled = bool(get_ipratico_config().get("enabled"))
+        started_at = time.perf_counter()
+        ipratico_enabled = _get_ipratico_enabled_cached()
+        timings["ipratico_cfg"] = time.perf_counter() - started_at
     except Exception:
         current_app.logger.exception("Errore lettura configurazione iPratico")
         ipratico_enabled = False
@@ -2795,35 +2858,45 @@ def distinta_cassa():
 
     if store_code:
         try:
-            options = get_elenchi_options(store_code=str(store_code))
+            started_at = time.perf_counter()
+            options = _get_elenchi_options_cached(store_code=str(store_code))
+            timings["elenchi"] = time.perf_counter() - started_at
         except Exception as e:
             current_app.logger.exception("Errore lettura ELENCHI")
             flash(f"Errore lettura ELENCHI: {e}", "danger")
 
         try:
+            started_at = time.perf_counter()
             existing_rows = load_primanota_day(
                 store_code=str(store_code),
                 data_iso=d_iso,
                 categories=distinta_categories,
             )
+            timings["primanota_day"] = time.perf_counter() - started_at
         except Exception as e:
             current_app.logger.exception("Errore lettura DATIPRIMANOTA")
             flash(f"Errore lettura DATIPRIMANOTA: {e}", "danger")
 
         try:
+            started_at = time.perf_counter()
             spese_info = sum_spese_day(store_code=str(store_code), data_iso=d_iso)
+            timings["spese_day"] = time.perf_counter() - started_at
         except Exception as e:
             current_app.logger.exception("Errore calcolo spese giorno")
             flash(f"Errore calcolo spese giorno: {e}", "danger")
 
         try:
+            started_at = time.perf_counter()
             distinta_photo_file = get_distinta_cassa_photo_file(store_code=str(store_code), data_iso=d_iso)
+            timings["distinta_photo"] = time.perf_counter() - started_at
         except Exception as e:
             current_app.logger.exception("Errore lettura foto Distinta cassa")
             flash(f"Errore lettura foto Distinta cassa: {e}", "danger")
 
         try:
+            started_at = time.perf_counter()
             ipratico_snapshot = get_distinta_cassa_ipratico_snapshot(store_code=str(store_code), data_iso=d_iso)
+            timings["ipratico_snapshot"] = time.perf_counter() - started_at
         except Exception as e:
             current_app.logger.exception("Errore lettura snapshot iPratico Distinta cassa")
             flash(f"Errore lettura snapshot iPratico: {e}", "warning")
@@ -2891,6 +2964,15 @@ def distinta_cassa():
                             init["custom_lists"].setdefault(section.get("section_key"), []).append({"voce": voce, "tipo": tipo, "valore": val_f})
 
     has_saved_data = bool(existing_rows)
+    total_elapsed = time.perf_counter() - route_started_at
+    if total_elapsed > 0.6:
+        current_app.logger.info(
+            "Distinta cassa load store=%s date=%s total=%.3fs timings=%s",
+            store_code,
+            d_iso,
+            total_elapsed,
+            {k: round(v, 3) for k, v in timings.items()},
+        )
 
     return render_template(
         "rendiconto_distinta_cassa.html",
