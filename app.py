@@ -1353,6 +1353,34 @@ def _tenant_user_lookup_for_current_admin() -> tuple[dict[str, dict], dict[str, 
     return by_uid, by_email
 
 
+def _merged_tenant_users_for_current_admin() -> list[dict]:
+    tenant_rows = _tenant_users_for_current_admin()
+    try:
+        profiles = sb_admin_list_profiles()
+    except Exception:
+        profiles = []
+    profiles_by_uid = {str(p.get("id") or "").strip(): p for p in profiles or [] if str(p.get("id") or "").strip()}
+    profiles_by_email = {str(p.get("email") or "").strip().lower(): p for p in profiles or [] if str(p.get("email") or "").strip()}
+    users: list[dict] = []
+    for tenant_row in tenant_rows or []:
+        if not bool(tenant_row.get("is_active", True)):
+            continue
+        uid = str(tenant_row.get("user_id") or "").strip()
+        email = str(tenant_row.get("email") or "").strip().lower()
+        profile = profiles_by_uid.get(uid) or profiles_by_email.get(email) or {}
+        u = dict(profile)
+        u["id"] = str(profile.get("id") or uid)
+        u["email"] = str(profile.get("email") or email)
+        u["name"] = str(profile.get("name") or "")
+        u["global_role"] = profile.get("role")
+        u["tenant_saved_role"] = str(tenant_row.get("tenant_role") or profile.get("role") or "user").strip().lower()
+        u["role"] = _effective_tenant_role(tenant_row, u["tenant_saved_role"])
+        u["tenant_key"] = tenant_row.get("tenant_key")
+        u["tenant_is_active"] = bool(tenant_row.get("is_active", True))
+        users.append(u)
+    return users
+
+
 def _require_user_in_current_tenant(uid: str, profile: dict | None = None) -> dict | None:
     if _is_platform_master(current_user()) and not _master_admin_tenant_key():
         return None
@@ -6750,18 +6778,7 @@ def admin_access_profiles():
         flash(f"Errore caricamento profili: {e}", "danger")
         profiles = []
 
-    users = []
-    try:
-        users = sb_admin_list_profiles()
-    except Exception:
-        users = []
-    if not _is_platform_master(current_user()):
-        by_uid, by_email = _tenant_user_lookup_for_current_admin()
-        users = [
-            u for u in users
-            if by_uid.get(str(u.get("id") or "").strip())
-            or by_email.get(str(u.get("email") or "").strip().lower())
-        ]
+    users = _merged_tenant_users_for_current_admin()
     cnt = {}
     for u in users:
         pid = u.get("access_profile_id")
@@ -6821,21 +6838,10 @@ def admin_access_profiles_edit(profile_id):
         except Exception as e:
             flash(f"Errore aggiornamento profilo: {e}", "danger")
 
-    assigned_users = []
-    try:
-        assigned_users = [
-            u for u in sb_admin_list_profiles()
-            if str(u.get("access_profile_id") or "") == str(profile_id)
-        ]
-    except Exception:
-        assigned_users = []
-    if not _is_platform_master(current_user()):
-        by_uid, by_email = _tenant_user_lookup_for_current_admin()
-        assigned_users = [
-            u for u in assigned_users
-            if by_uid.get(str(u.get("id") or "").strip())
-            or by_email.get(str(u.get("email") or "").strip().lower())
-        ]
+    assigned_users = [
+        u for u in _merged_tenant_users_for_current_admin()
+        if str(u.get("access_profile_id") or "") == str(profile_id)
+    ]
 
     return render_template("admin_access_profile_form.html", mode="edit", profile=profile, module_catalog=ACCESS_MODULES, assigned_users=assigned_users, selected_tenant_key=tenant_key, tenant_profile_scope_available=tenant_scope_available)
 
@@ -6871,14 +6877,7 @@ def admin_access_profiles_assign(profile_id):
         return redirect(url_for("admin_access_profiles"))
 
     # lista utenti
-    users = sb_admin_list_profiles()
-    if not _is_platform_master(current_user()):
-        by_uid, by_email = _tenant_user_lookup_for_current_admin()
-        users = [
-            u for u in users
-            if by_uid.get(str(u.get("id") or "").strip())
-            or by_email.get(str(u.get("email") or "").strip().lower())
-        ]
+    users = _merged_tenant_users_for_current_admin()
 
     if request.method == "POST":
         user_ids = request.form.getlist("user_ids")
