@@ -448,6 +448,7 @@
           {% endif %}
           <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#themePickerModal">Tema interfaccia</button></li>
           <li><button type="button" class="dropdown-item" id="topbar-install-app-desktop">Installa app</button></li>
+          <li><a class="dropdown-item{% if request.endpoint == 'cookie_policy' %} active{% endif %}" href="{{ url_for('cookie_policy') }}">Cookie Policy</a></li>
           <li><a class="dropdown-item" href="{{ url_for('account_change_password') }}">Cambia password</a></li>
           <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">{{ tr('common', 'logout', 'Logout') }}</a></li>
         </ul>
