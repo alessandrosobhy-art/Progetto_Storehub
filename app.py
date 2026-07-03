@@ -4762,6 +4762,15 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.get('/cookie-policy')
+def cookie_policy():
+    return render_template(
+        'cookie_policy.html',
+        user=current_user(),
+        page_title='Cookie Policy',
+    )
+
+
 @app.post('/account/theme')
 @login_required
 def account_set_theme():

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Cookie Policy{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width: 960px;">
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-4 p-lg-5">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+          <div class="text-uppercase text-muted small fw-semibold mb-2">StoreHub 360</div>
+          <h1 class="h3 mb-2">Cookie Policy</h1>
+          <p class="text-muted mb-0">
+            Questa pagina descrive i cookie e gli strumenti di memorizzazione tecnica usati dall'applicazione
+            per autenticazione, sicurezza, preferenze e continuita' di utilizzo.
+          </p>
+        </div>
+        {% if user %}
+        <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('dashboard') }}">Indietro</a>
+        {% else %}
+        <a class="btn btn-outline-secondary" href="{{ url_for('login') }}">Accedi</a>
+        {% endif %}
+      </div>
+
+      <div class="alert alert-info mb-4">
+        In questa versione dell'app vengono utilizzati cookie e storage tecnici o funzionali.
+        Non sono presenti strumenti di profilazione o marketing lato browser.
+      </div>
+
+      <section class="mb-4">
+        <h2 class="h5">1. Cookie di sessione</h2>
+        <p class="mb-2">
+          StoreHub utilizza un cookie di sessione tecnico per gestire il login e mantenere sicura la navigazione
+          tra le diverse pagine dell'app.
+        </p>
+        <ul class="mb-0">
+          <li>autenticazione dell'utente</li>
+          <li>tenant e store attivo</li>
+          <li>permessi e profilo di accesso</li>
+          <li>lingua e tema interfaccia</li>
+          <li>continuita' della sessione e sicurezza applicativa</li>
+        </ul>
+      </section>
+
+      <section class="mb-4">
+        <h2 class="h5">2. Local storage e session storage</h2>
+        <p class="mb-2">
+          L'app utilizza anche lo storage del browser per migliorare l'esperienza d'uso e ricordare alcune preferenze
+          operative tra una pagina e l'altra.
+        </p>
+        <ul class="mb-0">
+          <li>stato della barra laterale e del layout desktop</li>
+          <li>filtri e selezioni recenti in alcune pagine di analisi e gestione</li>
+          <li>feedback di caricamento durante la navigazione</li>
+          <li>preferenze relative alla proposta di installazione dell'app</li>
+        </ul>
+      </section>
+
+      <section class="mb-4">
+        <h2 class="h5">3. Service worker e funzionalita' PWA</h2>
+        <p class="mb-0">
+          StoreHub registra un service worker per supportare l'installazione come web app e migliorare la gestione
+          delle risorse statiche. Questa funzionalita' usa cache tecniche del browser e non ha finalita' di profilazione.
+        </p>
+      </section>
+
+      <section class="mb-4">
+        <h2 class="h5">4. Finalita' d'uso</h2>
+        <p class="mb-0">
+          Tutti gli strumenti descritti in questa pagina sono utilizzati esclusivamente per il corretto funzionamento
+          dell'applicazione, per migliorare l'usabilita' e per mantenere la sicurezza della sessione utente.
+        </p>
+      </section>
+
+      <section class="mb-4">
+        <h2 class="h5">5. Assenza di cookie di profilazione</h2>
+        <p class="mb-0">
+          In base alla configurazione applicativa attuale, StoreHub non utilizza cookie di marketing, pixel pubblicitari,
+          strumenti di analytics comportamentale o altri sistemi di tracciamento destinati alla profilazione dell'utente.
+        </p>
+      </section>
+
+      <section class="mb-0">
+        <h2 class="h5">6. Come gestire i cookie</h2>
+        <p class="mb-2">
+          I cookie tecnici possono essere gestiti o cancellati dalle impostazioni del browser. La loro disattivazione,
+          tuttavia, puo' compromettere login, navigazione e funzionamento di alcune funzioni dell'app.
+        </p>
+        <p class="text-muted small mb-0">
+          Ultimo aggiornamento: 3 luglio 2026.
+        </p>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}
