@@ -3,7 +3,7 @@
 {% block title %}{{ tr('cruscotto', 'monthly.title', 'Cruscotto - Analisi Mensile') }}{% endblock %}
 
 {% block head_extra %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/cruscotto_weekly_v1.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/cruscotto_weekly_v1.css') }}?v={{ app_build_version }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 {% endblock %}
 

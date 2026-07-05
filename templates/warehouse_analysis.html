@@ -3,7 +3,7 @@
 {% block title %}{{ tr('warehouse', 'analysis.title', 'Analisi') }}{% endblock %}
 
 {% block head_extra %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse_analysis_v1.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouse_analysis_v1.css') }}?v={{ app_build_version }}">
 {% endblock %}
 
 {% block content %}
@@ -166,6 +166,6 @@
       },
     };
   </script>
-  <script src="{{ url_for('static', filename='js/warehouse_analysis_v1.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/warehouse_analysis_v1.js') }}?v={{ app_build_version }}"></script>
 {% endblock %}
 

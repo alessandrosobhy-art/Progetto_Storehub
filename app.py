@@ -96,6 +96,7 @@ from cachelib.file import FileSystemCache
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_compress import Compress
 from ai_assistant_service import ask_storehub_assistant, openai_is_configured
 from versamenti_repository import search_versamenti_range_multi
 from admin_versamenti_finance_match_repository import (
@@ -164,6 +165,12 @@ except Exception:
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Compressione brotli/gzip delle risposte testuali (HTML/JSON/CSS/JS)
+Compress(app)
+# Cache lunga per gli statici: tutti i riferimenti nei template sono versionati
+# con ?v={{ app_build_version }}, quindi un deploy invalida la cache da solo.
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(days=30)
 register_controller_monitoring(
     app,
     app_name="fp",
