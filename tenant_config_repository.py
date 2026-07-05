@@ -2,9 +2,23 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Any, Dict, List
+import threading
+import time
+from typing import Any, Dict, List, Tuple
 
 from app_db import get_connection_sqlserver_database
+
+# Cache di processo per get_tenant: la config tenant veniva riletta da SQL Server
+# piu' volte per OGNI render di pagina (~265ms a query). Cambia di rado:
+# TTL breve + invalidazione esplicita sulle scritture.
+_TENANT_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+_TENANT_CACHE_LOCK = threading.Lock()
+_TENANT_CACHE_TTL_SECONDS = float(os.getenv("TENANT_CACHE_TTL_SECONDS", "300"))
+
+
+def invalidate_tenant_cache() -> None:
+    with _TENANT_CACHE_LOCK:
+        _TENANT_CACHE.clear()
 
 
 DB_NAME = os.getenv("STOREHUB_TENANT_DATABASE") or os.getenv("SQLSERVER_DATABASE") or os.getenv("SQLSERVER_DB") or "APP_STOREHUB"
@@ -309,8 +323,21 @@ SELECT TOP 1 tenant_key, display_name, database_name, is_active,
 
 
 def get_tenant(tenant_key: str | None = None) -> Dict[str, Any]:
-    ensure_tenant_schema()
     key = str(tenant_key or current_tenant_key()).strip() or current_tenant_key()
+    now = time.time()
+    with _TENANT_CACHE_LOCK:
+        entry = _TENANT_CACHE.get(key)
+    if entry and (now - entry[0]) < _TENANT_CACHE_TTL_SECONDS:
+        return dict(entry[1])
+    result = _get_tenant_uncached(key)
+    if isinstance(result, dict) and result:
+        with _TENANT_CACHE_LOCK:
+            _TENANT_CACHE[key] = (now, dict(result))
+    return result
+
+
+def _get_tenant_uncached(key: str) -> Dict[str, Any]:
+    ensure_tenant_schema()
     with _conn(read_only=True) as conn:
         cur = conn.cursor()
         cur.execute(
@@ -453,6 +480,7 @@ VALUES (?, ?, ?)
                 DB_NAME,
             )
         conn.commit()
+    invalidate_tenant_cache()
     return get_tenant(key)
 
 
@@ -579,6 +607,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 language_codes,
             )
         conn.commit()
+    invalidate_tenant_cache()
     return get_tenant(key)
 
 
@@ -599,6 +628,7 @@ UPDATE dbo.StoreHubTenants
         )
         ok = bool(cur.rowcount)
         conn.commit()
+    invalidate_tenant_cache()
     return ok
 
 
@@ -728,6 +758,7 @@ DELETE FROM dbo.StoreHubTenantStores
         )
         ok = bool(cur.rowcount)
         conn.commit()
+    invalidate_tenant_cache()
     return ok
 
 
@@ -970,6 +1001,7 @@ UPDATE dbo.StoreHubTenantModules
         )
         ok = bool(cur.rowcount)
         conn.commit()
+    invalidate_tenant_cache()
     return ok
 
 
@@ -1102,6 +1134,7 @@ UPDATE dbo.StoreHubTenantStorageRules
         )
         ok = bool(cur.rowcount)
         conn.commit()
+    invalidate_tenant_cache()
     return ok
 
 
@@ -1548,6 +1581,7 @@ UPDATE dbo.StoreHubTenantUsers
         )
         ok = bool(cur.rowcount)
         conn.commit()
+    invalidate_tenant_cache()
     return ok
 
 
@@ -1568,6 +1602,7 @@ DELETE FROM dbo.StoreHubTenantUsers
         )
         ok = bool(cur.rowcount)
         conn.commit()
+    invalidate_tenant_cache()
     return ok
 
 

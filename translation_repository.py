@@ -1,9 +1,23 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List
+import threading
+import time
+from typing import Any, Dict, List, Tuple
 
 from app_db import get_backend, get_connection, get_connection_sqlserver_database, get_storehub_database_name
+
+# Cache di processo per translation_map: la mappa completa (~1600 chiavi) veniva
+# ricaricata da SQL Server a OGNI render di pagina (~600ms). Le traduzioni
+# cambiano di rado: TTL breve + invalidazione esplicita sulle scritture.
+_MAP_CACHE: Dict[Tuple[str, str], Tuple[float, Dict[str, str]]] = {}
+_MAP_CACHE_LOCK = threading.Lock()
+_MAP_CACHE_TTL_SECONDS = float(os.getenv("TRANSLATION_CACHE_TTL_SECONDS", "300"))
+
+
+def invalidate_translation_cache() -> None:
+    with _MAP_CACHE_LOCK:
+        _MAP_CACHE.clear()
 
 
 SUPPORTED_LANGUAGES = [
@@ -1576,6 +1590,7 @@ VALUES (?, ?, ?, ?, ?, ?, 0)
                 (ns, key, code, source, value, 1 if code != "it" else 0),
             )
         conn.commit()
+        invalidate_translation_cache()
     finally:
         try:
             conn.close()
@@ -2652,6 +2667,7 @@ WHERE namespace = ? AND translation_key = ? AND language_code = ?
             _upsert_translation(conn, ns, key, lang, source, str(text_value or ""), auto=False, customized=False)
             changed += 1
         conn.commit()
+        invalidate_translation_cache()
         return changed
     finally:
         try:
@@ -2678,6 +2694,7 @@ def upsert_tenant_translation_keys(occurrences: List[Dict[str, str]], language_c
             _upsert_translation(conn, ns, key, lang, source, str(text_value or ""), auto=False, customized=True)
             changed += 1
         conn.commit()
+        invalidate_translation_cache()
         return changed
     finally:
         try:
@@ -2758,6 +2775,7 @@ def update_translation_key(namespace: str, translation_key: str, language_code: 
     try:
         _upsert_translation(conn, ns, key, lang, source, str(text_value or ""), auto=False, customized=not is_platform_base)
         conn.commit()
+        invalidate_translation_cache()
         return True
     finally:
         try:
@@ -2784,6 +2802,7 @@ WHERE row_uuid = ?
         )
         changed = int(cur.rowcount or 0)
         conn.commit()
+        invalidate_translation_cache()
         return changed > 0
     finally:
         try:
@@ -2829,6 +2848,7 @@ WHERE namespace = ? AND translation_key = ? AND language_code = ?
             value = str(values.get(code) or "").strip() or (source if code == "it" else _auto_translate(source, code))
             _upsert_translation(conn, ns, key, code, source, value, auto=(code != "it" and not values.get(code)), customized=True)
         conn.commit()
+        invalidate_translation_cache()
     finally:
         try:
             conn.close()
@@ -2854,6 +2874,7 @@ WHERE namespace = ? AND translation_key = ? AND language_code = ? AND customized
         )
         changed = int(cur.rowcount or 0)
         conn.commit()
+        invalidate_translation_cache()
         return changed > 0
     finally:
         try:
@@ -2864,6 +2885,16 @@ WHERE namespace = ? AND translation_key = ? AND language_code = ? AND customized
 
 def translation_map(language_code: str = "it") -> Dict[str, str]:
     lang = _lang(language_code)
+    try:
+        tenant_db = str(get_storehub_database_name() or "").strip().lower()
+    except Exception:
+        tenant_db = ""
+    cache_key = (tenant_db, lang)
+    now = time.time()
+    with _MAP_CACHE_LOCK:
+        entry = _MAP_CACHE.get(cache_key)
+    if entry and (now - entry[0]) < _MAP_CACHE_TTL_SECONDS:
+        return entry[1]
     rows = list_effective_translations(language_code=lang)
     out: Dict[str, str] = {}
     for r in rows:
@@ -2875,6 +2906,8 @@ def translation_map(language_code: str = "it") -> Dict[str, str]:
             value = _auto_translate(source, lang)
         out[key] = value
         out[_full_key(ns, key)] = value
+    with _MAP_CACHE_LOCK:
+        _MAP_CACHE[cache_key] = (now, out)
     return out
 
 

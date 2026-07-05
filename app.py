@@ -517,7 +517,9 @@ def _session():
     global _HTTP_SESSION
     if _HTTP_SESSION is None:
         s = requests.Session()
-        retries = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+        # total=2/backoff=0.5: con 5 retry e backoff 1s un errore transitorio di
+        # Supabase teneva bloccato un thread fino a ~30s per singola chiamata.
+        retries = Retry(total=2, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504])
         adapter = HTTPAdapter(max_retries=retries, pool_connections=20, pool_maxsize=20)
         s.mount('https://', adapter)
         s.mount('http://', adapter)
@@ -4437,6 +4439,13 @@ def _ai_store_fallback_from_session(user: dict | None = None) -> list[dict]:
     return fallback
 
 
+# Cache di processo per l'elenco store del pannello AI: veniva richiesto a
+# Supabase per OGNI render di pagina pur cambiando di rado. TTL breve.
+_AI_STORES_CACHE: dict[str, tuple[float, list]] = {}
+_AI_STORES_CACHE_LOCK = threading.Lock()
+_AI_STORES_CACHE_TTL_SECONDS = float(os.getenv('AI_STORES_CACHE_TTL_SECONDS', '180'))
+
+
 def _load_ai_available_stores_for_user(user: dict | None) -> list[dict]:
     user = user or {}
     user_key = str(user.get('uid') or user.get('email') or user.get('role') or 'anon').strip().lower() or 'anon'
@@ -4444,6 +4453,11 @@ def _load_ai_available_stores_for_user(user: dict | None) -> list[dict]:
     cached = _request_cache_get(cache_key, "__missing__")
     if cached != "__missing__":
         return cached or []
+    now = time.time()
+    with _AI_STORES_CACHE_LOCK:
+        entry = _AI_STORES_CACHE.get(user_key)
+    if entry and (now - entry[0]) < _AI_STORES_CACHE_TTL_SECONDS:
+        return _request_cache_set(cache_key, list(entry[1]))
     role_l = str(user.get('role') or '').strip().lower()
     try:
         if role_l == 'admin':
@@ -4461,6 +4475,8 @@ def _load_ai_available_stores_for_user(user: dict | None) -> list[dict]:
             continue
         seen.add(code)
         normalized.append({'code': code, 'name': name or code})
+    with _AI_STORES_CACHE_LOCK:
+        _AI_STORES_CACHE[user_key] = (now, list(normalized))
     return _request_cache_set(cache_key, normalized)
 
 # ----------------- Google Business API -----------------
