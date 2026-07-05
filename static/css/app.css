@@ -959,6 +959,22 @@ a:hover{
   --bs-btn-disabled-border-color: #8fa6be;
 }
 
+/* Bottone "brand": stessa palette dell'accent del tema attivo */
+.btn-brand{
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--app-accent);
+  --bs-btn-border-color: var(--app-accent);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--app-accent-strong);
+  --bs-btn-hover-border-color: var(--app-accent-strong);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--app-accent-strong);
+  --bs-btn-active-border-color: var(--app-accent-strong);
+  --bs-btn-disabled-color: #fff;
+  --bs-btn-disabled-bg: #8fa6be;
+  --bs-btn-disabled-border-color: #8fa6be;
+}
+
 .btn-outline-primary{
   --bs-btn-color: var(--app-accent-strong);
   --bs-btn-border-color: var(--app-border-strong);

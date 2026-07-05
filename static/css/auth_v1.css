@@ -1,0 +1,130 @@
+/* Pagine di autenticazione: login, recupero e reimpostazione password.
+   Si appoggia ai token di app.css (:root) per restare allineata al tema base. */
+
+body.auth-shell{
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  font-family: "Segoe UI Variable", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  letter-spacing: .01em;
+  color: var(--app-text);
+  background: #0b1e3a url('../img/SFONDO.jpg') no-repeat center / cover;
+}
+
+/* Velo scuro sopra l'illustrazione: migliora contrasto e leggibilità della card */
+body.auth-shell::before{
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10,22,44,.50), rgba(10,22,44,.26) 45%, rgba(10,22,44,.52));
+  pointer-events: none;
+}
+
+.auth-card{
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255,255,255,.97);
+  border: 1px solid rgba(255,255,255,.65);
+  border-radius: var(--app-radius-lg, 18px);
+  box-shadow: 0 20px 50px rgba(8,18,36,.38);
+}
+
+.auth-card__body{
+  padding: 2rem;
+}
+
+.auth-brand{
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: 1.5rem;
+}
+
+.auth-brand img{
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  box-shadow: var(--app-shadow-sm, 0 1px 2px rgba(15,23,42,.05));
+}
+
+.auth-brand__name{
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--app-heading);
+  line-height: 1.15;
+}
+
+.auth-brand__tag{
+  font-size: .78rem;
+  color: var(--app-text-muted);
+}
+
+.auth-title{
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--app-heading);
+  margin-bottom: .35rem;
+}
+
+.auth-subtitle{
+  font-size: .9rem;
+  color: var(--app-text-muted);
+  margin-bottom: 1.25rem;
+}
+
+.auth-links{
+  margin-top: 1.25rem;
+  text-align: center;
+  font-size: .9rem;
+}
+
+.auth-links a{
+  color: var(--app-link);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-links a:hover{
+  color: var(--app-link-hover);
+  text-decoration: underline;
+}
+
+.auth-footnote{
+  margin-top: 1rem;
+  text-align: center;
+  font-size: .78rem;
+  color: var(--app-text-muted);
+}
+
+.auth-footnote a{
+  color: var(--app-text-muted);
+  text-decoration: none;
+}
+
+.auth-footnote a:hover{
+  text-decoration: underline;
+}
+
+/* Toggle "mostra password" con icona SVG */
+.auth-pw-toggle{
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  color: var(--app-text-muted);
+}
+
+.auth-pw-toggle svg{
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 480px){
+  .auth-card__body{
+    padding: 1.5rem;
+  }
+}

@@ -51,3 +51,6 @@ secrets/
 
 # Local Azure helper files with secrets
 .azure-appsettings-*.txt
+
+# Config locale Claude Code
+.claude/

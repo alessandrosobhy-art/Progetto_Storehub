@@ -2,17 +2,24 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Accedi</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body{background:#0b1e3a url('{{ url_for('static', filename='img/SFONDO.jpg') }}?v={{ app_build_version }}') no-repeat center/cover; min-height:100vh;}
-    .card{background:rgba(255,255,255,.96);}
-  </style>
+  <title>Accedi · StoreHub</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/app-icons/favicon-20260429userlogos1.ico') }}?v={{ app_build_version }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v={{ app_build_version }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth_v1.css') }}?v={{ app_build_version }}">
 </head>
-<body class="d-flex align-items-center justify-content-center p-3">
-  <div class="card shadow-sm" style="max-width:420px; width:100%;">
-    <div class="card-body p-4">
-      <h1 class="h4 mb-3">Accedi</h1>
+<body class="auth-shell">
+  <div class="auth-card">
+    <div class="auth-card__body">
+      <div class="auth-brand">
+        <img src="{{ url_for('static', filename='img/app-icons/icon-180x180-20260429userlogos1.png') }}?v={{ app_build_version }}" alt="StoreHub">
+        <div>
+          <div class="auth-brand__name">StoreHub</div>
+          <div class="auth-brand__tag">Gestione punti vendita</div>
+        </div>
+      </div>
+      <div class="auth-title">Accedi</div>
+      <div class="auth-subtitle">Entra con le credenziali del tuo account.</div>
       {% with msgs = get_flashed_messages(with_categories=true) %}
         {% if msgs %}{% for c,m in msgs %}<div class="alert alert-{{ c }}">{{ m|safe }}</div>{% endfor %}{% endif %}
       {% endwith %}
@@ -20,19 +27,19 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mb-3">
           <label class="form-label">Email</label>
-          <input type="email" class="form-control" name="email" required>
+          <input type="email" class="form-control" name="email" autocomplete="username" required>
         </div>
         <div class="mb-3">
           <label class="form-label">Password</label>
-          <input type="password" class="form-control" name="password" required>
+          <input type="password" class="form-control" name="password" autocomplete="current-password" required>
         </div>
         <button class="btn btn-primary w-100">Accedi</button>
       </form>
-      <div class="text-center mt-3">
-        <a href="{{ url_for('forgot_password') }}" class="link-primary text-decoration-underline">Password dimenticata?</a>
+      <div class="auth-links">
+        <a href="{{ url_for('forgot_password') }}">Password dimenticata?</a>
       </div>
-      <div class="text-center mt-3 small">
-        <a href="{{ url_for('cookie_policy') }}" class="link-secondary text-decoration-none">Cookie Policy</a>
+      <div class="auth-footnote">
+        <a href="{{ url_for('cookie_policy') }}">Cookie Policy</a>
       </div>
     </div>
   </div>
