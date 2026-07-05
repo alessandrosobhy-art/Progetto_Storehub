@@ -17,6 +17,7 @@
         {% if msgs %}{% for c,m in msgs %}<div class="alert alert-{{ c }}">{{ m|safe }}</div>{% endfor %}{% endif %}
       {% endwith %}
       <form method="post" action="{{ url_for('login_post', next=request.args.get('next')) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mb-3">
           <label class="form-label">Email</label>
           <input type="email" class="form-control" name="email" required>

@@ -91,6 +91,11 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_session import Session
+from cachelib.file import FileSystemCache
+from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from ai_assistant_service import ask_storehub_assistant, openai_is_configured
 from versamenti_repository import search_versamenti_range_multi
 from admin_versamenti_finance_match_repository import (
@@ -263,6 +268,59 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # In production behind HTTPS (Render), this should be True.
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', '1') == '1'
 app.config['PREFERRED_URL_SCHEME'] = 'https'
+
+# ---- Sessioni server-side (Flask-Session) ----
+# Il cookie contiene solo l'ID di sessione: i dati (sb_token, profile_cache, tenant)
+# restano sul server. Evita cookie oltre i 4KB (che i browser scartano in silenzio)
+# e non espone il JWT Supabase nel cookie firmato-ma-non-cifrato di Flask.
+_session_dir = os.getenv('SESSION_FILE_DIR') or os.path.join(_BASE_DIR, 'tmp', 'flask_session')
+os.makedirs(_session_dir, exist_ok=True)
+app.config['SESSION_TYPE'] = 'cachelib'
+app.config['SESSION_CACHELIB'] = FileSystemCache(cache_dir=_session_dir, threshold=5000)
+app.config['SESSION_PERMANENT'] = True
+Session(app)
+
+# ---- CSRF ----
+app.config['WTF_CSRF_TIME_LIMIT'] = None   # il token vale quanto la sessione
+app.config['WTF_CSRF_SSL_STRICT'] = False  # niente check sul Referer: basta il token
+csrf = CSRFProtect(app)
+
+
+@app.errorhandler(CSRFError)
+def _handle_csrf_error(e):
+    accept = request.headers.get('Accept') or ''
+    content_type = request.headers.get('Content-Type') or ''
+    wants_json = (
+        'application/json' in accept
+        or content_type.startswith('application/json')
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    )
+    if wants_json:
+        return jsonify(error='csrf', message='Sessione non valida: ricarica la pagina e riprova.'), 400
+    flash('La sessione è scaduta o il modulo non è più valido: riprova.', 'warning')
+    ref = request.referrer or ''
+    if ref.startswith(request.host_url):
+        return redirect(ref)
+    return redirect(url_for('login'))
+
+
+# ---- Rate limiting ----
+# Storage in-memory: con più worker ogni processo conta per sé (limite effettivo
+# = limite x n. worker), sufficiente contro il brute force sul login.
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri='memory://',
+)
+
+
+@app.errorhandler(429)
+def _handle_rate_limit(e):
+    if request.path == '/login':
+        flash('Troppi tentativi di accesso: riprova tra qualche minuto.', 'warning')
+        return render_template('login.html'), 429
+    return jsonify(error='rate_limit', message='Troppe richieste: riprova tra qualche minuto.'), 429
 
 
 @app.after_request
@@ -444,7 +502,9 @@ except Exception:
     log = logging.getLogger('app')
 
 # ----------------- HTTP session -----------------
-_HTTP_SESSION: requests.Session | None = None
+# Annotazione tra virgolette: sitecustomize.py può sostituire requests.Session
+# con una factory (funzione), e "funzione | None" a runtime solleva TypeError.
+_HTTP_SESSION: "requests.Session | None" = None
 
 def _session():
     global _HTTP_SESSION
@@ -4621,6 +4681,7 @@ def login():
     return render_template('login.html')
 
 @app.post('/login')
+@limiter.limit('10 per minute; 60 per hour')
 def login_post():
     email = (request.form.get('email') or '').strip().lower()
     password = request.form.get('password') or ''
@@ -4862,6 +4923,7 @@ def forgot_password():
     return render_template('forgot_password.html')
 
 @app.post('/auth/forgot')
+@limiter.limit('5 per minute; 20 per hour')
 def forgot_password_post():
     email = (request.form.get('email') or '').strip().lower()
     if not email:
@@ -4881,6 +4943,7 @@ def reset_password():
     return render_template('reset_password.html')
 
 @app.post('/auth/reset')
+@limiter.limit('10 per minute; 30 per hour')
 def reset_password_post():
     token = (request.form.get('token') or '').strip()
     new_password = (request.form.get('new_password') or '').strip()

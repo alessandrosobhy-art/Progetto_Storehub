@@ -69,6 +69,7 @@
 
   {% if survey.is_active and survey.link_active %}
   <form method="post" class="survey-band">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% for q in survey.questions %}
     <div class="survey-question">
       <label class="form-label fw-semibold">{{ q.text }}</label>

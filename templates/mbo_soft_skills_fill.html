@@ -113,6 +113,7 @@
   {% endif %}
 
   <form method="post" class="mbo-survey-band">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="row g-3 mb-3">
       <div class="col-md-4">
         <label class="form-label">Nome e cognome</label>
