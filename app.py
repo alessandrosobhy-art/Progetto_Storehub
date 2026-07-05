@@ -246,14 +246,15 @@ def _guard_modules_by_blueprint():
     return None
 
 # ---- Security defaults ----
-# Stronger secret key default for dev if no configured secret is available.
+# La secret key DEVE essere configurata: un fallback generato a runtime produce
+# chiavi diverse per ogni worker/riavvio, invalidando le sessioni in modo casuale.
 # Azure/App Service setups may use either FLASK_SECRET or FLASK_SECRET_KEY.
 _flask_secret = os.getenv('FLASK_SECRET') or os.getenv('FLASK_SECRET_KEY')
 if not _flask_secret:
-    try:
-        _flask_secret = os.urandom(32)
-    except Exception:
-        _flask_secret = 'change-me-please'
+    raise RuntimeError(
+        "FLASK_SECRET (o FLASK_SECRET_KEY) non configurata: impostala nel file .env "
+        "o nelle App Settings di Azure prima di avviare l'applicazione."
+    )
 app.secret_key = _flask_secret
 
 # Harden session cookie
@@ -262,6 +263,19 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # In production behind HTTPS (Render), this should be True.
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', '1') == '1'
 app.config['PREFERRED_URL_SCHEME'] = 'https'
+
+
+@app.after_request
+def _apply_security_headers(response):
+    # setdefault: consente a singole route di sovrascrivere un header se necessario.
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    if request.is_secure:
+        response.headers.setdefault(
+            'Strict-Transport-Security', 'max-age=31536000; includeSubDomains'
+        )
+    return response
 
 
 def _is_truthy_env(value: str | None, default: bool = False) -> bool:
@@ -9224,7 +9238,7 @@ def calendar_page():
 def _sb_get(path, token, params=None):
     url = f"{SUPABASE_URL}/rest/v1/{path}"
     h = _sb_headers(token, is_json=False)
-    return _session().get(url, headers=h, params=params or {})
+    return _session().get(url, headers=h, params=params or {}, timeout=20)
 
 def _sb_upsert(path, token, json_body, on_conflict=None):
     url = f"{SUPABASE_URL}/rest/v1/{path}"
@@ -9232,7 +9246,7 @@ def _sb_upsert(path, token, json_body, on_conflict=None):
     if on_conflict:
         url += f"?on_conflict={on_conflict}"
         h['Prefer'] = 'resolution=merge-duplicates'
-    return _session().post(url, headers=h, json=json_body)
+    return _session().post(url, headers=h, json=json_body, timeout=20)
 
 def _sb_delete(path, token, params=None):
     url = f"{SUPABASE_URL}/rest/v1/{path}"
