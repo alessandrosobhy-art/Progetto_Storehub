@@ -4974,6 +4974,10 @@ def login_post():
         return redirect(nxt)
     except Exception as e:
         logging.exception("Login fallito")
+        # Un login fallito non deve lasciare una sessione parzialmente scritta
+        # (uid/token settati ma flusso interrotto): ripulisci per evitare uno
+        # stato "mezzo autenticato" che confonderebbe il redirect successivo.
+        session.clear()
         flash(_friendly_login_error(e), 'danger')
         return redirect(url_for('login', next=_safe_next_url(nxt)))
 
