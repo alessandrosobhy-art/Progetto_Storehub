@@ -84,10 +84,27 @@ def get_backend() -> str:
     return "access"
 
 
+class TenantDatabaseNotConfigured(RuntimeError):
+    """Un tenant secondario è attivo ma non ha un database_name configurato.
+
+    Ripiegare sul database del tenant principale contaminerebbe i dati di un
+    altro cliente (data breach): si preferisce fallire in modo esplicito.
+    """
+
+    def __init__(self, tenant_key: str):
+        self.tenant_key = tenant_key
+        super().__init__(f"Tenant '{tenant_key}' senza database_name configurato")
+
+
 def get_storehub_database_name() -> str:
     override = str(_STOREHUB_DATABASE_OVERRIDE.get() or "").strip()
     if override:
         return override
+
+    default_key = (os.getenv("STOREHUB_TENANT_KEY") or "default").strip().lower() or "default"
+    # tenant secondario attivo ma privo di database proprio: da bloccare (vedi sotto)
+    unconfigured_tenant_key = ""
+
     try:
         from flask import has_request_context, session
 
@@ -106,8 +123,23 @@ def get_storehub_database_name() -> str:
                         return db_name
                 except Exception:
                     log_swallowed('app_db:107')
+                # Master che amministra un tenant senza DB: non ripiegare sul principale.
+                unconfigured_tenant_key = master_tenant_key
+            else:
+                tenant_key = str(session.get("tenant_key") or "").strip()
+                if tenant_key and tenant_key.lower() != default_key:
+                    # Tenant secondario in sessione senza database: non ripiegare.
+                    unconfigured_tenant_key = tenant_key
     except Exception:
         log_swallowed('app_db:109')
+
+    # La raise è FUORI dal try/except sopra: non deve essere inghiottita, altrimenti
+    # si tornerebbe a ripiegare silenziosamente sul database principale.
+    if unconfigured_tenant_key:
+        raise TenantDatabaseNotConfigured(unconfigured_tenant_key)
+
+    # Nessun tenant secondario attivo: il tenant principale (o i job senza contesto
+    # richiesta) usano legittimamente il database di default.
     return (
         os.getenv("STOREHUB_TENANT_DATABASE")
         or os.getenv("SQLSERVER_DATABASE")

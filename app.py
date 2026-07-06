@@ -66,7 +66,7 @@ from admin_labor_cost_repository import (
     import_employee_configs_csv as labor_cost_import_employee_configs_csv,
     projection_test as labor_cost_projection_test,
 )
-from app_db import get_connection, get_storehub_database_name, storehub_database_context
+from app_db import get_connection, get_storehub_database_name, storehub_database_context, TenantDatabaseNotConfigured
 from warehouse import warehouse_bp
 from rendiconto import rendiconto_bp
 from orari import orari_bp
@@ -316,6 +316,22 @@ Session(app)
 app.config['WTF_CSRF_TIME_LIMIT'] = None   # il token vale quanto la sessione
 app.config['WTF_CSRF_SSL_STRICT'] = False  # niente check sul Referer: basta il token
 csrf = CSRFProtect(app)
+
+
+@app.errorhandler(TenantDatabaseNotConfigured)
+def _handle_tenant_db_not_configured(e):
+    # Difesa di isolamento: un tenant secondario senza database proprio non deve
+    # ripiegare sul DB principale. Meglio un errore chiaro che una contaminazione.
+    current_app.logger.error("Accesso bloccato: %s", e)
+    try:
+        session.clear()
+    except Exception:
+        log_swallowed('app:tenant_db_handler')
+    if request.path.startswith('/api') or (request.headers.get('Accept') or '').find('application/json') >= 0:
+        return jsonify(error='tenant_not_configured',
+                       message="Configurazione del tenant incompleta. Contatta l'amministratore."), 503
+    flash("Configurazione del tenant incompleta: contatta l'amministratore.", "danger")
+    return redirect(url_for('login'))
 
 
 @app.errorhandler(CSRFError)
@@ -4896,6 +4912,15 @@ def login_post():
             if not tenant:
                 session.clear()
                 flash("Utente non associato ad alcun tenant attivo.", "danger")
+                return redirect(url_for('login'))
+            _default_key = str(os.getenv("STOREHUB_TENANT_KEY") or "default").strip().lower() or "default"
+            _tk = str(tenant.get("tenant_key") or "").strip()
+            if _tk and _tk.lower() != _default_key and not str(tenant.get("database_name") or "").strip():
+                # Tenant secondario senza database proprio: non far entrare (i suoi dati
+                # finirebbero sul DB del tenant principale). Blocco esplicito e chiaro.
+                current_app.logger.error("Login rifiutato: tenant '%s' senza database_name", _tk)
+                session.clear()
+                flash("Configurazione del tenant incompleta: contatta l'amministratore.", "danger")
                 return redirect(url_for('login'))
             _apply_tenant_to_session(tenant)
 
