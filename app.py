@@ -345,17 +345,26 @@ def _handle_csrf_error(e):
 # ---- Rate limiting ----
 # Storage in-memory: con più worker ogni processo conta per sé (limite effettivo
 # = limite x n. worker), sufficiente contro il brute force sul login.
+# Fidarsi di CF-Connecting-IP SOLO se il traffico passa davvero dentro Cloudflare
+# (modalità proxy/orange cloud). Con Cloudflare in sola modalità DNS e l'app
+# esposta direttamente su Azure, quell'header è impostabile da chiunque: fidarsene
+# permetterebbe di aggirare il rate-limit cambiandolo a ogni richiesta.
+# Attivare TRUST_CF_CONNECTING_IP=1 solo se si rimette Cloudflare come proxy.
+_TRUST_CF_IP = str(os.getenv('TRUST_CF_CONNECTING_IP', '0')).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 def _rate_limit_key() -> str:
     """IP reale del client per il rate-limit.
 
-    Dietro Cloudflare, ``CF-Connecting-IP`` contiene il vero IP del client ed è
-    impostato dal proxy (non falsificabile per il traffico che transita da CF).
-    In assenza (accesso diretto ad Azure), si ripiega su remote_addr corretto da
-    ProxyFix. Senza questo, tutti gli utenti condividerebbero un unico bucket.
+    Default (app diretta su Azure): l'IP viene da X-Forwarded-For impostato dalla
+    piattaforma e letto da ProxyFix -> remote_addr (non falsificabile: lo scrive
+    Azure). CF-Connecting-IP viene usato solo se TRUST_CF_CONNECTING_IP è attivo,
+    cioè quando Cloudflare è realmente in mezzo e lo imposta lui.
     """
-    cf_ip = (request.headers.get('CF-Connecting-IP') or '').strip()
-    if cf_ip:
-        return cf_ip
+    if _TRUST_CF_IP:
+        cf_ip = (request.headers.get('CF-Connecting-IP') or '').strip()
+        if cf_ip:
+            return cf_ip
     return get_remote_address()
 
 
