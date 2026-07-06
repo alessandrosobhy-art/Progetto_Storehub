@@ -9,11 +9,17 @@
   const NAV_STORAGE_KEY = 'storehubNavLoading';
   const NAV_STORAGE_TTL_MS = 15000;
   const PRESS_CLASS = 'is-pressing';
+  // Watchdog di sicurezza: se dopo una navigazione/submit la pagina è ancora qui
+  // (tipico dei download di file, che non cambiano pagina), l'overlay resterebbe
+  // appeso per sempre. Dopo questo tempo lo forziamo giù. Copre ogni esportazione,
+  // nota e futura, senza doverle marcare una a una.
+  const NAV_WATCHDOG_MS = 12000;
 
   let overlayEl = null;
   let msgEl = null;
   let pending = 0;
   let showTimer = null;
+  let navWatchdog = null;
   let navRestoreVisible = false;
   let rememberedNavigationActive = Boolean(window.__storehubBootNavigation);
   const i18n = window.StoreHubI18n || {};
@@ -78,6 +84,36 @@
     setMessage(defaultLoading);
   }
 
+  function forceHide() {
+    // Reset completo: usato dal watchdog quando l'overlay rischia di restare
+    // appeso (download/file che non cambiano pagina, richieste bloccate).
+    pending = 0;
+    if (showTimer) { window.clearTimeout(showTimer); showTimer = null; }
+    if (ensureElements()) {
+      overlayEl.classList.remove('show');
+      document.body.classList.remove('loading-overlay-open');
+      setMessage(defaultLoading);
+    }
+  }
+
+  function clearNavWatchdog() {
+    if (navWatchdog) { window.clearTimeout(navWatchdog); navWatchdog = null; }
+  }
+
+  function armNavWatchdog() {
+    clearNavWatchdog();
+    navWatchdog = window.setTimeout(function () {
+      navWatchdog = null;
+      // Se la pagina è ancora visibile, la navigazione non è avvenuta (era un
+      // download o una richiesta bloccata): togli l'overlay per non lasciarlo su.
+      try {
+        if (document.visibilityState === 'visible') {
+          forceHide();
+        }
+      } catch (_) {}
+    }, NAV_WATCHDOG_MS);
+  }
+
   // Expose small API for pages that want manual control
   window.loadingOverlay = {
     push: show,
@@ -109,6 +145,7 @@
     rememberedNavigationActive = false;
     window.__storehubBootNavigation = false;
     document.documentElement.classList.remove('storehub-page-loading');
+    clearNavWatchdog();
   }
 
   function beginNavigationLoad(message) {
@@ -116,6 +153,7 @@
     rememberedNavigationActive = true;
     window.__storehubBootNavigation = true;
     document.documentElement.classList.add('storehub-page-loading');
+    armNavWatchdog();
     showNow(message || defaultLoading);
   }
 
@@ -190,6 +228,8 @@
       showNow(lastMessage || defaultLoading);
       document.documentElement.classList.add('storehub-page-loading');
       document.body.classList.add('loading-overlay-open');
+      // Backstop: se è un download (pagina non cambia), il watchdog lo toglie.
+      armNavWatchdog();
 
       window.setTimeout(function () {
         try {

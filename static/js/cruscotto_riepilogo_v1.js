@@ -407,12 +407,26 @@
     }
   }
 
+  function triggerDownload(url) {
+    // Scarica via <a download> invece di window.location: non cambia pagina e
+    // l'overlay di caricamento lo ignora (niente spinner appeso sui download).
+    const a = document.createElement("a");
+    a.href = url;
+    a.setAttribute("download", "");
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    window.setTimeout(function () {
+      try { document.body.removeChild(a); } catch (_) {}
+    }, 0);
+  }
+
   function downloadExcel() {
     const month = String(monthPicker.value || "").trim();
     if (!month) return;
     const u = new URL(exportUrl, window.location.origin);
     u.searchParams.set("month", month);
-    window.location.href = u.toString();
+    triggerDownload(u.toString());
   }
 
   function downloadExcelDaily() {
@@ -420,7 +434,7 @@
     if (!month) return;
     const u = new URL(exportDailyUrl, window.location.origin);
     u.searchParams.set("month", month);
-    window.location.href = u.toString();
+    triggerDownload(u.toString());
   }
 
   function onMonthChanged() {
