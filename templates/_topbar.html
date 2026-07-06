@@ -53,6 +53,15 @@
 {% set is_master_user = user and (user.is_master or role_l == 'master') %}
 {% set show_admin_menu = user and (role_l == 'admin' or (is_master_user and master_can_admin_active)) %}
 {% set _endpoint = request.endpoint or '' %}
+{% set is_master_managed_admin_endpoint = _endpoint in [
+  'admin_distinta_cassa_config',
+  'admin_ipratico_config',
+  'admin_delivery_providers',
+  'admin_historical_daily_sales_import',
+  'admin_fabbisogno_sites',
+  'admin_finance_store_map',
+  'admin_costo_lavoro_test_page'
+] %}
 {% set active_code = session.get('store_code') %}
 {% set active_name = session.get('store_name') %}
 {% set is_admin_section = _endpoint.startswith('admin_')
@@ -81,7 +90,7 @@
   {% set desktop_section_title = tr('navigation', 'nav.estrazioni', 'Estrazioni') %}
 {% elif request.endpoint and (request.endpoint == 'estrazioni.scheduling' or request.endpoint == 'estrazioni.verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto_export_xlsx' or request.endpoint == 'estrazioni.finance' or request.endpoint == 'rendiconto.riepilogo' or request.endpoint == 'admin_versamenti_finance_match_test' or request.endpoint == 'admin_versamenti_finance_match_test_save' or request.endpoint == 'admin_pos_finance_match_test' or request.endpoint == 'admin_pos_finance_match_test_save') %}
   {% set desktop_section_title = tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') %}
-{% elif request.endpoint and request.endpoint.startswith('master_') %}
+{% elif (request.endpoint and request.endpoint.startswith('master_')) or (is_master_user and is_master_managed_admin_endpoint) %}
   {% set desktop_section_title = tr('navigation', 'nav.master', 'Master') %}
 {% elif is_admin_section %}
   {% set desktop_section_title = tr('navigation', 'nav.admin', 'Admin') %}
@@ -228,6 +237,7 @@
           {{ tr('common', 'no_store_selected', 'Nessuno store selezionato') }}
         {% endif %}
       </div>
+      <div class="app-desktop-rail__store-mini" aria-hidden="true">{{ nav_icon('home') }}</div>
     </div>
     {% endif %}
     <nav class="app-desktop-rail__nav" aria-label="Navigazione principale desktop">
@@ -265,10 +275,10 @@
       <a class="app-desktop-rail__link{% if request.endpoint and (request.endpoint == 'estrazioni.scheduling' or request.endpoint == 'estrazioni.verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto' or request.endpoint == 'estrazioni.api_verifica_rendiconto_export_xlsx' or request.endpoint == 'estrazioni.finance' or request.endpoint == 'rendiconto.riepilogo' or request.endpoint == 'admin_versamenti_finance_match_test' or request.endpoint == 'admin_versamenti_finance_match_test_save') %} active{% endif %}" href="{{ url_for('estrazioni.scheduling') }}" title="{{ tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') }}"><span class="app-nav__icon">{{ nav_icon('estrazioni_hq') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.estrazioni_hq', 'Estrazioni HQ') }}</span></a>
       {% endif %}
       {% if is_master_user %}
-      <a class="app-desktop-rail__link{% if request.endpoint and request.endpoint.startswith('master_') %} active{% endif %}" href="{{ url_for('master_tenants') }}" title="{{ tr('navigation', 'nav.master', 'Master') }}"><span class="app-nav__icon">{{ nav_icon('master') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.master', 'Master') }}</span></a>
+      <a class="app-desktop-rail__link{% if (request.endpoint and request.endpoint.startswith('master_')) or (is_master_user and is_master_managed_admin_endpoint) %} active{% endif %}" href="{{ url_for('master_tenants') }}" title="{{ tr('navigation', 'nav.master', 'Master') }}"><span class="app-nav__icon">{{ nav_icon('master') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.master', 'Master') }}</span></a>
       {% endif %}
       {% if show_admin_menu %}
-      <a class="app-desktop-rail__link{% if is_admin_section %} active{% endif %}" href="{{ url_for('admin_users') }}" title="{{ tr('navigation', 'nav.admin', 'Admin') }}"><span class="app-nav__icon">{{ nav_icon('admin') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.admin', 'Admin') }}</span></a>
+      <a class="app-desktop-rail__link{% if is_admin_section and not (is_master_user and is_master_managed_admin_endpoint) %} active{% endif %}" href="{{ url_for('admin_users') }}" title="{{ tr('navigation', 'nav.admin', 'Admin') }}"><span class="app-nav__icon">{{ nav_icon('admin') }}</span><span class="app-desktop-rail__label">{{ tr('navigation', 'nav.admin', 'Admin') }}</span></a>
       {% endif %}
     </nav>
   </aside>
@@ -277,7 +287,42 @@
     <div class="app-desktop-sectionbar__title">{{ desktop_section_title }}</div>
     <button type="button" class="app-desktop-sectionbar__scroll" id="desktopSectionPrev" aria-label="Scorri sezioni a sinistra">&lsaquo;</button>
     <div class="app-desktop-sectionbar__track" id="desktopSectionTrack">
-      {% if request.endpoint and request.endpoint.startswith('cruscotto.') %}
+      {% if (request.endpoint and request.endpoint.startswith('master_')) or (is_master_user and is_master_managed_admin_endpoint) %}
+      {% set is_master_home = request.endpoint == 'master_home' %}
+      {% set is_master_wizard = request.endpoint == 'master_tenant_wizard' %}
+      {% set is_master_tenants = request.endpoint == 'master_tenants' %}
+      {% set is_master_assignments = request.endpoint == 'master_tenant_assignments' %}
+      {% set is_master_users = request.endpoint == 'master_users' %}
+      {% set is_master_admin_tenant = request.endpoint == 'master_admin_tenant_select' %}
+      {% set is_master_translations = request.endpoint == 'master_translations' %}
+      {% set is_master_orari_config = request.endpoint == 'master_orari_config' %}
+      {% set is_master_mobipos = request.endpoint == 'master_mobipos_test' %}
+      {% set is_master_offer_plan = request.endpoint == 'master_offer_plan_test' %}
+      {% set is_master_cash_config = request.endpoint == 'admin_distinta_cassa_config' %}
+      {% set is_master_ipratico_config = request.endpoint == 'admin_ipratico_config' %}
+      {% set is_master_delivery_config = request.endpoint == 'admin_delivery_providers' %}
+      {% set is_master_historical_import = request.endpoint == 'admin_historical_daily_sales_import' %}
+      {% set is_master_fabbisogno = request.endpoint == 'admin_fabbisogno_sites' %}
+      {% set is_master_finance_map = request.endpoint == 'admin_finance_store_map' %}
+      {% set is_master_costo_test = request.endpoint == 'admin_costo_lavoro_test_page' %}
+      <a class="app-desktop-sectionbar__link{% if is_master_home %} active{% endif %}" href="{{ url_for('master_home') }}">{{ tr('navigation', 'nav.master', 'Master') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_wizard %} active{% endif %}" href="{{ url_for('master_tenant_wizard') }}">{{ tr('navigation', 'master.wizard', 'Wizard nuovo tenant') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_tenants %} active{% endif %}" href="{{ url_for('master_tenants') }}">{{ tr('navigation', 'master.tenants', 'Tenant') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_assignments %} active{% endif %}" href="{{ url_for('master_tenant_assignments') }}">{{ tr('navigation', 'master.assignments', 'Assegnazioni tenant') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_users %} active{% endif %}" href="{{ url_for('master_users') }}">{{ tr('navigation', 'master.users', 'Utenti master') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_admin_tenant %} active{% endif %}" href="{{ url_for('master_admin_tenant_select') }}">{{ tr('navigation', 'master.admin_tenant', 'Admin tenant') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_translations %} active{% endif %}" href="{{ url_for('master_translations') }}">{{ tr('navigation', 'master.translations', 'Traduzioni') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_orari_config %} active{% endif %}" href="{{ url_for('master_orari_config') }}">{{ tr('navigation', 'master.orari_config', 'Configurazione orari') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_cash_config %} active{% endif %}" href="{{ url_for('admin_distinta_cassa_config') }}">{{ tr('navigation', 'master.cash_config', 'Configurazione distinta cassa') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_ipratico_config %} active{% endif %}" href="{{ url_for('admin_ipratico_config') }}">{{ tr('navigation', 'master.ipratico_config', 'Configurazione iPratico') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_delivery_config %} active{% endif %}" href="{{ url_for('admin_delivery_providers') }}">{{ tr('navigation', 'master.delivery_config', 'Configurazione delivery') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_historical_import %} active{% endif %}" href="{{ url_for('admin_historical_daily_sales_import') }}">{{ tr('navigation', 'master.historical_import', 'Import storico giornaliero') }}</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_fabbisogno %} active{% endif %}" href="{{ url_for('admin_fabbisogno_sites') }}">Estrazioni: Fabbisogno per store</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_finance_map %} active{% endif %}" href="{{ url_for('admin_finance_store_map') }}">Finance: mappatura store</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_costo_test %} active{% endif %}" href="{{ url_for('admin_costo_lavoro_test_page') }}">Costo lavoro (test)</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_mobipos %} active{% endif %}" href="{{ url_for('master_mobipos_test') }}">Test Mobipos</a>
+      <a class="app-desktop-sectionbar__link{% if is_master_offer_plan %} active{% endif %}" href="{{ url_for('master_offer_plan_test') }}">Piano offerta e fogli produzione</a>
+      {% elif request.endpoint and request.endpoint.startswith('cruscotto.') %}
       {% set is_weekly = request.path.startswith('/cruscotto/analisi-settimanale') %}
       {% set is_kpi_weekly = request.path.startswith('/cruscotto/analisi-kpi-settimanale') %}
       {% set is_monthly = request.path.startswith('/cruscotto/analisi-mensile') %}

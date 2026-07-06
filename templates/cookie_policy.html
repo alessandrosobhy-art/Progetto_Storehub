@@ -1,4 +1,5 @@
-{% extends "base.html" %}
+{# Prima del login usa il layout pubblico: base.html disegna la shell dell'app #}
+{% extends "base.html" if user else "public_base.html" %}
 {% block title %}Cookie Policy{% endblock %}
 {% block content %}
 <div class="container py-4" style="max-width: 960px;">

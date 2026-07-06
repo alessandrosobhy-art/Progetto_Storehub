@@ -2894,7 +2894,8 @@ def translation_map(language_code: str = "it") -> Dict[str, str]:
     with _MAP_CACHE_LOCK:
         entry = _MAP_CACHE.get(cache_key)
     if entry and (now - entry[0]) < _MAP_CACHE_TTL_SECONDS:
-        return entry[1]
+        # Copia difensiva: il dict in cache è condiviso tra thread/richieste.
+        return dict(entry[1])
     rows = list_effective_translations(language_code=lang)
     out: Dict[str, str] = {}
     for r in rows:
@@ -2907,7 +2908,7 @@ def translation_map(language_code: str = "it") -> Dict[str, str]:
         out[key] = value
         out[_full_key(ns, key)] = value
     with _MAP_CACHE_LOCK:
-        _MAP_CACHE[cache_key] = (now, out)
+        _MAP_CACHE[cache_key] = (now, dict(out))
     return out
 
 

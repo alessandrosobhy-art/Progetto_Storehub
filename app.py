@@ -130,7 +130,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.06.1"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.06.2"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
@@ -4448,7 +4448,15 @@ _AI_STORES_CACHE_TTL_SECONDS = float(os.getenv('AI_STORES_CACHE_TTL_SECONDS', '1
 
 def _load_ai_available_stores_for_user(user: dict | None) -> list[dict]:
     user = user or {}
-    user_key = str(user.get('uid') or user.get('email') or user.get('role') or 'anon').strip().lower() or 'anon'
+    # La chiave include il tenant: un master che cambia tenant non deve vedere
+    # gli store del tenant precedente per la durata del TTL.
+    try:
+        session_tenant = session.get('tenant_key') or session.get('master_admin_tenant_key')
+    except Exception:
+        session_tenant = None
+    tenant_part = str(user.get('tenant_key') or session_tenant or 'default').strip().lower() or 'default'
+    user_part = str(user.get('uid') or user.get('email') or user.get('role') or 'anon').strip().lower() or 'anon'
+    user_key = f"{tenant_part}|{user_part}"
     cache_key = f"_storehub_ai_available_stores_{user_key}"
     cached = _request_cache_get(cache_key, "__missing__")
     if cached != "__missing__":

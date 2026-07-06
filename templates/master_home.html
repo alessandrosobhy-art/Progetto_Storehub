@@ -14,10 +14,12 @@
         <div class="card-body">
           <h2 class="h6">Piattaforma</h2>
           <div class="list-group list-group-flush">
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_home') }}">Panoramica master</a>
             <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenant_wizard') }}">Wizard nuovo tenant</a>
             <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenants') }}">Dashboard tenant</a>
             <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenant_assignments') }}">Assegnazioni tenant</a>
             <a class="list-group-item list-group-item-action" href="{{ url_for('master_users') }}">Utenti master</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('master_admin_tenant_select') }}">Admin tenant</a>
             <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenants', section='modules') }}">Moduli tenant</a>
             <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenants', section='users') }}">Utenti tenant</a>
             <a class="list-group-item list-group-item-action" href="{{ url_for('master_tenants', section='stores') }}">Store tenant</a>

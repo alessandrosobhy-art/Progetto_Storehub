@@ -597,6 +597,25 @@ a:hover{
     word-break: break-word;
   }
 
+  /* Chip compatto dello store attivo: visibile solo a rail collassata */
+  .app-desktop-rail__store-mini{
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-inline: auto;
+    border-radius: 12px;
+    background: var(--app-accent-soft);
+    color: var(--app-accent-strong);
+    border: 1px solid var(--app-border);
+  }
+
+  .app-desktop-rail__store-mini svg{
+    width: 20px;
+    height: 20px;
+  }
+
   .app-desktop-rail__toggle{
     width: 40px;
     height: 40px;
@@ -797,13 +816,26 @@ a:hover{
     padding-inline: 6px;
   }
 
+  /* Collassata: il link diventa un quadrato centrato attorno all'icona,
+     così l'evidenziazione della voce attiva è un riquadro simmetrico. */
   body.app-shell.app-shell--rail-collapsed .app-desktop-rail__link{
-    width: 100%;
-    min-height: 38px;
+    width: 40px;
+    min-height: 40px;
+    margin-inline: auto;
     border-radius: 12px;
-    grid-template-columns: 28px 0;
+    grid-template-columns: 28px;
     column-gap: 0;
-    padding-inline: 10px;
+    padding: 0;
+    justify-content: center;
+    justify-items: center;
+  }
+
+  body.app-shell.app-shell--rail-collapsed .app-desktop-rail__link .app-nav__icon{
+    justify-self: center;
+  }
+
+  body.app-shell.app-shell--rail-collapsed .app-desktop-rail__top{
+    justify-content: center;
   }
 
   body.app-shell.app-shell--rail-collapsed .app-desktop-rail__toggle-icon{
@@ -814,8 +846,20 @@ a:hover{
     display: none;
   }
 
+  /* Collassata: lo store attivo resta visibile come chip compatto (tooltip
+     con il nome completo), mantenendo la stessa posizione verticale dei link. */
   body.app-shell.app-shell--rail-collapsed .app-desktop-rail__store{
+    padding: 0;
+    align-items: center;
+  }
+
+  body.app-shell.app-shell--rail-collapsed .app-desktop-rail__store-kicker,
+  body.app-shell.app-shell--rail-collapsed .app-desktop-rail__store-value{
     display: none;
+  }
+
+  body.app-shell.app-shell--rail-collapsed .app-desktop-rail__store-mini{
+    display: inline-flex;
   }
 
   .store-subbar{
