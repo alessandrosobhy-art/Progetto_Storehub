@@ -1114,11 +1114,15 @@ def _available_stores_for_user(user_id: str | None):
         shared_entry = _AVAILABLE_STORES_SHARED_CACHE.get(shared_cache_key) or {}
         cached_payload = shared_entry.get("stores")
         cached_ts = float(shared_entry.get("ts") or 0)
-        if isinstance(cached_payload, list) and (time.time() - cached_ts) < _AVAILABLE_STORES_CACHE_TTL_SECONDS:
+        # Serviamo dalla cache solo liste NON vuote: una lista vuota in cache era
+        # quasi sempre il residuo di un errore temporaneo del backend, e restava
+        # inchiodata per tutto il TTL (bug "il modale cambia store non carica").
+        if isinstance(cached_payload, list) and cached_payload and (time.time() - cached_ts) < _AVAILABLE_STORES_CACHE_TTL_SECONDS:
             return cached_payload
     except Exception:
         log_swallowed('warehouse:1119')
 
+    fetch_failed = False
     try:
         # Verifica ruolo con SERVICE_ROLE: l'elenco store deve riflettere subito
         # cambi ruolo fatti da Admin/Master, senza dipendere da cookie/sessioni vecchie.
@@ -1160,6 +1164,13 @@ def _available_stores_for_user(user_id: str | None):
                 else:
                     stores = []
     except Exception:
+        # Errore nel recupero: NON cachare il risultato (vedi sotto), così al
+        # prossimo tentativo si riprova invece di servire una lista vuota bloccata.
+        fetch_failed = True
+        try:
+            current_app.logger.exception("Errore recupero store disponibili per utente %s", cache_uid)
+        except Exception:
+            log_swallowed('warehouse:1163b')
         stores = []
 
     # Ordina alfabeticamente per nome store (fallback su code)
@@ -1174,13 +1185,24 @@ def _available_stores_for_user(user_id: str | None):
     except Exception:
         log_swallowed('warehouse:1174')
 
-    try:
-        _AVAILABLE_STORES_SHARED_CACHE[shared_cache_key] = {
-            "ts": time.time(),
-            "stores": stores or [],
-        }
-    except Exception:
-        log_swallowed('warehouse:1182')
+    # Cache SOLO risultati validi e non vuoti: non inchiodare una lista vuota
+    # (legittima o dovuta a errore) per tutto il TTL. In caso di errore, se
+    # esiste una lista buona precedente la riusiamo come fallback.
+    if stores and not fetch_failed:
+        try:
+            _AVAILABLE_STORES_SHARED_CACHE[shared_cache_key] = {
+                "ts": time.time(),
+                "stores": stores,
+            }
+        except Exception:
+            log_swallowed('warehouse:1182')
+    elif fetch_failed:
+        try:
+            prev = (_AVAILABLE_STORES_SHARED_CACHE.get(shared_cache_key) or {}).get("stores")
+            if isinstance(prev, list) and prev:
+                return prev
+        except Exception:
+            log_swallowed('warehouse:1182b')
 
     return stores
 

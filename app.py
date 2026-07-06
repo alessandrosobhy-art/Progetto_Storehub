@@ -1460,13 +1460,24 @@ class _TenantResolutionError(Exception):
 
 
 def _resolve_login_tenant(uid: str | None, email: str | None, preferred_tenant_key: str | None = None) -> dict | None:
-    try:
-        from tenant_config_repository import resolve_user_tenant
+    # Retry: l'app gira su Azure ma SQL Server è raggiunto via rete privata, che
+    # può avere singhiozzi transitori. Un fallimento occasionale non deve far
+    # fallire il login al primo colpo (sintomo: "errore tenant, poi riprovo ed
+    # entra"). Un risultato None (nessun tenant) NON è un errore: non si ritenta.
+    from tenant_config_repository import resolve_user_tenant
 
-        return resolve_user_tenant(user_id=uid, email=email, preferred_tenant_key=preferred_tenant_key)
-    except Exception as exc:
-        current_app.logger.exception("Errore risoluzione tenant utente")
-        raise _TenantResolutionError(str(exc)) from exc
+    attempts = int(os.getenv('TENANT_RESOLVE_ATTEMPTS', '3') or '3')
+    last_exc: Exception | None = None
+    for i in range(max(1, attempts)):
+        try:
+            return resolve_user_tenant(user_id=uid, email=email, preferred_tenant_key=preferred_tenant_key)
+        except Exception as exc:
+            last_exc = exc
+            current_app.logger.warning("Risoluzione tenant fallita (tentativo %s/%s): %s", i + 1, attempts, exc)
+            if i < attempts - 1:
+                time.sleep(0.4 * (i + 1))
+    current_app.logger.error("Errore risoluzione tenant utente dopo %s tentativi", attempts, exc_info=last_exc)
+    raise _TenantResolutionError(str(last_exc)) from last_exc
 
 
 def _current_tenant_key_for_admin() -> str:
