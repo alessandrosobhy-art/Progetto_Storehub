@@ -2920,6 +2920,145 @@ def master_export_person():
     return _json_download(data, f"export_person_{safe_id}_{stamp}.json")
 
 
+# ==================== PURGA definitiva (Fase 3, master-only, irreversibile) ====================
+# Cancella davvero i dati soft-deleted il cui periodo di grazia (60gg) è scaduto.
+# Persona: assegnazioni + membership + account Supabase SOLO se non attiva su altri tenant.
+# Tenant: tutti gli utenti + le 6 tabelle platform + istruzioni DROP DATABASE (opzione B).
+
+def _purge_step(report: dict, label: str, fn):
+    try:
+        fn()
+        report["steps"].append({"step": label, "result": "ok"})
+    except Exception as exc:
+        try:
+            log.exception("Purga: errore step '%s'", label)
+        except Exception:
+            log_swallowed('app:purge_step_log')
+        report["errors"].append({"step": label, "error": str(exc)})
+
+
+def _purge_grace_passed(purge_after) -> bool:
+    if not purge_after:
+        return False
+    try:
+        if isinstance(purge_after, str):
+            dt = datetime.fromisoformat(purge_after.replace('Z', '+00:00'))
+            dt = dt.replace(tzinfo=None) if dt.tzinfo else dt
+        else:
+            dt = purge_after  # datetime da pyodbc (UTC naive)
+        return dt <= datetime.utcnow()
+    except Exception:
+        return False
+
+
+def _purge_person(tenant_key: str, email: str, *, force: bool = False) -> dict:
+    from tenant_config_repository import list_tenant_users, delete_tenant_user, get_active_user_tenants
+    report = {"type": "person", "tenant_key": tenant_key, "email": email, "steps": [], "errors": []}
+    users = list_tenant_users(tenant_key) or []
+    row = next((u for u in users if str(u.get("email") or "").lower() == str(email).lower()), None)
+    if not row:
+        report["errors"].append("membership non trovata")
+        return report
+    if not force:
+        if not row.get("deleted_at") or not _purge_grace_passed(row.get("purge_after")):
+            report["errors"].append("non eleggibile: soft-delete assente o grazia non scaduta")
+            return report
+    uid = str(row.get("user_id") or "").strip()
+    if uid:
+        _purge_step(report, "store_assignments", lambda: delete_user_store_assignments_for_user(uid))
+    _purge_step(report, "tenant_membership", lambda: delete_tenant_user(tenant_key, email))
+    if uid:
+        others = []
+        try:
+            others = get_active_user_tenants(user_id=uid) or []
+        except Exception:
+            log_swallowed('app:purge_other_tenants')
+        others_active = [o for o in others if str(o.get("tenant_key") or "").lower() != str(tenant_key).lower()]
+        if others_active:
+            report["supabase_account_deleted"] = False
+            report["steps"].append({"step": "supabase_account", "result": "mantenuto: attivo su altri tenant %s" % [o.get("tenant_key") for o in others_active]})
+        else:
+            _purge_step(report, "supabase_profile", lambda: sb_admin_delete_profile(uid))
+            _purge_step(report, "supabase_auth_user", lambda: sb_admin_delete_auth_user(uid))
+            report["supabase_account_deleted"] = True
+    return report
+
+
+def _purge_tenant(tenant_key: str, *, force: bool = False) -> dict:
+    from tenant_config_repository import (
+        get_tenant, list_tenant_users, get_tenant_deletion_status, purge_tenant_platform_rows,
+    )
+    report = {"type": "tenant", "tenant_key": tenant_key, "steps": [], "errors": [], "user_reports": []}
+    status = get_tenant_deletion_status(tenant_key)
+    if not force:
+        if not status.get("deleted") or not _purge_grace_passed(status.get("purge_after")):
+            report["errors"].append("non eleggibile: soft-delete assente o grazia non scaduta")
+            return report
+    # Leggi il nome del database PRIMA di cancellare la riga tenant (serve per le istruzioni DROP)
+    db_name = ""
+    try:
+        db_name = str((get_tenant(tenant_key) or {}).get("database_name") or "").strip()
+    except Exception:
+        log_swallowed('app:purge_tenant_dbname')
+    # 1. Purga ogni utente del tenant (force: la purga tenant travolge le grazie individuali)
+    for u in (list_tenant_users(tenant_key) or []):
+        em = str(u.get("email") or "").strip()
+        if em:
+            report["user_reports"].append(_purge_person(tenant_key, em, force=True))
+    # 2. Cancella le righe platform (incl. la riga tenant)
+    _purge_step(report, "platform_rows", lambda: report.__setitem__("platform_counts", purge_tenant_platform_rows(tenant_key)))
+    # 3. Istruzioni per il DROP DATABASE manuale (opzione B)
+    if db_name and db_name.upper() != "APP_STOREHUB":
+        report["db_drop_instructions"] = {
+            "database_name": db_name,
+            "sql": f"-- Eseguire manualmente sul server SQL (passo DBA):\nUSE master;\nALTER DATABASE [{db_name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;\nDROP DATABASE [{db_name}];",
+            "reminder": f"IL DATABASE DEL TENANT '{db_name}' NON è stato cancellato dall'app: eseguire il DROP DATABASE manualmente.",
+        }
+    else:
+        report["db_drop_instructions"] = {"database_name": db_name, "note": "Database condiviso/principale: nessun DROP (non applicabile)."}
+    return report
+
+
+@app.route('/master/purge', methods=['GET', 'POST'])
+@login_required
+@master_required
+def master_purge():
+    from tenant_config_repository import list_tenants_pending_purge, list_tenant_users_pending_purge
+    if request.method == 'POST':
+        action = (request.form.get('action') or '').strip()
+        confirm = (request.form.get('confirm') or '').strip()
+        if action == 'purge_tenant':
+            key = (request.form.get('tenant_key') or '').strip()
+            if confirm != key:
+                flash("Conferma non valida: digita esattamente la chiave del tenant.", "warning")
+                return redirect(url_for('master_purge'))
+            rep = _purge_tenant(key)
+            log.warning("PURGA tenant '%s' da master %s: %s", key, session.get('email'), rep)
+            if rep.get('errors'):
+                flash(f"Purga tenant '{key}' completata con avvisi. {rep.get('db_drop_instructions', {}).get('reminder', '')}", "warning")
+            else:
+                flash(f"Purga tenant '{key}' completata. {rep.get('db_drop_instructions', {}).get('reminder', '')}", "success")
+            session['last_purge_report'] = rep
+            return redirect(url_for('master_purge'))
+        if action == 'purge_person':
+            key = (request.form.get('tenant_key') or '').strip()
+            email = (request.form.get('email') or '').strip()
+            if confirm != email:
+                flash("Conferma non valida: digita esattamente l'email della persona.", "warning")
+                return redirect(url_for('master_purge'))
+            rep = _purge_person(key, email)
+            log.warning("PURGA persona '%s' (tenant %s) da master %s: %s", email, key, session.get('email'), rep)
+            flash(f"Purga persona '{email}' completata" + (" con avvisi." if rep.get('errors') else "."), "warning" if rep.get('errors') else "success")
+            session['last_purge_report'] = rep
+            return redirect(url_for('master_purge'))
+        return redirect(url_for('master_purge'))
+
+    tenants = _export_collect([], "pending_tenants", list_tenants_pending_purge) or []
+    persons = _export_collect([], "pending_persons", list_tenant_users_pending_purge) or []
+    last_report = session.pop('last_purge_report', None)
+    return render_template('master_purge.html', pending_tenants=tenants, pending_persons=persons, last_report=last_report)
+
+
 @app.route('/master/orari-config', methods=['GET', 'POST'])
 @login_required
 @master_required

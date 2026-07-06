@@ -481,6 +481,39 @@ def get_tenant_deletion_status(tenant_key: str) -> Dict[str, Any]:
     }
 
 
+def purge_tenant_platform_rows(tenant_key: str) -> Dict[str, Any]:
+    """PURGA DEFINITIVA (irreversibile) delle righe di un tenant nelle tabelle
+    platform. NON tocca il database dedicato del tenant (opzione B: DROP manuale).
+    Difensiva per tabella: se una tabella/colonna non esiste, prosegue con le altre.
+    """
+    key = _normalize_tenant_key(tenant_key)
+    default_key = (DEFAULT_TENANT_KEY or "default").strip().lower() or "default"
+    if key.lower() == default_key:
+        raise ValueError("Il tenant principale non può essere purgato.")
+    ensure_tenant_schema()
+    # Ordine: prima le tabelle dipendenti, StoreHubTenants per ultima.
+    tables = [
+        "StoreHubTenantStoreFieldConfig",
+        "StoreHubTenantStorageRules",
+        "StoreHubTenantStores",
+        "StoreHubTenantModules",
+        "StoreHubTenantUsers",
+        "StoreHubTenants",
+    ]
+    counts: Dict[str, Any] = {}
+    with _conn(read_only=False) as conn:
+        cur = conn.cursor()
+        for tbl in tables:
+            try:
+                cur.execute(f"DELETE FROM dbo.{tbl} WHERE tenant_key = ?", key)
+                counts[tbl] = cur.rowcount
+            except Exception as exc:
+                counts[tbl] = f"errore: {exc}"
+        conn.commit()
+    invalidate_tenant_cache()
+    return counts
+
+
 def list_tenants_pending_purge() -> List[Dict[str, Any]]:
     """Tenant soft-deleted il cui periodo di grazia è scaduto: pronti per la purga (Fase 3)."""
     ensure_tenant_schema()
