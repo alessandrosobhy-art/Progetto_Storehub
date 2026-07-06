@@ -131,7 +131,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.06.3"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.06.4"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
@@ -428,6 +428,19 @@ def _apply_security_headers(response):
         response.headers.setdefault(
             'Strict-Transport-Security', 'max-age=31536000; includeSubDomains'
         )
+    # Segnale di "download partito": quando la risposta è un file (attachment),
+    # scriviamo un cookie non sensibile che il client usa per nascondere subito
+    # l'overlay di caricamento (le esportazioni non cambiano pagina, quindi senza
+    # questo segnale lo spinner resterebbe su fino al watchdog).
+    try:
+        cd = response.headers.get('Content-Disposition') or ''
+        if 'attachment' in cd.lower():
+            response.set_cookie(
+                'dl_ping', str(int(time.time() * 1000)),
+                max_age=30, path='/', samesite='Lax',
+            )
+    except Exception:
+        log_swallowed('app:download_ping')
     return response
 
 

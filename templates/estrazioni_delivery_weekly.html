@@ -304,7 +304,7 @@
 
           <div class="col-12 d-flex align-items-center gap-2 flex-wrap mt-3">
             <button type="submit" class="btn btn-primary">{{ tr('common', 'search', 'Cerca') }}</button>
-            <button type="submit" class="btn btn-outline-success" formaction="{{ url_for('estrazioni.delivery_weekly_xlsx') }}" data-no-overlay="1">{{ tr('common', 'export_excel', 'Estrai Excel') }}</button>
+            <button type="submit" class="btn btn-outline-success" formaction="{{ url_for('estrazioni.delivery_weekly_xlsx') }}">{{ tr('common', 'export_excel', 'Estrai Excel') }}</button>
             <a class="btn btn-outline-secondary" href="{{ url_for('estrazioni.delivery_weekly') }}">{{ tr('common', 'reset', 'Reset') }}</a>
             <div class="ms-auto text-muted small">
               {{ tr('estrazioni', 'delivery_data.rows_found', 'Righe trovate') }}: <strong>{{ (rows or [])|length }}</strong>

@@ -131,7 +131,7 @@
             {% else %}
               {% set survey_am_options = survey.overview.store_manager_by_area_manager or [] %}
             {% endif %}
-            <form method="get" action="{{ url_for('mbo.custom_survey_export_xlsx', survey_uuid=selected.survey_uuid) }}" class="d-flex gap-2 flex-wrap align-items-end" data-no-overlay="1">
+            <form method="get" action="{{ url_for('mbo.custom_survey_export_xlsx', survey_uuid=selected.survey_uuid) }}" class="d-flex gap-2 flex-wrap align-items-end">
               <div>
                 <label class="form-label small mb-1">Area Manager</label>
                 <select class="form-select form-select-sm" name="area_manager_uuid">
@@ -145,7 +145,7 @@
               </div>
               <button class="btn btn-sm btn-outline-success">Scarica Excel risultati</button>
             </form>
-            <form method="get" action="{{ url_for('mbo.custom_survey_links_xlsx', survey_uuid=selected.survey_uuid) }}" class="d-flex gap-2 flex-wrap align-items-end" data-no-overlay="1">
+            <form method="get" action="{{ url_for('mbo.custom_survey_links_xlsx', survey_uuid=selected.survey_uuid) }}" class="d-flex gap-2 flex-wrap align-items-end">
               <div>
                 <label class="form-label small mb-1">Area Manager</label>
                 <select class="form-select form-select-sm" name="area_manager_uuid">

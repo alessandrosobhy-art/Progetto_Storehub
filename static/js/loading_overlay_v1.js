@@ -49,6 +49,7 @@
       overlayEl.classList.add('show');
       document.body.classList.add('loading-overlay-open');
       setMessage(lastMessage);
+      startDownloadWatch();
     }, SHOW_DELAY_MS);
   }
 
@@ -68,6 +69,7 @@
     overlayEl.classList.add('show');
     document.body.classList.add('loading-overlay-open');
     setMessage(lastMessage);
+    startDownloadWatch();
   }
 
   function hide() {
@@ -82,6 +84,7 @@
     overlayEl.classList.remove('show');
     document.body.classList.remove('loading-overlay-open');
     setMessage(defaultLoading);
+    stopDownloadWatch();
   }
 
   function forceHide() {
@@ -89,6 +92,7 @@
     // appeso (download/file che non cambiano pagina, richieste bloccate).
     pending = 0;
     if (showTimer) { window.clearTimeout(showTimer); showTimer = null; }
+    stopDownloadWatch();
     if (ensureElements()) {
       overlayEl.classList.remove('show');
       document.body.classList.remove('loading-overlay-open');
@@ -98,6 +102,34 @@
 
   function clearNavWatchdog() {
     if (navWatchdog) { window.clearTimeout(navWatchdog); navWatchdog = null; }
+  }
+
+  function readCookie(name) {
+    try {
+      const parts = ('; ' + document.cookie).split('; ' + name + '=');
+      if (parts.length === 2) return parts.pop().split(';').shift();
+    } catch (_) {}
+    return '';
+  }
+
+  // Osserva il cookie dl_ping: il server lo aggiorna quando invia un file. Quando
+  // cambia, il download è partito -> togliamo l'overlay subito (invece di aspettare
+  // il watchdog). Copre tutte le esportazioni senza modificarle una a una.
+  let dlWatchTimer = null;
+  let dlBaseline = null;
+  function stopDownloadWatch() {
+    if (dlWatchTimer) { window.clearInterval(dlWatchTimer); dlWatchTimer = null; }
+  }
+  function startDownloadWatch() {
+    stopDownloadWatch();
+    dlBaseline = readCookie('dl_ping');
+    dlWatchTimer = window.setInterval(function () {
+      const now = readCookie('dl_ping');
+      if (now && now !== dlBaseline) {
+        stopDownloadWatch();
+        forceHide();
+      }
+    }, 350);
   }
 
   function armNavWatchdog() {
@@ -114,12 +146,32 @@
     }, NAV_WATCHDOG_MS);
   }
 
+  // Scarica un file mostrando l'overlay (feedback + blocco click) e togliendolo
+  // appena il download parte (cookie dl_ping) o al più tardi col watchdog.
+  function downloadFile(url, message) {
+    if (!url) return;
+    showNow(message || defaultLoading);   // mostra overlay + avvia download-watch
+    armNavWatchdog();                      // backstop se dl_ping non arriva
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.setAttribute('download', '');
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      window.setTimeout(function () { try { document.body.removeChild(a); } catch (_) {} }, 0);
+    } catch (_) {
+      window.location.href = url;
+    }
+  }
+
   // Expose small API for pages that want manual control
   window.loadingOverlay = {
     push: show,
     pop: hide,
     show: function (message) { showNow(message); },
-    hide: function () { while (pending > 0) hide(); },
+    hide: function () { forceHide(); },
+    download: downloadFile,
     setMessage: setMessage
   };
 
@@ -184,6 +236,21 @@
   document.addEventListener('submit', function (ev) {
     const form = ev.target;
     if (!form || !(form instanceof HTMLFormElement)) return;
+
+    // Anti doppio-invio: disabilita il bottone premuto subito DOPO l'invio (in
+    // setTimeout 0, così l'invio va comunque a buon fine), poi lo riabilita. Per
+    // gli export che non cambiano pagina impedisce di accodare estrazioni multiple
+    // cliccando ripetutamente. Non tocca il valore inviato (già catturato).
+    const submitter = ev.submitter || form.querySelector('button[type="submit"], input[type="submit"]');
+    if (submitter && !submitter.disabled) {
+      window.setTimeout(function () {
+        try {
+          submitter.disabled = true;
+          window.setTimeout(function () { try { submitter.disabled = false; } catch (_) {} }, 6000);
+        } catch (_) {}
+      }, 0);
+    }
+
     if (form.hasAttribute('data-no-overlay') || form.dataset.noOverlay === '1') return;
 
     const msg = form.dataset.overlayMessage || defaultLoading;

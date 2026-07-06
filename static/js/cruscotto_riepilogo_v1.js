@@ -408,8 +408,12 @@
   }
 
   function triggerDownload(url) {
-    // Scarica via <a download> invece di window.location: non cambia pagina e
-    // l'overlay di caricamento lo ignora (niente spinner appeso sui download).
+    // Usa l'helper dell'overlay: mostra il feedback + blocca i click multipli e
+    // toglie lo spinner appena il download parte (o col watchdog di sicurezza).
+    if (window.loadingOverlay && typeof window.loadingOverlay.download === "function") {
+      window.loadingOverlay.download(url);
+      return;
+    }
     const a = document.createElement("a");
     a.href = url;
     a.setAttribute("download", "");
