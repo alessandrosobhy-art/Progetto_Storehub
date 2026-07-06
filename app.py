@@ -165,7 +165,11 @@ except Exception:
     log_swallowed('app:164')
 
 app = Flask(__name__)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+# x_for: numero di proxy fidati davanti all'app (Cloudflare + Azure front-end).
+# Senza x_for, request.remote_addr resta l'IP del proxy (uguale per tutti) e il
+# rate-limit per-IP diventa un bucket globale. Configurabile via PROXYFIX_X_FOR.
+_proxy_hops = int(os.getenv('PROXYFIX_X_FOR', '1') or '1')
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=_proxy_hops, x_proto=1, x_host=1)
 
 # Compressione brotli/gzip delle risposte testuali (HTML/JSON/CSS/JS)
 Compress(app)
@@ -281,10 +285,30 @@ app.config['PREFERRED_URL_SCHEME'] = 'https'
 # Il cookie contiene solo l'ID di sessione: i dati (sb_token, profile_cache, tenant)
 # restano sul server. Evita cookie oltre i 4KB (che i browser scartano in silenzio)
 # e non espone il JWT Supabase nel cookie firmato-ma-non-cifrato di Flask.
-_session_dir = os.getenv('SESSION_FILE_DIR') or os.path.join(_BASE_DIR, 'tmp', 'flask_session')
-os.makedirs(_session_dir, exist_ok=True)
+def _default_session_dir() -> str:
+    explicit = str(os.getenv('SESSION_FILE_DIR') or '').strip()
+    if explicit:
+        return explicit
+    # Su Azure App Service Linux /home è storage persistente e condiviso tra
+    # istanze/worker: mettere le sessioni SOTTO wwwroot le farebbe azzerare ad
+    # ogni deploy (logout di massa). /home/data sopravvive ai deploy.
+    home = str(os.getenv('HOME') or '').strip()
+    if home and os.path.isdir(home) and (home.replace('\\', '/').rstrip('/').endswith('/home') or home == '/home'):
+        return os.path.join(home, 'data', 'flask_session')
+    return os.path.join(_BASE_DIR, 'tmp', 'flask_session')
+
+
+_session_dir = _default_session_dir()
+try:
+    os.makedirs(_session_dir, exist_ok=True)
+except Exception:
+    _session_dir = os.path.join(_BASE_DIR, 'tmp', 'flask_session')
+    os.makedirs(_session_dir, exist_ok=True)
 app.config['SESSION_TYPE'] = 'cachelib'
-app.config['SESSION_CACHELIB'] = FileSystemCache(cache_dir=_session_dir, threshold=5000)
+# threshold alto: sotto carico, un valore basso fa eliminare a cachelib le
+# sessioni più vecchie a ogni scrittura (logout casuali). Override via env.
+_session_threshold = int(os.getenv('SESSION_FILE_THRESHOLD', '50000') or '50000')
+app.config['SESSION_CACHELIB'] = FileSystemCache(cache_dir=_session_dir, threshold=_session_threshold)
 app.config['SESSION_PERMANENT'] = True
 Session(app)
 
@@ -315,8 +339,22 @@ def _handle_csrf_error(e):
 # ---- Rate limiting ----
 # Storage in-memory: con più worker ogni processo conta per sé (limite effettivo
 # = limite x n. worker), sufficiente contro il brute force sul login.
+def _rate_limit_key() -> str:
+    """IP reale del client per il rate-limit.
+
+    Dietro Cloudflare, ``CF-Connecting-IP`` contiene il vero IP del client ed è
+    impostato dal proxy (non falsificabile per il traffico che transita da CF).
+    In assenza (accesso diretto ad Azure), si ripiega su remote_addr corretto da
+    ProxyFix. Senza questo, tutti gli utenti condividerebbero un unico bucket.
+    """
+    cf_ip = (request.headers.get('CF-Connecting-IP') or '').strip()
+    if cf_ip:
+        return cf_ip
+    return get_remote_address()
+
+
 limiter = Limiter(
-    get_remote_address,
+    _rate_limit_key,
     app=app,
     default_limits=[],
     storage_uri='memory://',
@@ -1344,11 +1382,28 @@ def _apply_tenant_to_session(tenant: dict | None) -> None:
         return
     tenant_key = str(tenant.get("tenant_key") or "").strip()
     tenant_role = _effective_tenant_role(tenant)
+    tenant_database = str(tenant.get("database_name") or "").strip()
+    default_tenant_key = str(os.getenv("STOREHUB_TENANT_KEY") or "default").strip() or "default"
+    if tenant_key and tenant_key.lower() != default_tenant_key.lower() and not tenant_database:
+        # Tenant secondario senza database dedicato: senza questo dato le query
+        # ripiegherebbero silenziosamente sul DB del tenant principale (contaminazione).
+        current_app.logger.error(
+            "Tenant '%s' senza database_name: rischio lettura/scrittura sul DB principale. "
+            "Configurare database_name in StoreHubTenants.", tenant_key,
+        )
     session["tenant_key"] = tenant_key
     session["tenant_name"] = str(tenant.get("display_name") or tenant_key).strip() or tenant_key
-    session["tenant_database"] = str(tenant.get("database_name") or "").strip()
+    session["tenant_database"] = tenant_database
     session["tenant_role"] = tenant_role
     session["role"] = tenant_role
+
+
+class _TenantResolutionError(Exception):
+    """Errore tecnico nella risoluzione del tenant (es. DB non raggiungibile).
+
+    Va distinto dal caso 'nessun tenant associato' (che ritorna None): un errore
+    tecnico non deve mostrare all'utente 'non associato ad alcun tenant'.
+    """
 
 
 def _resolve_login_tenant(uid: str | None, email: str | None, preferred_tenant_key: str | None = None) -> dict | None:
@@ -1356,9 +1411,9 @@ def _resolve_login_tenant(uid: str | None, email: str | None, preferred_tenant_k
         from tenant_config_repository import resolve_user_tenant
 
         return resolve_user_tenant(user_id=uid, email=email, preferred_tenant_key=preferred_tenant_key)
-    except Exception:
+    except Exception as exc:
         current_app.logger.exception("Errore risoluzione tenant utente")
-        return None
+        raise _TenantResolutionError(str(exc)) from exc
 
 
 def _current_tenant_key_for_admin() -> str:
@@ -1515,7 +1570,9 @@ def _first_allowed_endpoint_for_user(u: dict | None) -> str:
     for module_key, endpoint in ordered:
         if u.get(f'mod_{module_key}', False):
             return endpoint
-    return 'logout'
+    # Nessun modulo disponibile: NON mandare a 'logout' (creava un loop
+    # login->logout->login senza spiegazioni). Mostra una pagina chiara.
+    return 'no_access'
 
 
 def _access_profiles_support_tenant_key() -> bool:
@@ -1526,11 +1583,22 @@ def _access_profiles_support_tenant_key() -> bool:
     params = {"select": "id,tenant_key", "limit": "1"}
     try:
         r = _session().get(url, headers=_sb_admin_headers(is_json=False), params=params, timeout=20)
-        _raise_with_body(r)
-        _ACCESS_PROFILE_TENANT_COLUMN = True
+        status = getattr(r, "status_code", None)
+        if status == 200:
+            _ACCESS_PROFILE_TENANT_COLUMN = True
+            return True
+        # 400/404: la colonna tenant_key non esiste davvero -> memoizza "non supportato".
+        if status in (400, 404):
+            _ACCESS_PROFILE_TENANT_COLUMN = False
+            return False
+        # Altri stati (5xx, 429, ...): errore transitorio, NON memoizzare: ritenta
+        # alla prossima chiamata invece di disabilitare il filtro tenant per sempre.
+        current_app.logger.warning("Probe access_profiles.tenant_key: stato %s, ritenterò", status)
+        return False
     except Exception:
-        _ACCESS_PROFILE_TENANT_COLUMN = False
-    return bool(_ACCESS_PROFILE_TENANT_COLUMN)
+        # Errore di rete/timeout: transitorio, non memoizzare (vedi sopra).
+        current_app.logger.exception("Probe access_profiles.tenant_key fallita, ritenterò")
+        return False
 
 
 def sb_admin_list_access_profiles(tenant_key: str | None = None) -> list[dict]:
@@ -1661,10 +1729,11 @@ def _tenant_module_enabled_map(tenant_key: str) -> dict[str, bool]:
 def _normalize_user_modules(u: dict) -> dict:
     """Ritorna flag mod_* per i moduli.
 
-    Regole:
+    Regole (fail-closed):
     - nessun utente -> niente accesso
     - admin -> accesso completo
-    - nessun profilo assegnato -> accesso completo (compatibilità)
+    - nessun profilo assegnato -> NESSUN modulo (fail-closed): un utente senza
+      profilo non ottiene accesso automatico. Va assegnato un profilo esplicito.
     - profilo assegnato ma non leggibile -> NON fare fail-open: usa snapshot di sessione,
       altrimenti nega tutti i moduli
     """
@@ -4712,6 +4781,26 @@ def login():
         return redirect(url_for(_first_allowed_endpoint_for_user(current_user())))
     return render_template('login.html')
 
+
+@app.get('/no-access')
+@login_required
+def no_access():
+    """Utente autenticato ma senza alcun modulo abilitato.
+
+    Evita il vecchio loop login->logout: mostra un messaggio chiaro invece di
+    disconnettere l'utente in silenzio.
+    """
+    u = current_user()
+    if u and (_is_platform_master(u) or str(u.get('role') or '').strip().lower() == 'admin'):
+        # admin/master hanno sempre una destinazione: non devono finire qui
+        return redirect(url_for(_first_allowed_endpoint_for_user(u)))
+    current_app.logger.warning(
+        "Utente senza moduli abilitati: uid=%s email=%s tenant=%s profile=%s",
+        session.get('uid'), session.get('email'), session.get('tenant_key'),
+        session.get('access_profile_id'),
+    )
+    return render_template('no_access.html', user=u), 403
+
 @app.post('/login')
 @limiter.limit('10 per minute; 60 per hour')
 def login_post():
@@ -4760,7 +4849,12 @@ def login_post():
         if bool(session.get('is_master')) or str(session.get('role') or '').strip().lower() == 'master':
             _apply_tenant_to_session(None)
         else:
-            tenant = _resolve_login_tenant(uid, session.get('email') or email, session.get('tenant_key'))
+            try:
+                tenant = _resolve_login_tenant(uid, session.get('email') or email, session.get('tenant_key'))
+            except _TenantResolutionError:
+                session.clear()
+                flash("Errore tecnico durante l'accesso. Riprova tra qualche minuto.", "danger")
+                return redirect(url_for('login'))
             if not tenant:
                 session.clear()
                 flash("Utente non associato ad alcun tenant attivo.", "danger")

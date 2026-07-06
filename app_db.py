@@ -146,7 +146,9 @@ def get_connection_sqlserver_database(database: str, read_only: bool = False):
 
     server = os.getenv("SQLSERVER_SERVER") or os.getenv("SQLSERVER_HOST") or r"10.24.1.1\SQLEXPRESS"
     user = os.getenv("SQLSERVER_USER") or "file"
-    password = os.getenv("SQLSERVER_PASSWORD") or "Metis2021@"
+    # Nessuna password di default nel sorgente: deve arrivare da SQLSERVER_PASSWORD
+    # (env / App Settings). Una password reale hardcoded finirebbe nella git history.
+    password = os.getenv("SQLSERVER_PASSWORD") or ""
     preferred_driver = os.getenv("SQLSERVER_DRIVER")
     encrypt = (os.getenv("SQLSERVER_ENCRYPT") or "no").strip().lower()
     trust_cert = (os.getenv("SQLSERVER_TRUST_CERT") or os.getenv("SQLSERVER_TRUST_SERVER_CERT") or "yes").strip().lower()

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Accesso non abilitato{% endblock %}
+{% block content %}
+<div class="container py-5" style="max-width: 640px;">
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-4 p-lg-5 text-center">
+      <h1 class="h4 mb-3">Accesso non ancora abilitato</h1>
+      <p class="text-muted mb-4">
+        Il tuo account è attivo{% if session.get('tenant_name') %} sul tenant
+        <strong>{{ session.get('tenant_name') }}</strong>{% endif %}, ma non ha
+        ancora nessun modulo abilitato. Contatta l'amministratore per farti
+        assegnare un profilo di accesso.
+      </p>
+      {% if user and user.email %}
+      <p class="small text-muted mb-4">Account: {{ user.email }}</p>
+      {% endif %}
+      <div class="d-flex gap-2 justify-content-center">
+        <a class="btn btn-outline-secondary" href="{{ url_for('logout') }}">Esci</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
