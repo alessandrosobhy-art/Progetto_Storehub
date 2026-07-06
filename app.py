@@ -4839,46 +4839,6 @@ def no_access():
     return render_template('no_access.html', user=u), 403
 
 
-@app.get('/whoami-net')
-@login_required
-def whoami_net():
-    """Diagnostica di rete (solo master/admin): mostra come l'app vede l'IP del
-    client, così si può verificare che il rate-limit usi l'IP giusto.
-
-    Temporanea: rimuovibile una volta confermato il comportamento in produzione.
-    """
-    u = current_user()
-    if not (u and (_is_platform_master(u) or str(u.get('role') or '').strip().lower() == 'admin')):
-        abort(404)  # 404 (non 403) per non rivelarne l'esistenza a chi non è autorizzato
-    rows = {
-        'remote_addr (quello che l\'app usa come IP client, dopo ProxyFix)': request.remote_addr,
-        'chiave usata dal RATE-LIMIT': _rate_limit_key(),
-        'header X-Forwarded-For (catena proxy)': request.headers.get('X-Forwarded-For'),
-        'header X-Real-IP': request.headers.get('X-Real-IP'),
-        'header CF-Connecting-IP (dovrebbe essere vuoto: no Cloudflare proxy)': request.headers.get('CF-Connecting-IP'),
-        'TRUST_CF_CONNECTING_IP (deve essere False)': _TRUST_CF_IP,
-        'PROXYFIX_X_FOR (n. proxy fidati)': _proxy_hops,
-        'request.is_secure (HTTPS visto dall\'app)': request.is_secure,
-        'Host': request.host,
-    }
-    html = ['<!doctype html><meta charset="utf-8">',
-            '<title>whoami-net</title>',
-            '<body style="font-family:system-ui;max-width:820px;margin:2rem auto;padding:0 1rem">',
-            '<h1 style="font-size:1.2rem">Diagnostica rete / rate-limit</h1>',
-            '<p style="color:#555">Confronta <b>remote_addr</b> e <b>chiave RATE-LIMIT</b> con il tuo vero IP pubblico ',
-            '(cercalo su Google: "qual è il mio ip"). Se coincidono, il rate-limit è corretto.</p>',
-            '<table style="border-collapse:collapse;width:100%">']
-    for k, v in rows.items():
-        html.append(
-            '<tr>'
-            f'<td style="border:1px solid #ddd;padding:.5rem;color:#333">{escape(k)}</td>'
-            f'<td style="border:1px solid #ddd;padding:.5rem;font-family:monospace"><b>{escape(str(v))}</b></td>'
-            '</tr>'
-        )
-    html.append('</table></body>')
-    return Response(''.join(html), mimetype='text/html')
-
-
 @app.post('/login')
 @limiter.limit('10 per minute; 60 per hour')
 def login_post():
