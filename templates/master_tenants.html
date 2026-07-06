@@ -80,6 +80,7 @@
                   </td>
                   <td class="text-end">
                     <a class="btn btn-sm btn-outline-primary" href="{{ url_for('master_tenants', tenant_key=t.tenant_key, section='dashboard') }}">Apri</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('master_export_tenant', tenant_key=t.tenant_key) }}" title="Esporta dati del tenant (JSON)">Esporta dati</a>
                     <form method="post" class="d-inline">
                       <input type="hidden" name="action" value="toggle_active">
                       <input type="hidden" name="tenant_key" value="{{ t.tenant_key }}">

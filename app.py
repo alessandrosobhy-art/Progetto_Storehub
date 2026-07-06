@@ -2726,6 +2726,130 @@ def master_tenant_wizard():
     )
 
 
+# ==================== Ciclo di vita tenant/persona: EXPORT (Fase 1) ====================
+# Export read-only dei dati personali/di configurazione, per portabilità GDPR e come
+# rete di sicurezza prima di una eventuale cancellazione. Solo master.
+
+def _export_collect(errors: list, label: str, fn):
+    """Esegue una raccolta dati in modo difensivo: un errore su una fonte non
+    deve impedire l'export delle altre. Registra l'errore invece di propagarlo."""
+    try:
+        return fn()
+    except Exception as exc:
+        try:
+            log.exception("Export: errore raccolta '%s'", label)
+        except Exception:
+            log_swallowed('app:export_collect_log')
+        errors.append({"source": label, "error": str(exc)})
+        return None
+
+
+def _export_tenant_data(tenant_key: str) -> dict:
+    from tenant_config_repository import (
+        get_tenant, list_tenant_users, list_tenant_stores, list_tenant_modules,
+    )
+    key = str(tenant_key or "").strip()
+    errors: list = []
+    tenant = _export_collect(errors, "tenant_config", lambda: get_tenant(key)) or {}
+    users = _export_collect(errors, "tenant_users", lambda: list_tenant_users(key)) or []
+    stores = _export_collect(errors, "tenant_stores", lambda: list_tenant_stores(key, active_only=False)) or []
+    modules = _export_collect(errors, "tenant_modules", lambda: list_tenant_modules(key)) or []
+
+    # Arricchisci ogni utente col profilo Supabase e le assegnazioni store
+    enriched_users = []
+    for u in users:
+        uid = str((u or {}).get("user_id") or "").strip()
+        row = dict(u or {})
+        if uid:
+            row["supabase_profile"] = _export_collect(
+                errors, f"profile:{uid}", lambda uid=uid: sb_admin_get_profile_by_id(uid)
+            )
+            row["store_assignments"] = _export_collect(
+                errors, f"stores:{uid}", lambda uid=uid: get_user_warehouse_stores(uid)
+            ) or []
+        enriched_users.append(row)
+
+    return {
+        "export_type": "tenant",
+        "tenant_key": key,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_by": session.get("email"),
+        "tenant_config": tenant,
+        "modules": modules,
+        "stores": stores,
+        "users": enriched_users,
+        "note_db_tenant": (
+            "I dati applicativi (rendiconto, magazzino, ecc.) risiedono nel database "
+            "dedicato del tenant ('%s') e NON sono inclusi qui: vanno esportati/consegnati "
+            "tramite backup del database (passo DBA)." % str(tenant.get("database_name") or "?")
+        ),
+        "errors": errors,
+    }
+
+
+def _export_person_data(identifier: str) -> dict:
+    from tenant_config_repository import get_user_tenants
+    ident = str(identifier or "").strip()
+    errors: list = []
+    is_email = "@" in ident
+    memberships = _export_collect(
+        errors, "memberships",
+        lambda: get_user_tenants(email=ident) if is_email else get_user_tenants(user_id=ident),
+    ) or []
+    uid = ""
+    for m in memberships:
+        if (m or {}).get("user_id"):
+            uid = str(m["user_id"]).strip()
+            break
+    profile = None
+    assignments = []
+    if uid:
+        profile = _export_collect(errors, "profile", lambda: sb_admin_get_profile_by_id(uid))
+        assignments = _export_collect(errors, "stores", lambda: get_user_warehouse_stores(uid)) or []
+    return {
+        "export_type": "person",
+        "identifier": ident,
+        "user_id": uid,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_by": session.get("email"),
+        "supabase_profile": profile,
+        "tenant_memberships": memberships,
+        "store_assignments": assignments,
+        "errors": errors,
+    }
+
+
+def _json_download(data: dict, filename: str):
+    body = json.dumps(data, ensure_ascii=False, indent=2, default=str)
+    resp = Response(body, mimetype="application/json")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
+@app.get('/master/export/tenant/<tenant_key>')
+@login_required
+@master_required
+def master_export_tenant(tenant_key):
+    data = _export_tenant_data(tenant_key)
+    safe_key = re.sub(r"[^A-Za-z0-9_-]+", "_", str(tenant_key or "tenant"))
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    return _json_download(data, f"export_tenant_{safe_key}_{stamp}.json")
+
+
+@app.get('/master/export/person')
+@login_required
+@master_required
+def master_export_person():
+    identifier = (request.args.get('identifier') or '').strip()
+    if not identifier:
+        flash("Indica email o user_id della persona da esportare.", "warning")
+        return redirect(url_for('master_users'))
+    data = _export_person_data(identifier)
+    safe_id = re.sub(r"[^A-Za-z0-9_@.-]+", "_", identifier)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    return _json_download(data, f"export_person_{safe_id}_{stamp}.json")
+
+
 @app.route('/master/orari-config', methods=['GET', 'POST'])
 @login_required
 @master_required
