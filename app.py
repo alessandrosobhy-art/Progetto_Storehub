@@ -2458,6 +2458,33 @@ def master_tenants():
                 else:
                     flash("Tenant non trovato.", "warning")
                 return redirect(url_for("master_tenants", tenant_key=key))
+            if action == "soft_delete_tenant":
+                key = request.form.get("tenant_key") or ""
+                # Richiede conferma esplicita: il nome del tenant digitato deve combaciare.
+                confirm = (request.form.get("confirm_key") or "").strip()
+                if confirm != str(key).strip():
+                    flash("Conferma non valida: digita esattamente la chiave del tenant.", "warning")
+                    return redirect(url_for("master_tenants", tenant_key=key))
+                try:
+                    from tenant_config_repository import soft_delete_tenant
+                    st = soft_delete_tenant(key, grace_days=int(os.getenv("TENANT_PURGE_GRACE_DAYS", "60") or "60"))
+                    current_app.logger.warning("Soft-delete tenant '%s' da master %s (purga: %s)", key, session.get("email"), st.get("purge_after"))
+                    flash(f"Tenant '{key}' contrassegnato per cancellazione. Purga possibile dal {st.get('purge_after') or '?'}. Recuperabile fino ad allora.", "success")
+                except Exception as exc:
+                    current_app.logger.exception("Soft-delete tenant fallito")
+                    flash(f"Cancellazione non riuscita: {exc}", "danger")
+                return redirect(url_for("master_tenants", tenant_key=key))
+            if action == "restore_tenant":
+                key = request.form.get("tenant_key") or ""
+                try:
+                    from tenant_config_repository import restore_tenant
+                    restore_tenant(key)
+                    current_app.logger.warning("Restore tenant '%s' da master %s", key, session.get("email"))
+                    flash(f"Tenant '{key}' ripristinato e riattivato.", "success")
+                except Exception as exc:
+                    current_app.logger.exception("Restore tenant fallito")
+                    flash(f"Ripristino non riuscito: {exc}", "danger")
+                return redirect(url_for("master_tenants", tenant_key=key))
             if action == "check_status":
                 edit_key = request.form.get("tenant_key") or edit_key
                 status = tenant_status(edit_key)

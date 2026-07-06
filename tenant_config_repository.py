@@ -137,6 +137,10 @@ IF COL_LENGTH('dbo.StoreHubTenants','multilanguage_enabled') IS NULL
   ALTER TABLE dbo.StoreHubTenants ADD multilanguage_enabled BIT NOT NULL DEFAULT 0;
 IF COL_LENGTH('dbo.StoreHubTenants','enabled_language_codes') IS NULL
   ALTER TABLE dbo.StoreHubTenants ADD enabled_language_codes NVARCHAR(100) NOT NULL DEFAULT 'it';
+IF COL_LENGTH('dbo.StoreHubTenants','deleted_at') IS NULL
+  ALTER TABLE dbo.StoreHubTenants ADD deleted_at DATETIME2 NULL;
+IF COL_LENGTH('dbo.StoreHubTenants','purge_after') IS NULL
+  ALTER TABLE dbo.StoreHubTenants ADD purge_after DATETIME2 NULL;
 
 IF OBJECT_ID('dbo.StoreHubTenantUsers','U') IS NULL
 BEGIN
@@ -400,6 +404,96 @@ SELECT TOP 1 tenant_key, display_name, database_name, is_active,
     }
 
 
+# ---------------- Soft-delete / ciclo di vita tenant (Fase 2) ----------------
+
+def soft_delete_tenant(tenant_key: str, *, grace_days: int = 60) -> Dict[str, Any]:
+    """Segna il tenant come cancellato: lo disattiva (blocca il login) e fissa la
+    data di purga a now + grace_days. Reversibile con restore_tenant."""
+    key = _normalize_tenant_key(tenant_key)
+    default_key = (DEFAULT_TENANT_KEY or "default").strip().lower() or "default"
+    if key.lower() == default_key:
+        raise ValueError("Il tenant principale non può essere cancellato.")
+    ensure_tenant_schema()
+    days = int(grace_days) if int(grace_days) > 0 else 60
+    with _conn(read_only=False) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+UPDATE dbo.StoreHubTenants
+   SET is_active = 0,
+       deleted_at = SYSUTCDATETIME(),
+       purge_after = DATEADD(DAY, ?, SYSUTCDATETIME()),
+       updated_at = SYSUTCDATETIME()
+ WHERE tenant_key = ?
+""",
+            days, key,
+        )
+        conn.commit()
+    invalidate_tenant_cache()
+    return get_tenant_deletion_status(key)
+
+
+def restore_tenant(tenant_key: str) -> Dict[str, Any]:
+    """Annulla il soft-delete: riattiva il tenant e azzera le date di cancellazione."""
+    ensure_tenant_schema()
+    key = _normalize_tenant_key(tenant_key)
+    with _conn(read_only=False) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+UPDATE dbo.StoreHubTenants
+   SET is_active = 1,
+       deleted_at = NULL,
+       purge_after = NULL,
+       updated_at = SYSUTCDATETIME()
+ WHERE tenant_key = ?
+""",
+            key,
+        )
+        conn.commit()
+    invalidate_tenant_cache()
+    return get_tenant_deletion_status(key)
+
+
+def get_tenant_deletion_status(tenant_key: str) -> Dict[str, Any]:
+    ensure_tenant_schema()
+    key = _normalize_tenant_key(tenant_key)
+    with _conn(read_only=True) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT tenant_key, is_active, deleted_at, purge_after FROM dbo.StoreHubTenants WHERE tenant_key = ?",
+            key,
+        )
+        row = cur.fetchone()
+    if not row:
+        return {"tenant_key": key, "exists": False, "deleted": False, "deleted_at": None, "purge_after": None}
+    return {
+        "tenant_key": str(row[0] or key),
+        "exists": True,
+        "is_active": bool(row[1]),
+        "deleted": row[2] is not None,
+        "deleted_at": row[2].isoformat() if row[2] else None,
+        "purge_after": row[3].isoformat() if row[3] else None,
+    }
+
+
+def list_tenants_pending_purge() -> List[Dict[str, Any]]:
+    """Tenant soft-deleted il cui periodo di grazia è scaduto: pronti per la purga (Fase 3)."""
+    ensure_tenant_schema()
+    with _conn(read_only=True) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+SELECT tenant_key, display_name, database_name, deleted_at, purge_after
+  FROM dbo.StoreHubTenants
+ WHERE purge_after IS NOT NULL AND purge_after <= SYSUTCDATETIME()
+ ORDER BY purge_after
+"""
+        )
+        cols = [c[0] for c in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
 def list_tenants() -> List[Dict[str, Any]]:
     ensure_current_tenant()
     with _conn(read_only=True) as conn:
@@ -410,7 +504,7 @@ SELECT tenant_key, display_name, database_name, is_active,
        sql_server, sql_user, storage_type, storage_base_path,
        sharepoint_sharing_url, sharepoint_base_path, notes,
        master_can_admin, tenant_admin_enabled, max_users, max_stores, scheduling_enabled, ai_enabled,
-       multilanguage_enabled, enabled_language_codes
+       multilanguage_enabled, enabled_language_codes, deleted_at, purge_after
   FROM dbo.StoreHubTenants
  ORDER BY display_name, tenant_key
 """

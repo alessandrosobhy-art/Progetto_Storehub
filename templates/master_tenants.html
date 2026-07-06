@@ -64,6 +64,9 @@
                     {% if t.master_can_admin %}
                       <span class="badge text-bg-light border">master-admin</span>
                     {% endif %}
+                    {% if t.deleted_at %}
+                      <span class="badge text-bg-danger" title="Purga possibile dal {{ t.purge_after }}">in cancellazione</span>
+                    {% endif %}
                   </td>
                   <td class="small">{{ t.database_name or '-' }}</td>
                   <td class="text-center">
@@ -87,6 +90,20 @@
                       <input type="hidden" name="active" value="{{ '0' if t.is_active else '1' }}">
                       <button class="btn btn-sm btn-outline-secondary">{{ 'Disattiva' if t.is_active else 'Attiva' }}</button>
                     </form>
+                    {% if t.deleted_at %}
+                    <form method="post" class="d-inline">
+                      <input type="hidden" name="action" value="restore_tenant">
+                      <input type="hidden" name="tenant_key" value="{{ t.tenant_key }}">
+                      <button class="btn btn-sm btn-outline-success">Ripristina</button>
+                    </form>
+                    {% elif t.tenant_key != 'default' %}
+                    <form method="post" class="d-inline" onsubmit="var k=prompt('Digita la chiave del tenant per confermare la cancellazione ({{ t.tenant_key }}). Sarà recuperabile per 60 giorni.'); if(k===null){return false;} this.confirm_key.value=k; return true;">
+                      <input type="hidden" name="action" value="soft_delete_tenant">
+                      <input type="hidden" name="tenant_key" value="{{ t.tenant_key }}">
+                      <input type="hidden" name="confirm_key" value="">
+                      <button class="btn btn-sm btn-outline-danger">Cancella</button>
+                    </form>
+                    {% endif %}
                   </td>
                 </tr>
               {% else %}
