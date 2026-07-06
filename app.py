@@ -995,10 +995,24 @@ def _sb_admin_headers(is_json=True):
 
 def sb_auth_signin(email: str, password: str) -> dict:
     url = f'{SUPABASE_URL}/auth/v1/token?grant_type=password'
-    r = _session().post(url, headers=_sb_headers(is_json=True),
-                        json={'email': email, 'password': password}, timeout=20)
-    _raise_with_body(r)
-    return r.json()
+    # Retry SOLO su errori di rete transitori (timeout/connessione): Supabase è in
+    # Irlanda e l'app in Italia, una POST ogni tanto va in timeout. urllib3 non
+    # ritenta i POST da solo, ma l'autenticazione è idempotente quindi è sicuro.
+    # Le credenziali errate arrivano come HTTPError (non qui) e NON vengono ritentate.
+    attempts = int(os.getenv('SUPABASE_AUTH_ATTEMPTS', '2') or '2')
+    last_exc = None
+    for i in range(max(1, attempts)):
+        try:
+            r = _session().post(url, headers=_sb_headers(is_json=True),
+                                json={'email': email, 'password': password}, timeout=20)
+            _raise_with_body(r)
+            return r.json()
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            last_exc = exc
+            log.warning("Supabase auth: errore di rete (tentativo %s/%s): %s", i + 1, attempts, exc)
+            if i < attempts - 1:
+                time.sleep(0.5 * (i + 1))
+    raise last_exc
 
 def sb_auth_user(token: str) -> dict:
     url = f'{SUPABASE_URL}/auth/v1/user'
