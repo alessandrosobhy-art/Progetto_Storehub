@@ -353,8 +353,26 @@ def _handle_csrf_error(e):
 _TRUST_CF_IP = str(os.getenv('TRUST_CF_CONNECTING_IP', '0')).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
+def _strip_port(addr: str | None) -> str:
+    """Rimuove la porta dall'indirizzo (Azure mette 'ip:porta' in X-Forwarded-For).
+
+    La porta è effimera e cambia a ogni connessione: lasciarla nella chiave del
+    rate-limit lo renderebbe per-connessione invece che per-IP (inefficace).
+    Gestisce IPv4 ('1.2.3.4:5678') e IPv6 con parentesi ('[::1]:5678').
+    """
+    if not addr:
+        return addr or ''
+    addr = addr.strip()
+    if addr.startswith('['):  # IPv6 tra parentesi con porta: [::1]:5678
+        end = addr.find(']')
+        return addr[1:end] if end != -1 else addr
+    if addr.count(':') == 1:  # IPv4 con porta: 1.2.3.4:5678
+        return addr.split(':', 1)[0]
+    return addr  # IPv4 puro o IPv6 senza porta
+
+
 def _rate_limit_key() -> str:
-    """IP reale del client per il rate-limit.
+    """IP reale del client per il rate-limit (senza porta).
 
     Default (app diretta su Azure): l'IP viene da X-Forwarded-For impostato dalla
     piattaforma e letto da ProxyFix -> remote_addr (non falsificabile: lo scrive
@@ -364,8 +382,8 @@ def _rate_limit_key() -> str:
     if _TRUST_CF_IP:
         cf_ip = (request.headers.get('CF-Connecting-IP') or '').strip()
         if cf_ip:
-            return cf_ip
-    return get_remote_address()
+            return _strip_port(cf_ip)
+    return _strip_port(get_remote_address())
 
 
 limiter = Limiter(
