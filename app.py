@@ -322,12 +322,18 @@ csrf = CSRFProtect(app)
 def _handle_csrf_error(e):
     accept = request.headers.get('Accept') or ''
     content_type = request.headers.get('Content-Type') or ''
-    wants_json = (
+    # Richiesta programmatica (fetch/XHR)? Il nostro script inietta sempre
+    # X-CSRFToken; Sec-Fetch-Mode=cors indica una fetch, non una navigazione.
+    # A queste va risposto 4xx pulito, MAI un redirect (che il JS seguirebbe
+    # credendo che il POST sia riuscito, mentre non è stato eseguito).
+    is_programmatic = (
         'application/json' in accept
         or content_type.startswith('application/json')
         or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.headers.get('X-CSRFToken') is not None
+        or (request.headers.get('Sec-Fetch-Mode') or '').lower() == 'cors'
     )
-    if wants_json:
+    if is_programmatic:
         return jsonify(error='csrf', message='Sessione non valida: ricarica la pagina e riprova.'), 400
     flash('La sessione è scaduta o il modulo non è più valido: riprova.', 'warning')
     ref = request.referrer or ''
@@ -1293,8 +1299,12 @@ _ACCESS_PROFILE_CACHE: dict[str, dict] = {}
 _ACCESS_PROFILE_TENANT_COLUMN: bool | None = None
 _TENANT_MODULE_CACHE: dict[str, dict] = {}
 _DASHBOARD_ROUTE_CACHE: dict[str, dict] = {}
-_ACCESS_PROFILE_CACHE_TTL_SECONDS = 900
-_SESSION_PROFILE_CACHE_TTL_SECONDS = 900
+# TTL brevi per i dati di AUTORIZZAZIONE: con più worker la cache è per-processo
+# e si invalida solo nel worker che ha servito la modifica. Un TTL di 15 min
+# lasciava permessi revocati attivi fino a 15 min sugli altri worker. 2 min è un
+# compromesso sicurezza/costo (un refresh profilo ogni 2 min per utente attivo).
+_ACCESS_PROFILE_CACHE_TTL_SECONDS = int(os.getenv('ACCESS_PROFILE_CACHE_TTL_SECONDS', '120') or '120')
+_SESSION_PROFILE_CACHE_TTL_SECONDS = int(os.getenv('SESSION_PROFILE_CACHE_TTL_SECONDS', '120') or '120')
 _TENANT_MODULE_CACHE_TTL_SECONDS = 300
 
 
