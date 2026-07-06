@@ -161,6 +161,10 @@ IF COL_LENGTH('dbo.StoreHubTenantUsers','tenant_role') IS NULL
   ALTER TABLE dbo.StoreHubTenantUsers ADD tenant_role NVARCHAR(50) NOT NULL DEFAULT 'user';
 IF COL_LENGTH('dbo.StoreHubTenantUsers','is_active') IS NULL
   ALTER TABLE dbo.StoreHubTenantUsers ADD is_active BIT NOT NULL DEFAULT 1;
+IF COL_LENGTH('dbo.StoreHubTenantUsers','deleted_at') IS NULL
+  ALTER TABLE dbo.StoreHubTenantUsers ADD deleted_at DATETIME2 NULL;
+IF COL_LENGTH('dbo.StoreHubTenantUsers','purge_after') IS NULL
+  ALTER TABLE dbo.StoreHubTenantUsers ADD purge_after DATETIME2 NULL;
 
 IF OBJECT_ID('dbo.StoreHubTenantStores','U') IS NULL
 BEGIN
@@ -1579,7 +1583,7 @@ def list_tenant_users(tenant_key: str) -> List[Dict[str, Any]]:
         cur = conn.cursor()
         cur.execute(
             """
-SELECT row_uuid, tenant_key, user_id, email, tenant_role, is_active, created_at, updated_at
+SELECT row_uuid, tenant_key, user_id, email, tenant_role, is_active, created_at, updated_at, deleted_at, purge_after
   FROM dbo.StoreHubTenantUsers
  WHERE tenant_key = ?
  ORDER BY email
@@ -1677,6 +1681,73 @@ UPDATE dbo.StoreHubTenantUsers
         conn.commit()
     invalidate_tenant_cache()
     return ok
+
+
+def soft_delete_tenant_user(tenant_key: str, email: str, *, grace_days: int = 60) -> Dict[str, Any]:
+    """Soft-delete di una persona in un tenant: disattiva la membership (blocca il
+    login) e fissa la data di purga. La cancellazione effettiva del profilo Supabase
+    avviene alla purga (Fase 3). Reversibile con restore_tenant_user."""
+    ensure_tenant_schema()
+    key = _normalize_tenant_key(tenant_key)
+    mail = _normalize_email(email)
+    days = int(grace_days) if int(grace_days) > 0 else 60
+    with _conn(read_only=False) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+UPDATE dbo.StoreHubTenantUsers
+   SET is_active = 0,
+       deleted_at = SYSUTCDATETIME(),
+       purge_after = DATEADD(DAY, ?, SYSUTCDATETIME()),
+       updated_at = SYSUTCDATETIME()
+ WHERE tenant_key = ? AND email = ?
+""",
+            days, key, mail,
+        )
+        ok = bool(cur.rowcount)
+        conn.commit()
+    invalidate_tenant_cache()
+    return {"tenant_key": key, "email": mail, "updated": ok}
+
+
+def restore_tenant_user(tenant_key: str, email: str) -> bool:
+    ensure_tenant_schema()
+    key = _normalize_tenant_key(tenant_key)
+    mail = _normalize_email(email)
+    with _conn(read_only=False) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+UPDATE dbo.StoreHubTenantUsers
+   SET is_active = 1,
+       deleted_at = NULL,
+       purge_after = NULL,
+       updated_at = SYSUTCDATETIME()
+ WHERE tenant_key = ? AND email = ?
+""",
+            key, mail,
+        )
+        ok = bool(cur.rowcount)
+        conn.commit()
+    invalidate_tenant_cache()
+    return ok
+
+
+def list_tenant_users_pending_purge() -> List[Dict[str, Any]]:
+    """Persone soft-deleted col periodo di grazia scaduto: pronte per la purga (Fase 3)."""
+    ensure_tenant_schema()
+    with _conn(read_only=True) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+SELECT tenant_key, user_id, email, deleted_at, purge_after
+  FROM dbo.StoreHubTenantUsers
+ WHERE purge_after IS NOT NULL AND purge_after <= SYSUTCDATETIME()
+ ORDER BY purge_after
+"""
+        )
+        cols = [c[0] for c in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
 def delete_tenant_user(tenant_key: str, email: str) -> bool:

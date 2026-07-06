@@ -608,15 +608,33 @@
               <tr>
                 <td><div class="fw-semibold">{{ u.email }}</div><div class="small text-muted">{{ u.user_id or '' }}</div></td>
                 <td><span class="badge text-bg-light border">{{ u.tenant_role }}</span></td>
-                <td>{% if u.is_active %}<span class="badge text-bg-success">attivo</span>{% else %}<span class="badge text-bg-secondary">disattivo</span>{% endif %}</td>
+                <td>
+                  {% if u.is_active %}<span class="badge text-bg-success">attivo</span>{% else %}<span class="badge text-bg-secondary">disattivo</span>{% endif %}
+                  {% if u.deleted_at %}<span class="badge text-bg-danger" title="Purga dal {{ u.purge_after }}">in cancellazione</span>{% endif %}
+                </td>
                 <td class="text-end">
-                  <form method="post">
+                  <form method="post" class="d-inline">
                     <input type="hidden" name="action" value="toggle_user">
                     <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
                     <input type="hidden" name="user_email" value="{{ u.email }}">
                     <input type="hidden" name="active" value="{{ '0' if u.is_active else '1' }}">
                     <button class="btn btn-sm btn-outline-secondary">{{ 'Disattiva' if u.is_active else 'Attiva' }}</button>
                   </form>
+                  {% if u.deleted_at %}
+                  <form method="post" class="d-inline">
+                    <input type="hidden" name="action" value="restore_user">
+                    <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                    <input type="hidden" name="user_email" value="{{ u.email }}">
+                    <button class="btn btn-sm btn-outline-success">Ripristina</button>
+                  </form>
+                  {% else %}
+                  <form method="post" class="d-inline" onsubmit="return confirm('Contrassegnare {{ u.email }} per cancellazione? Sarà recuperabile per 60 giorni.');">
+                    <input type="hidden" name="action" value="soft_delete_user">
+                    <input type="hidden" name="tenant_key" value="{{ selected_tenant_key }}">
+                    <input type="hidden" name="user_email" value="{{ u.email }}">
+                    <button class="btn btn-sm btn-outline-danger">Cancella</button>
+                  </form>
+                  {% endif %}
                 </td>
               </tr>
               {% else %}

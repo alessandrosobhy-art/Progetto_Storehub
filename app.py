@@ -2533,6 +2533,35 @@ def master_tenants():
                 else:
                     flash("Associazione utente non trovata.", "warning")
                 return redirect(url_for("master_tenants", tenant_key=edit_key))
+            if action == "soft_delete_user":
+                edit_key = request.form.get("tenant_key") or edit_key
+                user_email = (request.form.get("user_email") or "").strip()
+                try:
+                    from tenant_config_repository import soft_delete_tenant_user
+                    st = soft_delete_tenant_user(edit_key, user_email, grace_days=int(os.getenv("TENANT_PURGE_GRACE_DAYS", "60") or "60"))
+                    if st.get("updated"):
+                        current_app.logger.warning("Soft-delete utente '%s' su tenant '%s' da master %s", user_email, edit_key, session.get("email"))
+                        flash(f"Utente '{user_email}' contrassegnato per cancellazione (recuperabile 60 giorni).", "success")
+                    else:
+                        flash("Associazione utente non trovata.", "warning")
+                except Exception as exc:
+                    current_app.logger.exception("Soft-delete utente fallito")
+                    flash(f"Cancellazione non riuscita: {exc}", "danger")
+                return redirect(url_for("master_tenants", tenant_key=edit_key))
+            if action == "restore_user":
+                edit_key = request.form.get("tenant_key") or edit_key
+                user_email = (request.form.get("user_email") or "").strip()
+                try:
+                    from tenant_config_repository import restore_tenant_user
+                    if restore_tenant_user(edit_key, user_email):
+                        current_app.logger.warning("Restore utente '%s' su tenant '%s' da master %s", user_email, edit_key, session.get("email"))
+                        flash(f"Utente '{user_email}' ripristinato.", "success")
+                    else:
+                        flash("Associazione utente non trovata.", "warning")
+                except Exception as exc:
+                    current_app.logger.exception("Restore utente fallito")
+                    flash(f"Ripristino non riuscito: {exc}", "danger")
+                return redirect(url_for("master_tenants", tenant_key=edit_key))
             if action == "save_storage_rule":
                 edit_key = request.form.get("tenant_key") or edit_key
                 save_storage_rule(
