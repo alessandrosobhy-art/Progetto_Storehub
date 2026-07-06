@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import re
 
 from datetime import date, datetime, timedelta
@@ -77,7 +78,7 @@ def _access_column_types(cur, table_name: str) -> Dict[str, str]:
             if n:
                 out[_norm(str(n))] = str(t or "").upper()
     except Exception:
-        pass
+        log_swallowed('orari_repository:81')
     return out
 
 
@@ -201,11 +202,11 @@ def _ensure_turni_table(conn) -> str:
         try:
             cur.execute("CREATE INDEX idx_staff_p_site_data_nom ON STAFF_P (Site, Data, Nominativo)")
         except Exception:
-            pass
+            log_swallowed('orari_repository:205')
         try:
             cur.execute("CREATE INDEX idx_staff_p_site_data_staffid ON STAFF_P (Site, Data, StaffId)")
         except Exception:
-            pass
+            log_swallowed('orari_repository:209')
         conn.commit()
         return "STAFF_P"
 
@@ -220,7 +221,7 @@ def _ensure_turni_table(conn) -> str:
             conn.commit()
             cols = _access_columns(cur, table)
     except Exception:
-        pass
+        log_swallowed('orari_repository:224')
     cand = _candidate_sets()
 
     def _has_any(logical: str) -> bool:
@@ -232,7 +233,7 @@ def _ensure_turni_table(conn) -> str:
                 add_kw = "ADD" if _is_sqlserver() else "ADD COLUMN"
                 cur.execute(f"ALTER TABLE {_qname(table)} {add_kw} {ddl}")
             except Exception:
-                pass
+                log_swallowed('orari_repository:235')
 
     if _is_sqlserver():
         _add_if_missing("site", "Site NVARCHAR(20) NULL")
@@ -266,7 +267,7 @@ def _ensure_turni_table(conn) -> str:
     try:
         conn.commit()
     except Exception:
-        pass
+        log_swallowed('orari_repository:270')
 
     return table
 
@@ -279,7 +280,7 @@ def ensure_turni_schema() -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('orari_repository:282')
 
 
 def _to_access_datetime(d: date) -> datetime:
@@ -314,7 +315,7 @@ def _time_to_hhmm(v: Any) -> str:
             if 0 <= hh <= 23 and 0 <= mi <= 59:
                 return f"{hh:02d}:{mi:02d}"
         except Exception:
-            pass
+            log_swallowed('orari_repository:318')
         return t
     return ""
 
@@ -510,7 +511,7 @@ def list_turni_week(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('orari_repository:514')
 
 def save_turni_week(*, store_code: str, rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     conn = get_connection(store_code)
@@ -739,7 +740,7 @@ def save_turni_week(*, store_code: str, rows: List[Dict[str, Any]]) -> Dict[str,
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('orari_repository:743')
 
 
 
@@ -775,13 +776,13 @@ def update_turni_inquadramento_by_nominativo(*, store_code: str, nominativo: str
         try:
             conn.commit()
         except Exception:
-            pass
+            log_swallowed('orari_repository:779')
         return {"ok": True, "updated": updated, "table": table}
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('orari_repository:784')
 
 
 def relink_turni_staff_identity(
@@ -847,13 +848,13 @@ def relink_turni_staff_identity(
         try:
             conn.commit()
         except Exception:
-            pass
+            log_swallowed('orari_repository:850')
         return {"ok": True, "updated": updated, "table": table}
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('orari_repository:856')
 
 
 def _monday(d: date) -> date:
@@ -896,14 +897,14 @@ def delete_turni_range(*, store_code: str, start_day: date, end_day: date) -> Di
         try:
             conn.commit()
         except Exception:
-            pass
+            log_swallowed('orari_repository:900')
 
         return {"ok": True, "deleted": deleted, "table": table}
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('orari_repository:907')
 
 
 def overwrite_week_from_week(

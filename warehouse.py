@@ -1,3 +1,4 @@
+from app_logging import log_swallowed
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app, Response, send_file
 import time
 import io
@@ -174,7 +175,7 @@ def _ensure_admin_warehouse_access():
             if bool(get_tenant(str(tenant_key or "")).get("master_can_admin")):
                 return True
         except Exception:
-            pass
+            log_swallowed('warehouse:177')
     if role != "admin":
         flash("Questa pagina è riservata agli admin.", "warning")
         return False
@@ -239,7 +240,7 @@ def _list_store_options_for_admin_context(active_only: bool = False):
                 )
             return stores
     except Exception:
-        pass
+        log_swallowed('warehouse:242')
     try:
         return get_warehouse_stores() or []
     except Exception:
@@ -534,7 +535,7 @@ def _parse_month_yyyy_mm(value: str) -> tuple[date, date]:
             if 1 <= m2 <= 12 and y2 >= 2000:
                 y, m = y2, m2
     except Exception:
-        pass
+        log_swallowed('warehouse:538')
 
     start = date(y, m, 1)
     # ultimo giorno del mese
@@ -692,7 +693,7 @@ def riepilogo_export():
     try:
         rows = sorted(rows, key=lambda r: str(r.get("store_code") or ""))
     except Exception:
-        pass
+        log_swallowed('warehouse:696')
 
     # Dedup warnings
     uniq_w = []
@@ -969,12 +970,12 @@ def api_riepilogo_mensile():
         if conn_shared is not None:
             conn_shared.close()
     except Exception:
-        pass
+        log_swallowed('warehouse:973')
     # Ordina per store_code
     try:
         rows = sorted(rows, key=lambda r: str(r.get("store_code") or ""))
     except Exception:
-        pass
+        log_swallowed('warehouse:978')
 
     # Dedup warnings
     uniq_w = []
@@ -1116,7 +1117,7 @@ def _available_stores_for_user(user_id: str | None):
         if isinstance(cached_payload, list) and (time.time() - cached_ts) < _AVAILABLE_STORES_CACHE_TTL_SECONDS:
             return cached_payload
     except Exception:
-        pass
+        log_swallowed('warehouse:1119')
 
     try:
         # Verifica ruolo con SERVICE_ROLE: l'elenco store deve riflettere subito
@@ -1132,7 +1133,7 @@ def _available_stores_for_user(user_id: str | None):
                     session["role_verified_for"] = user_id
                     session["role_verified_at"] = int(time.time())
         except Exception:
-            pass
+            log_swallowed('warehouse:1135')
 
         if role == "master":
             stores = []
@@ -1171,7 +1172,7 @@ def _available_stores_for_user(user_id: str | None):
             ),
         )
     except Exception:
-        pass
+        log_swallowed('warehouse:1174')
 
     try:
         _AVAILABLE_STORES_SHARED_CACHE[shared_cache_key] = {
@@ -1179,7 +1180,7 @@ def _available_stores_for_user(user_id: str | None):
             "stores": stores or [],
         }
     except Exception:
-        pass
+        log_swallowed('warehouse:1182')
 
     return stores
 
@@ -1216,7 +1217,7 @@ def stores_json_all():
                 ),
             )
         except Exception:
-            pass
+            log_swallowed('warehouse:1220')
 
         return jsonify({"stores": stores})
     except Exception as e:
@@ -1634,7 +1635,7 @@ def delivery_new():
                             try:
                                 session["supplier_order_ddt_prefill"] = None
                             except Exception:
-                                pass
+                                log_swallowed('warehouse:1638')
                         flash(
                             f"DDT salvato correttamente. Righe inserite: {inserted}, righe ignorate: {skipped}.",
                             "success",
@@ -1683,7 +1684,7 @@ def spesa_new():
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('warehouse:1687')
     except Exception:
         layout = None
 

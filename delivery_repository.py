@@ -1,3 +1,4 @@
+from app_logging import log_swallowed
 from datetime import datetime
 from date_utils import to_datetime00 as _to_dt00, to_ddmmyyyy as _to_ddmmyyyy, to_iso as _to_iso_date
 import os
@@ -37,7 +38,7 @@ def _get_odbc_columns_info(conn, table_name: str) -> Dict[str, Dict[str, Any]]:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:40')
     except Exception:
         # se fallisce, ritorna vuoto: useremo solo fallback testuale
         return {}
@@ -125,7 +126,7 @@ def get_recent_deliveries(store_code: str, limit: int = 50) -> Dict[str, Any]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:128')
 
 
 # ---------------------------- SUPPLIERS ----------------------------------
@@ -170,7 +171,7 @@ def get_suppliers_for_store(store_code: str) -> Dict[str, Any]:
             "error": None,
         }
     except Exception:
-        pass
+        log_swallowed('delivery_repository:173')
 
     table = os.getenv("ACCESS_SUPPLIERS_TABLE", "FORNITORI")
     code_col_cfg = _normalize_name(os.getenv("ACCESS_SUPPLIERS_CODE_COL", "Fornitore"))
@@ -242,7 +243,7 @@ def get_suppliers_for_store(store_code: str) -> Dict[str, Any]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:245')
 
 
 # ---------------------------- PRICE LIST ---------------------------------
@@ -274,7 +275,7 @@ def get_price_list_for_supplier(store_code: str, supplier_code: str, max_rows: i
         migrate_legacy_pricelists()
         return list_prices_for_supplier_all_types(supplier_code=supplier_code, max_rows=max_rows, store_code=store_code)
     except Exception:
-        pass
+        log_swallowed('delivery_repository:277')
 
     food_table = os.getenv("ACCESS_PRICELIST_FOOD_TABLE", "FoodPaper")
     oper_table = os.getenv("ACCESS_PRICELIST_OPER_TABLE", "Operating")
@@ -416,7 +417,7 @@ def get_price_list_for_supplier(store_code: str, supplier_code: str, max_rows: i
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:419')
 
 
 
@@ -508,7 +509,7 @@ def _detect_delivery_layout(conn, table_name):
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:511')
 
     if len(cols_raw) < 3:
         return {
@@ -833,7 +834,7 @@ def save_delivery_document(store_code, header, cols, rows, unit_column=None, cod
                 cursor.execute(delete_sql, delete_params)
             except Exception:
                 # in caso di errore nel delete proseguiamo comunque con l'INSERT
-                pass
+                log_swallowed('delivery_repository:837')
 
         # INSERT [Site] + [anagrafica...] + [QtaTot] + [Valore]
         # NB: in SQL Server sono presenti spesso colonne tecniche (es. row_uuid) che NON devono
@@ -1097,7 +1098,7 @@ def get_delivery_document_rows(store_code: str, supplier_name: str, data_consegn
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1100')
         info["error"] = f"Errore lettura DDT: {ex}"
         return info
 
@@ -1170,7 +1171,7 @@ def delete_delivery_row(store_code: str, supplier_name: str, data_consegna: str,
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1173')
         return {"success": False, "error": str(ex)}
 
 
@@ -1262,7 +1263,7 @@ def update_delivery_ddt_dates(store_code: str, supplier_name: str, old_data_cons
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1265')
         return {"success": False, "error": str(ex)}
 # -----------------------------------------------------------------------------
 # DELIVERY WEEKLY (Rendiconto -> Gestione delivery)
@@ -1437,14 +1438,14 @@ def ensure_delivery_weekly_schema() -> None:
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1440')
         raise
         # best-effort: non bloccare letture in ambienti dove la migration è gestita separatamente
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1447')
 
 
 def _provider_key(value: str) -> str:
@@ -1539,13 +1540,13 @@ END
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1542')
         raise
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1548')
 
 
 def list_delivery_providers(active_only: bool = False) -> list[dict[str, Any]]:
@@ -1583,7 +1584,7 @@ FROM dbo.DeliveryProviders
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1586')
 
 
 def save_delivery_provider(
@@ -1644,13 +1645,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1647')
         raise
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1653')
 
 
 def delete_delivery_provider(row_uuid: str) -> bool:
@@ -1669,13 +1670,13 @@ def delete_delivery_provider(row_uuid: str) -> bool:
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1672')
         raise
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1678')
 
 
 def _ensure_delivery_weekly_extra_columns() -> None:
@@ -1733,7 +1734,7 @@ def get_weekly(store_code: str, platform: str, week_start: _date) -> DeliveryWee
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1736')
 
 
 def list_weekly_rows(store_code: str, week_start: _date) -> list[DeliveryWeeklyRow]:
@@ -1766,7 +1767,7 @@ def list_weekly_rows(store_code: str, week_start: _date) -> list[DeliveryWeeklyR
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1769')
 
 
 def export_weekly_rows(
@@ -1890,7 +1891,7 @@ def export_weekly_rows(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1893')
 
 
 def get_prev_rating(store_code: str, platform: str, week_start: _date) -> Decimal | None:
@@ -1921,7 +1922,7 @@ def get_prev_rating(store_code: str, platform: str, week_start: _date) -> Decima
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:1924')
 
 
 def upsert_weekly(
@@ -2027,13 +2028,13 @@ def upsert_weekly(
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:2030')
         raise
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:2036')
 
 
 def list_refunds_agg(store_code: str, range_start: _date, range_end: _date) -> list[dict[str, object]]:
@@ -2079,4 +2080,4 @@ def list_refunds_agg(store_code: str, range_start: _date, range_end: _date) -> l
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('delivery_repository:2082')

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 import re
 from typing import Any, Dict, List
@@ -57,7 +58,7 @@ def _tenant_key(tenant_key: str | None = None) -> str:
             if k:
                 return k
     except Exception:
-        pass
+        log_swallowed('orari_config_repository:60')
     return current_tenant_key()
 
 

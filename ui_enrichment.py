@@ -2,6 +2,7 @@
 # ui_enrichment.py — helper per adattare i dati alle aspettative del template reviews.html
 # Crea i campi: _review_name, _stars, _replyText e normalizza comment
 
+from app_logging import log_swallowed
 def _normalize_stars(val):
     if val is None:
         return 0
@@ -10,7 +11,7 @@ def _normalize_stars(val):
         if 1 <= v <= 5:
             return v
     except Exception:
-        pass
+        log_swallowed('ui_enrichment:13')
     mapping = {
         "ONE":1,"TWO":2,"THREE":3,"FOUR":4,"FIVE":5,
         "one":1,"two":2,"three":3,"four":4,"five":5,

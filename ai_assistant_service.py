@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 import re
 import json
@@ -520,7 +521,7 @@ def _build_orari_lookup(question: str, *, stores: list[dict[str, str]], period: 
                                 end_m += 24*60
                             mins += max(0, end_m-start_m)
                         except Exception:
-                            pass
+                            log_swallowed('ai_assistant_service:524')
                 totals['hours'] = round(totals.get('hours',0.0) + (mins/60.0), 2)
                 totals['rows'] = int(totals.get('rows',0) or 0) + 1
                 row_copy = dict(r)
@@ -659,7 +660,7 @@ def _aggregate_primanota_range(store_code: str, start: date, end: date) -> dict[
             try:
                 vers_tot += Decimal(str(vr.get("valore_key") or "0"))
             except Exception:
-                pass
+                log_swallowed('ai_assistant_service:663')
             try:
                 dal = datetime.strptime(str(vr.get("dal_iso") or ""), "%Y-%m-%d").date()
                 al = datetime.strptime(str(vr.get("al_iso") or ""), "%Y-%m-%d").date()
@@ -674,7 +675,7 @@ def _aggregate_primanota_range(store_code: str, start: date, end: date) -> dict[
         metrics["versamenti"] = _money(vers_tot)
         metrics["versato_days"] = len(covered_days)
     except Exception:
-        pass
+        log_swallowed('ai_assistant_service:678')
 
     try:
         metrics["delivery_breakdown"] = sum_delivery_voce_range(
@@ -747,12 +748,12 @@ def _aggregate_cruscotto_kpi(store_code: str, start: date, end: date, *, actual_
                 try:
                     budget += _money(fetch_budget_day(store_code=str(store_code), day=day))
                 except Exception:
-                    pass
+                    log_swallowed('ai_assistant_service:751')
                 try:
                     ly_row = fetch_dati_database_day(store_code=str(store_code), day=_align_last_year_same_weekday(day)) or {}
                     ly += _money(_money(ly_row.get("fatturato_lordo")) / 1.1)
                 except Exception:
-                    pass
+                    log_swallowed('ai_assistant_service:755')
             try:
                 turni = list_turni_week(store_code=str(store_code), start_day=start, end_day=end, nominativi=None) or []
                 prod_by_day, _stage_by_day, train_by_day = _hours_from_turni_rows(turni)

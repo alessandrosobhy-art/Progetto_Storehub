@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import datetime as _dt
 from typing import Any, Dict, Iterable, List, Set
 
@@ -145,5 +146,5 @@ def maintenance_years(extra_year: int | None = None) -> List[int]:
         for row in list_visible_months(current - 5, current + 5):
             years.add(int(row["year"]))
     except Exception:
-        pass
+        log_swallowed('cruscotto_pnl_store_repository:148')
     return sorted(years, reverse=True)

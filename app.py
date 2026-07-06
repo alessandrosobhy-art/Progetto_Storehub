@@ -1,3 +1,4 @@
+from app_logging import log_swallowed
 import os
 from contextlib import nullcontext
 
@@ -161,7 +162,7 @@ try:
     import pillow_heif
     pillow_heif.register_heif_opener()
 except Exception:
-    pass
+    log_swallowed('app:164')
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -418,7 +419,7 @@ def _normalize_loc_name_to_location_id(value: str):
             if part:
                 return f'locations/{part}'
         except Exception:
-            pass
+            log_swallowed('app:421')
     return s  # fallback
 
 def _fetch_allowed_locations_via_rls():
@@ -562,7 +563,7 @@ def _raise_with_body(resp: requests.Response):
         try:
             body = resp.text
         except Exception:
-            pass
+            log_swallowed('app:565')
         raise requests.HTTPError(f'{e}\nResponse body: {body}') from e
 
 def _extract_error_message_from_http_exc(exc: Exception) -> str:
@@ -583,7 +584,7 @@ def _extract_error_message_from_http_exc(exc: Exception) -> str:
                 if v:
                     return str(v)
         except Exception:
-            pass
+            log_swallowed('app:586')
         # fallback: body testuale
         return body[:500]
     return msg[:500]
@@ -1145,14 +1146,14 @@ def current_user():
                 if admin_prof:
                     prof = admin_prof
             except Exception:
-                pass
+                log_swallowed('app:1148')
 
         if prof:
             try:
                 session['profile_cache'] = dict(prof)
                 session['profile_cache_ts'] = time.time()
             except Exception:
-                pass
+                log_swallowed('app:1155')
             # campi base da DB (preferisci DB alla sessione)
             for k in ['email', 'name', 'role', 'access_profile_id', 'ai_enabled', 'theme_key', 'is_master']:
                 if k in prof and prof.get(k) is not None:
@@ -1177,9 +1178,9 @@ def current_user():
                 else:
                     session['role'] = base.get('role')
             except Exception:
-                pass
+                log_swallowed('app:1180')
     except Exception:
-        pass
+        log_swallowed('app:1182')
 
     base['ai_enabled'] = _normalize_ai_access(base)
     if str(base.get('role') or '').strip().lower() == 'master':
@@ -1197,7 +1198,7 @@ def current_user():
     try:
         session['access_modules'] = {k: bool(v) for k, v in mods.items() if k.startswith('mod_')}
     except Exception:
-        pass
+        log_swallowed('app:1200')
     return _request_cache_set("_storehub_current_user_cache", base)
 
 def login_required(view):
@@ -1597,7 +1598,7 @@ def sb_admin_upsert_access_profile(profile_id: str | None, name: str, descriptio
             if arr and isinstance(arr, list) and arr[0].get("id"):
                 return arr[0]["id"]
         except Exception:
-            pass
+            log_swallowed('app:1600')
         return profile_id
 
     # create
@@ -3049,7 +3050,7 @@ def _parse_finance_date_local(value: Any):
         try:
             return value if not isinstance(value, str) else None
         except Exception:
-            pass
+            log_swallowed('app:3052')
     s = str(value or "").strip()
     if not s:
         return None
@@ -3057,7 +3058,7 @@ def _parse_finance_date_local(value: Any):
         try:
             return datetime.strptime(s, fmt).date()
         except Exception:
-            pass
+            log_swallowed('app:3060')
     try:
         return datetime.fromisoformat(s).date()
     except Exception:
@@ -3840,7 +3841,7 @@ def _load_app_pos_rows(*, selected_store_codes: list[str], start_iso: str, end_i
                 try:
                     rec[key] += float(r.get("sum") or 0.0)
                 except Exception:
-                    pass
+                    log_swallowed('app:3843')
         for d_iso, rec in sorted(day_map.items()):
             rec["giro_affari"] = float(rec.get("vendite_lorde") or 0.0) - float(rec.get("annullati") or 0.0)
             rec["app_record_key"] = build_pos_app_record_key(rec)
@@ -4622,7 +4623,7 @@ def _normalize_image_for_gbp(file_storage):
     try:
         im = ImageOps.exif_transpose(im)
     except Exception:
-        pass
+        log_swallowed('app:4625')
 
     if im.mode not in ('RGB', 'L'):
         im = im.convert('RGB')
@@ -4734,7 +4735,7 @@ def login_post():
                 if admin_prof:
                     prof = {**prof, **admin_prof}
             except Exception:
-                pass
+                log_swallowed('app:4737')
         session['uid'] = uid
         session['email'] = user_obj.get('email') or email
         session['name'] = prof.get('name') or session['email']
@@ -4754,7 +4755,7 @@ def login_post():
                 session['profile_cache'] = dict(prof)
                 session['profile_cache_ts'] = time.time()
         except Exception:
-            pass
+            log_swallowed('app:4757')
 
         if bool(session.get('is_master')) or str(session.get('role') or '').strip().lower() == 'master':
             _apply_tenant_to_session(None)
@@ -4799,7 +4800,7 @@ def login_post():
                 try:
                     sb_user_update_metadata(token, meta_updates)
                 except Exception:
-                    pass
+                    log_swallowed('app:4802')
 
             expires_dt = changed_dt + timedelta(days=PW_EXPIRE_DAYS)
             session['pw_changed_at'] = _dt_to_iso_utc(changed_dt)
@@ -6057,7 +6058,7 @@ def admin_historical_daily_sales_import():
         try:
             os.remove(_historical_import_path(import_id))
         except Exception:
-            pass
+            log_swallowed('app:6060')
         result = {"ok": ok, "errors": errors, "total": len(rows)}
         flash(f"Import storico completato: {ok}/{len(rows)} righe scritte.", "success" if not errors else "warning")
         return render_template(
@@ -6131,7 +6132,7 @@ def _ensure_user_and_profile(email: str, name: str, role: str) -> tuple[str | No
         try:
             _sb_admin_upsert_profile(uid, email, name, role)
         except Exception:
-            pass
+            log_swallowed('app:6134')
         return uid, False, None
 
     # Non trovato: invito (crea auth user e normalmente trigger crea profile)
@@ -6156,14 +6157,14 @@ def _ensure_user_and_profile(email: str, name: str, role: str) -> tuple[str | No
                 uid = prof['id']
                 break
         except Exception:
-            pass
+            log_swallowed('app:6159')
         time.sleep(0.25)
 
     if uid:
         try:
             _sb_admin_upsert_profile(uid, email, name, role)
         except Exception:
-            pass
+            log_swallowed('app:6166')
         return uid, created, warn
 
     # ultimo tentativo: se dall'invite abbiamo l'uid, crea la riga profilo
@@ -6288,7 +6289,7 @@ def admin_users_import_csv():
                 try:
                     sb_admin_update_profile(uid, role="user", ai_enabled=False)
                 except Exception:
-                    pass
+                    log_swallowed('app:6291')
         try:
             if not str(g.get("role") or "").strip().lower() == "master":
                 from tenant_config_repository import upsert_tenant_user
@@ -7056,7 +7057,7 @@ _LISTINI_JOB_DIR = Path(os.getenv("LISTINI_JOB_DIR") or os.path.join(tempfile.ge
 try:
     _LISTINI_JOB_DIR.mkdir(parents=True, exist_ok=True)
 except Exception:
-    pass
+    log_swallowed('app:7059')
 
 
 def _listini_job_paths(job_id: str) -> tuple[Path, Path]:
@@ -7076,7 +7077,7 @@ def _json_write_atomic(path: Path, obj: dict) -> None:
         try:
             path.write_text(json.dumps(obj, ensure_ascii=False), encoding="utf-8")
         except Exception:
-            pass
+            log_swallowed('app:7079')
 
 
 def _json_read_safe(path: Path) -> dict | None:
@@ -7115,15 +7116,15 @@ def _listini_jobs_cleanup_files(max_age_hours: int = 48) -> None:
                             if inp.exists():
                                 inp.unlink()
                         except Exception:
-                            pass
+                            log_swallowed('app:7118')
                     try:
                         p.unlink()
                     except Exception:
-                        pass
+                        log_swallowed('app:7122')
             except Exception:
                 continue
     except Exception:
-        pass
+        log_swallowed('app:7126')
 
 
 def _run_listini_apply_job(app_obj, job_id: str, prog_path: Path, payload: dict) -> None:
@@ -7423,7 +7424,7 @@ def admin_links_edit(link_id):
                     try:
                         storage_delete_image(image_path)
                     except Exception:
-                        pass
+                        log_swallowed('app:7426')
                 image_path = new_path
             except Exception as e:
                 flash(f"Errore upload immagine: {e}", 'danger')
@@ -7460,7 +7461,7 @@ def admin_links_delete(link_id):
         try:
             storage_delete_image((link or {}).get('image_path'))
         except Exception:
-            pass
+            log_swallowed('app:7463')
         flash('Link eliminato.', 'success')
     except Exception as e:
         flash(f"Errore eliminazione link: {e}", 'danger')
@@ -8198,7 +8199,7 @@ def admin_api_listini_export():
                     if dec.is_integer():
                         return str(int(dec))
                 except Exception:
-                    pass
+                    log_swallowed('app:8201')
             return str(value)
 
         output = io.StringIO()
@@ -8321,7 +8322,7 @@ def admin_api_listini_apply_start():
         try:
             _input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         except Exception:
-            pass
+            log_swallowed('app:8324')
         worker = threading.Thread(
             target=_run_listini_apply_job,
             args=(current_app._get_current_object(), job_id, prog_path, payload),
@@ -8376,7 +8377,7 @@ def admin_api_listini_apply_progress():
                 if tail:
                     out["logs"] = tail
     except Exception:
-        pass
+        log_swallowed('app:8379')
     return jsonify({'ok': True, 'job': out}), 200
 
 # --------------------- ROUTES: APP ---------------------
@@ -8408,7 +8409,7 @@ def api_location_quick_stats():
         if not user_can_access_loc(loc):
             return jsonify({'error': 'Non autorizzato per questa location'}), 403
     except Exception:
-        pass
+        log_swallowed('app:8411')
 
     since_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     if not session.get('sb_token'):
@@ -9295,7 +9296,7 @@ def _safe_next_url(nxt: str | None) -> str:
         if nxt.startswith('/') and not nxt.startswith('//'):
             return nxt
     except Exception:
-        pass
+        log_swallowed('app:9298')
     return url_for('dashboard')
 
 # === Calendar & Supervisor features (appended) ===
@@ -9873,14 +9874,14 @@ def _uc_env(name):
         v = _uc_app.config.get(name)
         if v: return v
     except Exception:
-        pass
+        log_swallowed('app:9876')
     return _uc_os.environ.get(name)
 
 def _uc_headers():
     try:
         return _sb_headers()  # type: ignore[name-defined]
     except Exception:
-        pass
+        log_swallowed('app:9883')
     sb_key = (_uc_env('SUPABASE_SERVICE_KEY') or _uc_env('SUPABASE_KEY'))
     if not sb_key:
         _uc_abort(500, 'supabase_not_configured')
@@ -9890,7 +9891,7 @@ def _uc_table(name: str) -> str:
     try:
         return _sb_table(name)  # type: ignore[name-defined]
     except Exception:
-        pass
+        log_swallowed('app:9893')
     base = (_uc_env('SUPABASE_URL') or '').rstrip('/')
     if not base:
         _uc_abort(500, 'supabase_not_configured')
@@ -9964,14 +9965,14 @@ def _pc_env(name):
         v = _pc_app.config.get(name)
         if v: return v
     except Exception:
-        pass
+        log_swallowed('app:9967')
     return _pc_os.environ.get(name)
 
 def _pc_headers():
     try:
         return _sb_headers()  # type: ignore[name-defined]
     except Exception:
-        pass
+        log_swallowed('app:9974')
     key = (_pc_env('SUPABASE_SERVICE_KEY') or _pc_env('SUPABASE_KEY'))
     if not key:
         _pc_abort(500, 'supabase_not_configured')
@@ -9981,7 +9982,7 @@ def _pc_table(t):
     try:
         return _sb_table(t)  # type: ignore[name-defined]
     except Exception:
-        pass
+        log_swallowed('app:9984')
     base = (_pc_env('SUPABASE_URL') or '').rstrip('/')
     if not base:
         _pc_abort(500, 'supabase_not_configured')
@@ -10080,7 +10081,7 @@ def api_stats_places():
                     arr = json.loads(raw)
                     if isinstance(arr, list): places = [str(x).strip() for x in arr if x]
                 except Exception:
-                    pass
+                    log_swallowed('app:10083')
         out.append({'day_label': d, 'places': places})
     return jsonify({'rows': out, 'count': len(out)})
 
@@ -10499,7 +10500,7 @@ def api_ms_token_scopes():
         payload = json.loads(base64.urlsafe_b64decode(parts[1] + '==').decode())
         scp = payload.get('scp'); aud = payload.get('aud'); tid = payload.get('tid'); upn = payload.get('upn') or payload.get('preferred_username')
     except Exception as e:
-        pass
+        log_swallowed('app:10502')
     return jsonify({'connected': True, 'scp': scp, 'aud': aud, 'tenant': tid, 'user': upn})
 
 @app.post('/api/ms/sync/apply')
@@ -10541,7 +10542,7 @@ def api_ms_sync_apply():
                     if day and subj:
                         cache.setdefault(day, {})[subj] = ev.get('id')
         except Exception as e:
-            pass
+            log_swallowed('app:10544')
 
     def _next_day(ymd):
         from datetime import datetime as dt, timedelta as td
@@ -10573,7 +10574,7 @@ def api_ms_sync_apply():
             try:
                 del cache[day][from_text]
             except Exception:
-                pass
+                log_swallowed('app:10576')
             cache.setdefault(day, {})[to_text] = ev_id
             return True
         return False
@@ -10701,7 +10702,7 @@ def api_ms_sync_apply():
                 try:
                     del cache[day][src]
                 except Exception:
-                    pass
+                    log_swallowed('app:10704')
                 cache.setdefault(day, {})[dst] = ev_id
 
     # 3) Delete selected Outlook events in 'dr'
@@ -10770,7 +10771,7 @@ def _sx_try_set_g_user_from_session() -> bool:
                 g.user = {'uid': uid, 'email': payload.get('email')}
                 return True
         except Exception:
-            pass
+            log_swallowed('app:10773')
     # 4) Fallback: imposta almeno un dict vuoto per evitare AttributeError
     g.user = {}
     return False
@@ -10939,7 +10940,7 @@ def api_ms_sync_preview__override():
                     if v:
                         local.setdefault(d, set()).add(v)
     except Exception:
-        pass
+        log_swallowed('app:10942')
 
     days = sorted(set(local.keys()) | set(remote.keys()))
     out = {'days':{}}
@@ -11026,7 +11027,7 @@ def api_ms_sync_apply__override():
                 try: 
                     del cache[day][src]
                 except Exception: 
-                    pass
+                    log_swallowed('app:11029')
                 cache.setdefault(day, {})[dst] = ev_id
 
     for x in dr:
@@ -11050,7 +11051,7 @@ def api_ms_sync_apply__override():
                 for row in rr.json() or []:
                     existing[row['day']] = [row.get('pos1') or '', row.get('pos2') or '', row.get('pos3') or '']
         except Exception:
-            pass
+            log_swallowed('app:11053')
 
     for x in cl:
         if not isinstance(x, dict): 
@@ -11078,7 +11079,7 @@ def api_ms_sync_apply__override():
             existing[day] = arr
             created_local += 1
         except Exception:
-            pass
+            log_swallowed('app:11081')
 
     return jsonify({'ok': True, 'message': f'Outlook creati: {created_remote}, Outlook rinominati: {renamed_remote}, Outlook cancellati: {deleted_remote}, Calendar creati: {created_local}' })
 
@@ -11087,7 +11088,7 @@ try:
     app.view_functions['api_ms_sync_preview'] = api_ms_sync_preview__override
     app.view_functions['api_ms_sync_apply']   = api_ms_sync_apply__override
 except Exception:
-    pass
+    log_swallowed('app:11090')
 
 # === Appendix: MS Graph debug probe — paged (2025‑10‑20) =========================
 from datetime import datetime, timedelta, timezone
@@ -11287,7 +11288,7 @@ def api_ms_sync_preview__paged():
                     v = (row.get(k) or '').strip()
                     if v: local.setdefault(d, set()).add(v)
     except Exception:
-        pass
+        log_swallowed('app:11290')
 
     days = sorted(set(local.keys()) | set(remote.keys()))
     out = {'days':{}}
@@ -11362,7 +11363,7 @@ def api_ms_sync_apply__paged():
             if getattr(pr, 'status_code', 500) in (200,204):
                 renamed_remote += 1
                 try: del cache[day][src]
-                except Exception: pass
+                except Exception: log_swallowed('app:11365')
                 cache.setdefault(day, {})[dst] = ev_id
 
     for x in dr:
@@ -11383,7 +11384,7 @@ def api_ms_sync_apply__paged():
                 for row in rr.json() or []:
                     existing[row['day']] = [row.get('pos1') or '', row.get('pos2') or '', row.get('pos3') or '']
         except Exception:
-            pass
+            log_swallowed('app:11386')
 
     for x in cl:
         if not isinstance(x, dict): continue
@@ -11404,7 +11405,7 @@ def api_ms_sync_apply__paged():
             _sb_upsert('calendar_positions', sbt, json_body=payload, on_conflict='user_id,day')
             existing[day] = arr; created_local += 1
         except Exception:
-            pass
+            log_swallowed('app:11407')
 
     return jsonify({'ok': True, 'message': f'Outlook creati: {created_remote}, Outlook rinominati: {renamed_remote}, Outlook cancellati: {deleted_remote}, Calendar creati: {created_local}' })
 
@@ -11412,7 +11413,7 @@ try:
     app.view_functions['api_ms_sync_preview'] = api_ms_sync_preview__paged
     app.view_functions['api_ms_sync_apply']   = api_ms_sync_apply__paged
 except Exception:
-    pass
+    log_swallowed('app:11415')
 # === Appendix: Microsoft Graph paging + all‑day‑like (2025‑10‑20) ==================
 from datetime import datetime, timedelta, timezone
 from flask import request, jsonify, session, g
@@ -11554,7 +11555,7 @@ def api_ms_sync_preview__paged():
                     v = (row.get(k) or '').strip()
                     if v: local.setdefault(d, set()).add(v)
     except Exception:
-        pass
+        log_swallowed('app:11557')
 
     days = sorted(set(local.keys()) | set(remote.keys()))
     out = {'days':{}}
@@ -11629,7 +11630,7 @@ def api_ms_sync_apply__paged():
             if getattr(pr, 'status_code', 500) in (200,204):
                 renamed_remote += 1
                 try: del cache[day][src]
-                except Exception: pass
+                except Exception: log_swallowed('app:11632')
                 cache.setdefault(day, {})[dst] = ev_id
 
     for x in dr:
@@ -11650,7 +11651,7 @@ def api_ms_sync_apply__paged():
                 for row in rr.json() or []:
                     existing[row['day']] = [row.get('pos1') or '', row.get('pos2') or '', row.get('pos3') or '']
         except Exception:
-            pass
+            log_swallowed('app:11653')
 
     for x in cl:
         if not isinstance(x, dict): continue
@@ -11671,7 +11672,7 @@ def api_ms_sync_apply__paged():
             _sb_upsert('calendar_positions', sbt, json_body=payload, on_conflict='user_id,day')
             existing[day] = arr; created_local += 1
         except Exception:
-            pass
+            log_swallowed('app:11674')
 
     return jsonify({'ok': True, 'message': f'Outlook creati: {created_remote}, Outlook rinominati: {renamed_remote}, Outlook cancellati: {deleted_remote}, Calendar creati: {created_local}' })
 
@@ -11679,5 +11680,5 @@ try:
     app.view_functions['api_ms_sync_preview'] = api_ms_sync_preview__paged
     app.view_functions['api_ms_sync_apply']   = api_ms_sync_apply__paged
 except Exception:
-    pass
+    log_swallowed('app:11682')
 

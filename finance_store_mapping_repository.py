@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import re
 from typing import Any, Dict, Iterable, List
 
@@ -97,7 +98,7 @@ def ensure_finance_store_mapping_tables() -> None:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('finance_store_mapping_repository:100')
         conn.close()
 
 
@@ -185,7 +186,7 @@ def import_code_catalog_rows(rows: Iterable[Dict[str, Any]], *, seed_source: str
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('finance_store_mapping_repository:188')
         conn.close()
 
 
@@ -232,7 +233,7 @@ def list_code_catalog(search: str = "") -> List[Dict[str, Any]]:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('finance_store_mapping_repository:235')
         conn.close()
 
 
@@ -262,7 +263,7 @@ def list_code_assignments(code: str = "") -> List[Dict[str, Any]]:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('finance_store_mapping_repository:265')
         conn.close()
 
 
@@ -301,7 +302,7 @@ def save_code_assignment(*, code: str, store_code: str, valid_from: str, note: s
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('finance_store_mapping_repository:304')
         conn.close()
 
 
@@ -338,7 +339,7 @@ def update_code_assignment(*, assignment_id: int, code: str, store_code: str, va
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('finance_store_mapping_repository:341')
         conn.close()
 
 
@@ -353,7 +354,7 @@ def delete_code_assignment(assignment_id: int) -> None:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('finance_store_mapping_repository:356')
         conn.close()
 
 
@@ -371,7 +372,7 @@ def delete_assignments_by_code(code: str) -> None:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('finance_store_mapping_repository:374')
         conn.close()
 
 
@@ -402,7 +403,7 @@ def get_code_catalog_map(codes: Iterable[str]) -> Dict[str, Dict[str, Any]]:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('finance_store_mapping_repository:405')
         conn.close()
 
 
@@ -435,5 +436,5 @@ def get_assignments_by_code(codes: Iterable[str]) -> Dict[str, List[Dict[str, An
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('finance_store_mapping_repository:438')
         conn.close()

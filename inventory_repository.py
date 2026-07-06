@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import datetime, timedelta
 import os
 import uuid
@@ -157,7 +158,7 @@ def get_conversions_for_supplier(store_code: str, supplier_name: str) -> Dict[st
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:160')
 
 
 def _get_conversions_for_supplier_from_pricelist(store_code: str, supplier_name: str) -> Dict[str, float]:
@@ -200,7 +201,7 @@ WHERE listino_uuid = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:203')
 
 
 def get_delivery_avg_prices_last_weeks(store_code: str, supplier_name: str, weeks: int = 4) -> Dict[str, float]:
@@ -268,7 +269,7 @@ def get_delivery_avg_prices_last_weeks(store_code: str, supplier_name: str, week
                 return out
             except Exception:
                 # fallback python filtering
-                pass
+                log_swallowed('inventory_repository:272')
 
         # Fallback: nessun filtro SQL (o date_col mancante). Filtriamo (se possibile) in Python.
         if date_col:
@@ -291,7 +292,7 @@ def get_delivery_avg_prices_last_weeks(store_code: str, supplier_name: str, week
                             dt_ok = datetime.strptime(s[:10], fmt)
                             break
                         except Exception:
-                            pass
+                            log_swallowed('inventory_repository:294')
 
                 if dt_ok is None or dt_ok < since_dt:
                     continue
@@ -333,7 +334,7 @@ def get_delivery_avg_prices_last_weeks(store_code: str, supplier_name: str, week
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:336')
 
 
 # ----------------------- INVENTORY / TX SAVE -----------------------
@@ -400,7 +401,7 @@ def _get_table_columns(conn, table_name: str) -> List[str]:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:403')
 
 
 def _cols_norm_map(cols: List[str]) -> Dict[str, str]:
@@ -653,13 +654,13 @@ def save_inventory_movement(
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:656')
         return {"success": False, "error": str(e)}
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:662')
 
 
 # -----------------------------
@@ -870,7 +871,7 @@ def get_inventory_document_rows(
             if conn:
                 conn.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:873')
 
 
 def replace_inventory_movement(
@@ -1073,14 +1074,14 @@ def replace_inventory_movement(
             if conn:
                 conn.rollback()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:1076')
         return {"success": False, "error": str(e)}
     finally:
         try:
             if conn:
                 conn.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:1083')
 
 
 
@@ -1224,7 +1225,7 @@ def update_inventory_movement_header(
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:1227')
 
         return {
             "success": True,
@@ -1238,14 +1239,14 @@ def update_inventory_movement_header(
             if conn:
                 conn.rollback()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:1241')
         return {"success": False, "error": str(ex)}
     finally:
         try:
             if conn:
                 conn.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:1248')
 
 
 
@@ -1401,14 +1402,14 @@ def delete_inventory_row(
             if conn:
                 conn.rollback()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:1404')
         return {"success": False, "error": str(e)}
     finally:
         try:
             if conn:
                 conn.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:1411')
 
 
 def save_inventory_document(
@@ -1576,7 +1577,7 @@ def save_inventory_document(
             try:
                 cur.execute(f"DELETE FROM [{inv_table}] WHERE " + " AND ".join(inv_where), inv_params)
             except Exception:
-                pass
+                log_swallowed('inventory_repository:1579')
 
             # --- DELETE existing row in TX ---
             if is_tx and tx_table:
@@ -1599,7 +1600,7 @@ def save_inventory_document(
                 try:
                     cur.execute(f"DELETE FROM [{tx_table}] WHERE " + " AND ".join(tx_where), tx_params)
                 except Exception:
-                    pass
+                    log_swallowed('inventory_repository:1602')
 
             # --- INSERT inventory row ---
             inv_vals: Dict[str, Any] = {
@@ -1688,11 +1689,11 @@ def save_inventory_document(
             if conn:
                 conn.rollback()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:1691')
         return {"success": False, "error": str(e), "inserted_inventory": 0, "inserted_tx": 0, "skipped": len(rows or [])}
     finally:
         try:
             if conn:
                 conn.close()
         except Exception:
-            pass
+            log_swallowed('inventory_repository:1698')

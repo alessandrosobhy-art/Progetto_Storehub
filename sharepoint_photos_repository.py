@@ -11,6 +11,7 @@ Dipendenze:
 
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import io
 import os
 import re
@@ -253,7 +254,7 @@ def _delete_local_photo(*, category: str, store_code: str, filename: str) -> boo
         if parent and not os.listdir(parent):
             shutil.rmtree(parent)
     except Exception:
-        pass
+        log_swallowed('sharepoint_photos_repository:256')
     return True
 
 

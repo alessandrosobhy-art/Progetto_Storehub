@@ -1,3 +1,4 @@
+from app_logging import log_swallowed
 import os
 import sys
 import time
@@ -32,7 +33,7 @@ def _install_excepthooks(logger: logging.Logger) -> None:
             try:
                 sys.__excepthook__(exctype, value, tb)
             except Exception:
-                pass
+                log_swallowed('runtime_monitoring:35')
 
     sys.excepthook = _sys_hook
 
@@ -55,7 +56,7 @@ def _install_faulthandler(log_path: str) -> None:
         faulthandler.enable(file=fh, all_threads=True)
     except Exception:
         # If this fails we still want the app to start.
-        pass
+        log_swallowed('runtime_monitoring:59')
 
 
 def _setup_root_logging(log_dir: str, level: int) -> None:
@@ -125,7 +126,7 @@ def _install_request_metrics(app, logger: logging.Logger) -> None:
                     ms
                 )
         except Exception:
-            pass
+            log_swallowed('runtime_monitoring:128')
         return resp
 
 

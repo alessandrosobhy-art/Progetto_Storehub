@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import date, datetime
 from typing import Any, Dict, List
 
@@ -610,7 +611,7 @@ def _load_ilp_store_rows() -> List[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('store_registry_repository:613')
 
 
 def seed_store_registry_from_ilp(stores: List[Dict[str, Any]] | None = None, *, only_missing: bool = True) -> int:

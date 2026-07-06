@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import re
 from datetime import date, datetime
 from typing import Any, Optional
@@ -35,14 +36,14 @@ def parse_any_date(value: Any, default_order: str = "DMY") -> Optional[date]:
             dt = datetime.fromisoformat(s2)
             return dt.date()
     except Exception:
-        pass
+        log_swallowed('date_utils:38')
 
     # ISO date (YYYY-MM-DD...)
     try:
         if len(s) >= 10 and s[4] == "-" and s[7] == "-":
             return datetime.strptime(s[:10], "%Y-%m-%d").date()
     except Exception:
-        pass
+        log_swallowed('date_utils:45')
 
     # Common separated numeric dates
     m = re.match(r"^\s*(\d{1,4})[\./\-](\d{1,2})[\./\-](\d{1,4})", s)

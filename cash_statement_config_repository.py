@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 import re
 import ast
@@ -26,7 +27,7 @@ def _tenant(tenant_key: str | None = None) -> str:
             if key:
                 return key
     except Exception:
-        pass
+        log_swallowed('cash_statement_config_repository:29')
     return (DEFAULT_TENANT_KEY or "default").strip() or "default"
 
 
@@ -39,7 +40,7 @@ def _current_ui_language() -> str:
             if lang in {"it", "en", "fr", "es"}:
                 return lang
     except Exception:
-        pass
+        log_swallowed('cash_statement_config_repository:42')
     return "it"
 
 
@@ -793,7 +794,7 @@ def create_cash_statement_section(
             {"it": name, "en": label_en, "fr": label_fr, "es": label_es},
         )
     except Exception:
-        pass
+        log_swallowed('cash_statement_config_repository:796')
     return section_key
 
 
@@ -879,7 +880,7 @@ def create_cash_statement_field(
             {"it": name, "en": label_en, "fr": label_fr, "es": label_es},
         )
     except Exception:
-        pass
+        log_swallowed('cash_statement_config_repository:882')
     return field_key
 
 

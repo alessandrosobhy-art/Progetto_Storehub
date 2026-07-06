@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 from typing import Any, Dict, List
 
@@ -24,7 +25,7 @@ def _tenant(tenant_key: str | None = None) -> str:
             if key:
                 return key
     except Exception:
-        pass
+        log_swallowed('ipratico_config_repository:27')
     return (DEFAULT_TENANT_KEY or "default").strip() or "default"
 
 

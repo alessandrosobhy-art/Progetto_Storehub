@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -507,7 +508,7 @@ def get_pnl(
             try:
                 _c.close()
             except Exception:
-                pass
+                log_swallowed('controlli_repository:510')
 
 
 

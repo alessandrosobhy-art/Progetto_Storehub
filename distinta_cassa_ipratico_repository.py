@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import json
 from typing import Any, Optional
 
@@ -64,7 +65,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('distinta_cassa_ipratico_repository:67')
 
 
 def get_distinta_cassa_ipratico_snapshot(*, store_code: str, data_iso: str) -> Optional[dict[str, Any]]:
@@ -129,7 +130,7 @@ def get_distinta_cassa_ipratico_snapshot(*, store_code: str, data_iso: str) -> O
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('distinta_cassa_ipratico_repository:132')
 
 
 def upsert_distinta_cassa_ipratico_snapshot(
@@ -239,7 +240,7 @@ def upsert_distinta_cassa_ipratico_snapshot(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('distinta_cassa_ipratico_repository:242')
 
 
 def sum_distinta_cassa_ipratico_contanti_month_multi(store_codes: list[str], *, year: int, month: int) -> dict[str, float]:
@@ -285,4 +286,4 @@ def sum_distinta_cassa_ipratico_contanti_month_multi(store_codes: list[str], *, 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('distinta_cassa_ipratico_repository:288')

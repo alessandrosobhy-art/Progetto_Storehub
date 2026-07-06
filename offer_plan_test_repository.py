@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -102,7 +103,7 @@ END
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('offer_plan_test_repository:105')
 
 
 def list_default_suppliers() -> list[str]:
@@ -203,7 +204,7 @@ FROM dbo.StoreHubOfferRecipes
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('offer_plan_test_repository:206')
 
 
 def get_offer_recipe(recipe_uuid: str | None) -> dict[str, Any] | None:
@@ -263,7 +264,7 @@ ORDER BY sort_order, row_uuid
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('offer_plan_test_repository:266')
 
 
 def save_offer_recipe(recipe_uuid: str | None, data: dict[str, Any], ingredients: list[dict[str, Any]]) -> str:
@@ -344,7 +345,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('offer_plan_test_repository:347')
 
 
 def set_offer_recipe_active(recipe_uuid: str, active: bool) -> None:
@@ -366,7 +367,7 @@ def set_offer_recipe_active(recipe_uuid: str, active: bool) -> None:
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('offer_plan_test_repository:369')
 
 
 def build_offer_plan_preview(test_date: str, offer_rows: list[dict], recipes: list[dict]) -> dict[str, Any]:

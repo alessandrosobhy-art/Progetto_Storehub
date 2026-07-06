@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import json
 import os
 from datetime import date, datetime, timedelta
@@ -93,7 +94,7 @@ def _date_only(value: str | date | datetime) -> date:
         try:
             return datetime.strptime(raw[:10], fmt).date()
         except Exception:
-            pass
+            log_swallowed('daily_sales_repository:96')
     return datetime.strptime(raw[:10], "%Y-%m-%d").date()
 
 

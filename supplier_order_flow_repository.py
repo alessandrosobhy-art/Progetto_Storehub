@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 import smtplib
 import uuid
@@ -277,7 +278,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:280')
 
 
 def list_supplier_contacts_resolved() -> Dict[str, List[Dict[str, Any]]]:
@@ -491,7 +492,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:494')
 
 
 def delete_supplier_order(order_row_uuid: str) -> None:
@@ -509,7 +510,7 @@ def delete_supplier_order(order_row_uuid: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:512')
 
 
 def update_order_pdf_and_email(order_row_uuid: str, *, pdf_rel_path: str, pdf_filename: str, sent_email_at: bool) -> None:
@@ -529,7 +530,7 @@ WHERE row_uuid=?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:532')
 
 
 def list_supplier_orders(
@@ -635,7 +636,7 @@ ORDER BY o.order_date DESC, o.created_at DESC
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:638')
 
 
 def get_supplier_order_detail(order_row_uuid: str) -> Optional[Dict[str, Any]]:
@@ -690,7 +691,7 @@ ORDER BY created_at DESC
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:693')
 
 
 def mark_order_viewed(order_row_uuid: str, actor: Dict[str, Any]) -> None:
@@ -717,7 +718,7 @@ WHERE row_uuid=?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:720')
 
 
 def save_supplier_order_line(
@@ -756,7 +757,7 @@ WHERE row_uuid=? AND order_row_uuid=?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:759')
 
 
 def complete_supplier_order(order_row_uuid: str, actor: Dict[str, Any]) -> None:
@@ -787,7 +788,7 @@ WHERE row_uuid=?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:790')
 
 
 def link_order_to_ddt(order_row_uuid: str, *, supplier_code: str, data_doc: str, data_rif: str, numero_ddt: str | None = None) -> None:
@@ -807,7 +808,7 @@ WHERE row_uuid=?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:810')
 
 
 def get_supplier_user_supplier_ids(user_email: str) -> List[str]:
@@ -831,7 +832,7 @@ WHERE LOWER(ISNULL(c.Email, '')) = ? OR LOWER(ISNULL(f.Email, '')) = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:834')
 
 
 def get_supplier_user_assignments(user_uid: str) -> List[str]:
@@ -851,7 +852,7 @@ def get_supplier_user_assignments(user_uid: str) -> List[str]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:854')
 
 
 def replace_supplier_user_assignments(user_uid: str, supplier_row_uuids: List[str]) -> None:
@@ -874,7 +875,7 @@ def replace_supplier_user_assignments(user_uid: str, supplier_row_uuids: List[st
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:877')
 
 
 def resolve_supplier_user_supplier_ids(*, user_uid: str, user_email: str) -> List[str]:
@@ -907,7 +908,7 @@ WHERE row_uuid=?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:910')
 
 
 def add_supplier_order_selected_product(
@@ -986,7 +987,7 @@ WHERE row_uuid=?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_order_flow_repository:989')
 
 
 def build_order_pdf_bytes(detail: Dict[str, Any]) -> bytes:

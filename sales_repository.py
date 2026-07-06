@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import date, datetime, timedelta
 from typing import Any, Dict
 
@@ -72,7 +73,7 @@ def _access_column_types(cur, table_name: str) -> Dict[str, str]:
             if n:
                 out[_norm(str(n))] = str(t or "").upper()
     except Exception:
-        pass
+        log_swallowed('sales_repository:75')
     return out
 
 
@@ -99,7 +100,7 @@ def _ensure_sales_table(conn) -> None:
     try:
         cur.execute("CREATE INDEX idx_sales_site_data ON Sales (Site, Data)")
     except Exception:
-        pass
+        log_swallowed('sales_repository:102')
     conn.commit()
 
 
@@ -116,7 +117,7 @@ def _tenant_key() -> str:
             if key:
                 return key
     except Exception:
-        pass
+        log_swallowed('sales_repository:119')
     return DEFAULT_TENANT_KEY
 
 
@@ -292,7 +293,7 @@ def list_sales_week(*, store_code: str, start_day: date, end_day: date) -> Dict[
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('sales_repository:295')
 
 
 def save_sales_week(*, store_code: str, sales_by_day: Dict[str, float]) -> Dict[str, Any]:
@@ -349,4 +350,4 @@ def save_sales_week(*, store_code: str, sales_by_day: Dict[str, float]) -> Dict[
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('sales_repository:352')

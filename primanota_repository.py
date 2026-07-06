@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -107,7 +108,7 @@ def _resolve_primanota_columns(store_code: str) -> PrimaNotaColumns:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:110')
 
 
 def load_primanota_month_agg(
@@ -201,7 +202,7 @@ def load_primanota_month_agg(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:204')
 
 
 def load_primanota_month_agg_totals(
@@ -277,7 +278,7 @@ def load_primanota_month_agg_totals(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:280')
 
 
 
@@ -363,7 +364,7 @@ def load_primanota_month_agg_totals_multi(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:366')
 
 
 def _guess_elenchi_columns(cols: List[str]) -> ElenchiColumns:
@@ -404,7 +405,7 @@ def _resolve_elenchi_columns(store_code: str) -> ElenchiColumns:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:407')
 
 
 def _fetch_elenchi_options(
@@ -469,7 +470,7 @@ def get_elenchi_options(*, store_code: str) -> Dict[str, Any]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:472')
 
 
 def load_primanota_range_agg(
@@ -545,7 +546,7 @@ def load_primanota_range_agg(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:548')
 
 
 def load_primanota_day(
@@ -599,7 +600,7 @@ def load_primanota_day(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:602')
 
 
 def replace_primanota_day(
@@ -662,7 +663,7 @@ def replace_primanota_day(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:665')
 
 
 def delete_primanota_day(
@@ -701,7 +702,7 @@ def delete_primanota_day(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:704')
 
 
 
@@ -752,7 +753,7 @@ def sum_categoria_period(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:755')
 
 
 def sum_categoria_by_day_range(
@@ -825,7 +826,7 @@ def sum_categoria_by_day_range(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:828')
 
 
 def sum_delivery_voce_range(
@@ -893,4 +894,4 @@ def sum_delivery_voce_range(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('primanota_repository:896')

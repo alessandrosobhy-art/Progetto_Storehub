@@ -13,6 +13,7 @@ Note:
 
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 from date_utils import to_iso as _to_iso_date, parse_any_date as _parse_any_date
@@ -46,7 +47,7 @@ def _safe_float(v: Any) -> float:
     try:
         return float(v)
     except Exception:
-        pass
+        log_swallowed('analysis_repository:49')
 
     s = str(v).strip()
     if not s:
@@ -140,14 +141,14 @@ def _parse_any_date_to_iso(d: Any) -> Optional[str]:
         if len(s) >= 10 and s[4] == "-" and s[7] == "-":
             return datetime.strptime(s[:10], "%Y-%m-%d").date().isoformat()
     except Exception:
-        pass
+        log_swallowed('analysis_repository:143')
 
     # dd/mm/yyyy
     try:
         if "/" in s:
             return datetime.strptime(s[:10], "%d/%m/%Y").date().isoformat()
     except Exception:
-        pass
+        log_swallowed('analysis_repository:150')
 
     return None
 
@@ -358,7 +359,7 @@ def get_revenues_net(store_code: str, start: date, end_inclusive: date) -> Tuple
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('analysis_repository:361')
 
 
 def _close_cursor_quietly(cur) -> None:
@@ -367,7 +368,7 @@ def _close_cursor_quietly(cur) -> None:
         if cur is not None:
             cur.close()
     except Exception:
-        pass
+        log_swallowed('analysis_repository:370')
 
 
 def _get_revenues_net_from_conn(conn, store_code: str, start: date, end_inclusive: date) -> Tuple[float, List[str]]:
@@ -705,7 +706,7 @@ def _sum_inventory_like(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('analysis_repository:708')
 
 
 def _sum_delivery(
@@ -810,7 +811,7 @@ def _sum_delivery(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('analysis_repository:813')
 
 
 # ------------------------------
@@ -1009,4 +1010,4 @@ def get_consumption_summary_single_connection(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('analysis_repository:1012')

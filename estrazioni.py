@@ -1,5 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+from app_logging import log_swallowed
 import csv
 import hashlib
 import io
@@ -102,7 +103,7 @@ def _available_stores_for_user() -> list[dict]:
                         session["role_verified_for"] = user_id
                         session["role_verified_at"] = now
         except Exception:
-            pass
+            log_swallowed('estrazioni:105')
 
         if role == "admin":
             stores = get_warehouse_stores() or []
@@ -136,7 +137,7 @@ def _available_stores_for_user() -> list[dict]:
             ),
         )
     except Exception:
-        pass
+        log_swallowed('estrazioni:139')
     return stores
 
 
@@ -253,7 +254,7 @@ def _parse_finance_date(value: Any) -> date | None:
         try:
             return datetime.strptime(s, fmt).date()
         except Exception:
-            pass
+            log_swallowed('estrazioni:256')
     try:
         return datetime.fromisoformat(s).date()
     except Exception:
@@ -997,7 +998,7 @@ def api_verifica_rendiconto_export_xlsx():
                 max_len = max(max_len, len(str(v)))
             ws.column_dimensions[chr(64 + col_idx)].width = min(max(10, max_len + 2), 60)
     except Exception:
-        pass
+        log_swallowed('estrazioni:1000')
 
     ws.freeze_panes = "A2"
 

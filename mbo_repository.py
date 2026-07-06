@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import csv
 import hashlib
 import io
@@ -63,7 +64,7 @@ def _parse_date(value: Any) -> date | None:
     try:
         return datetime.fromisoformat(raw).date()
     except Exception:
-        pass
+        log_swallowed('mbo_repository:66')
     for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y"):
         try:
             return datetime.strptime(raw[:10], fmt).date()
@@ -460,7 +461,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:463')
 
 
 def _find_column(columns: List[str], exact: List[str] | None = None, contains: List[str] | None = None, exclude: List[str] | None = None) -> str:
@@ -500,7 +501,7 @@ def load_ilp_store_area_managers() -> List[Dict[str, Any]]:
         if rows:
             return rows
     except Exception:
-        pass
+        log_swallowed('mbo_repository:503')
 
     conn = _conn(database="ILP", read_only=True)
     try:
@@ -547,7 +548,7 @@ def load_ilp_store_area_managers() -> List[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:550')
 
 
 def load_ilp_store_audit_refs() -> List[Dict[str, Any]]:
@@ -573,7 +574,7 @@ def load_ilp_store_audit_refs() -> List[Dict[str, Any]]:
         if rows:
             return rows
     except Exception:
-        pass
+        log_swallowed('mbo_repository:576')
 
     conn = _conn(database="ILP", read_only=True)
     try:
@@ -631,7 +632,7 @@ def load_ilp_store_audit_refs() -> List[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:634')
 
 
 def _load_valid_store_refs() -> List[Dict[str, Any]]:
@@ -758,7 +759,7 @@ def _load_audit_manual_maps() -> Dict[str, str]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:761')
 
 
 def import_audit_file(filename: str, content: bytes, imported_by: str | None = None) -> Dict[str, int]:
@@ -856,7 +857,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:859')
 
 
 def save_audit_address_mapping(address_norm: str, address_sample: str, store_code: str) -> None:
@@ -896,7 +897,7 @@ WHERE address_norm = ?;
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:899')
 
 
 def save_audit_row_assignment(row_uuid: str, store_code: str, year_month: str) -> None:
@@ -929,7 +930,7 @@ WHERE row_uuid = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:932')
 
 
 def ignore_audit_row(row_uuid: str) -> None:
@@ -953,7 +954,7 @@ WHERE row_uuid = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:956')
 
 
 def restore_audit_row(row_uuid: str) -> None:
@@ -977,7 +978,7 @@ WHERE row_uuid = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:980')
 
 
 def save_audit_manual_value(store_code: str, year_month: str, score: Any, note: str | None = None) -> None:
@@ -1015,7 +1016,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1018')
 
 
 def delete_audit_manual_value(store_code: str, year_month: str) -> None:
@@ -1036,7 +1037,7 @@ def delete_audit_manual_value(store_code: str, year_month: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1039')
 
 
 def _load_audit_rows_for_year(year: int) -> List[Dict[str, Any]]:
@@ -1082,7 +1083,7 @@ ORDER BY COALESCE(assigned_year_month, audit_year_month) DESC, audit_date DESC, 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1085')
 
 
 def list_ignored_audit_rows(year: int) -> List[Dict[str, Any]]:
@@ -1128,7 +1129,7 @@ ORDER BY COALESCE(assigned_year_month, audit_year_month) DESC, audit_date DESC, 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1131')
 
 
 def build_audit_address_mapping_matrix(year: int) -> Dict[str, Any]:
@@ -1186,7 +1187,7 @@ ORDER BY MIN(address)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1189')
 
 
 def _load_audit_manual_values_for_year(year: int) -> Dict[tuple[str, str], Dict[str, Any]]:
@@ -1213,7 +1214,7 @@ WHERE year_month >= ? AND year_month <= ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1216')
 
 
 def build_audit_month_matrix(year: int) -> Dict[str, Any]:
@@ -1557,7 +1558,7 @@ def build_mbo_pnl_scores(year: int) -> Dict[str, Any]:
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('mbo_repository:1560')
 
     rows: List[Dict[str, Any]] = []
     points_taken_total = 0.0
@@ -1690,7 +1691,7 @@ def _load_google_review_averages_for_year(year: int) -> Dict[tuple[str, str], Di
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1693')
 
 
 def _load_google_manual_values_for_year(year: int) -> Dict[tuple[str, str], Dict[str, Any]]:
@@ -1717,7 +1718,7 @@ WHERE year_month >= ? AND year_month <= ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1720')
 
 
 def save_google_manual_value(store_code: str, year_month: str, rating: Any, note: str | None = None) -> None:
@@ -1757,7 +1758,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1760')
 
 
 def delete_google_manual_value(store_code: str, year_month: str) -> None:
@@ -1774,7 +1775,7 @@ def delete_google_manual_value(store_code: str, year_month: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1777')
 
 
 def _score_google_rating(rating: float | None) -> float | None:
@@ -1979,7 +1980,7 @@ def _load_glovo_month_averages_for_year(year: int) -> Dict[tuple[str, str], Dict
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:1982')
 
 
 def _load_glovo_manual_values_for_year(year: int) -> Dict[tuple[str, str], Dict[str, Any]]:
@@ -2006,7 +2007,7 @@ WHERE year_month >= ? AND year_month <= ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2009')
 
 
 def save_glovo_manual_value(store_code: str, year_month: str, value_pct: Any, note: str | None = None) -> None:
@@ -2046,7 +2047,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2049')
 
 
 def delete_glovo_manual_value(store_code: str, year_month: str) -> None:
@@ -2063,7 +2064,7 @@ def delete_glovo_manual_value(store_code: str, year_month: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2066')
 
 
 def _score_glovo_pct(value_pct: float | None) -> float | None:
@@ -2250,7 +2251,7 @@ def _load_deliveroo_month_averages_for_year(year: int) -> Dict[tuple[str, str], 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2253')
 
 
 def _load_deliveroo_manual_values_for_year(year: int) -> Dict[tuple[str, str], Dict[str, Any]]:
@@ -2277,7 +2278,7 @@ WHERE year_month >= ? AND year_month <= ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2280')
 
 
 def save_deliveroo_manual_value(store_code: str, year_month: str, rating: Any, note: str | None = None) -> None:
@@ -2317,7 +2318,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2320')
 
 
 def delete_deliveroo_manual_value(store_code: str, year_month: str) -> None:
@@ -2334,7 +2335,7 @@ def delete_deliveroo_manual_value(store_code: str, year_month: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2337')
 
 
 def _score_deliveroo_rating(rating: float | None) -> float | None:
@@ -2503,7 +2504,7 @@ def _validate_year_month(value: str) -> str:
         if 1 <= m <= 12:
             return f"{y:04d}-{m:02d}"
     except Exception:
-        pass
+        log_swallowed('mbo_repository:2506')
     raise ValueError("Mese periodo non valido.")
 
 
@@ -2719,7 +2720,7 @@ FROM dbo.MboSoftSkillPeriods
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2722')
 
 
 def get_soft_skill_period_by_token(token: str, require_active: bool = False) -> Dict[str, Any] | None:
@@ -2754,7 +2755,7 @@ WHERE token = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2757')
 
 
 def get_soft_skill_period(period_uuid: str) -> Dict[str, Any] | None:
@@ -2769,7 +2770,7 @@ def get_soft_skill_period(period_uuid: str) -> Dict[str, Any] | None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2772')
     return get_soft_skill_period_by_token(token) if token else None
 
 
@@ -2811,7 +2812,7 @@ VALUES (?, ?, ?, ?, ?, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2814')
 
 
 def _valid_store_codes() -> Dict[str, Dict[str, Any]]:
@@ -2890,7 +2891,7 @@ WHERE 1 = 1
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2893')
 
 
 def get_soft_skill_submission(submission_uuid: str) -> Dict[str, Any] | None:
@@ -2994,7 +2995,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:2997')
 
 
 def recalculate_soft_skill_submissions(period_uuid: str | None = None, user_id: str | None = None) -> Dict[str, Any]:
@@ -3051,7 +3052,7 @@ WHERE submission_uuid = ? AND deleted_at IS NULL
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3054')
     return {"updated": updated, "missing_pnl": missing_pnl, "details": details}
 
 
@@ -3069,7 +3070,7 @@ def delete_soft_skill_submission(submission_uuid: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3072')
 
 
 def build_soft_skill_dashboard(period_uuid: str | None = None) -> Dict[str, Any]:
@@ -3302,13 +3303,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3305')
         raise
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3311')
 
 
 def set_custom_survey_active(survey_uuid: str, is_active: bool) -> None:
@@ -3328,7 +3329,7 @@ UPDATE dbo.MboSurveyLinks SET is_active = ?, updated_at = SYSUTCDATETIME() WHERE
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3331')
 
 
 def update_custom_survey_names(survey_uuid: str, survey_name: str, display_name: str | None = None) -> None:
@@ -3356,7 +3357,7 @@ WHERE survey_uuid = ?;
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3359')
 
 
 def get_custom_survey(token: str | None = None, survey_uuid: str | None = None) -> Dict[str, Any] | None:
@@ -3411,14 +3412,14 @@ ORDER BY sort_order, created_at
             try:
                 cur2.close()
             except Exception:
-                pass
+                log_swallowed('mbo_repository:3414')
             survey["questions"].append(qd)
         return survey
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3421')
 
 
 def _compute_custom_survey_score(survey: Dict[str, Any], answers: Dict[str, Any]) -> Dict[str, Any]:
@@ -3487,7 +3488,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3490')
 
 
 def delete_custom_survey_submission(submission_uuid: str) -> None:
@@ -3501,7 +3502,7 @@ def delete_custom_survey_submission(submission_uuid: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3504')
 
 
 def _survey_pct_label(value: float | None) -> str:
@@ -3669,7 +3670,7 @@ def build_custom_survey_dashboard(survey_uuid: str | None = None) -> Dict[str, A
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3672')
 
 
 def list_area_managers(include_inactive: bool = True) -> List[Dict[str, Any]]:
@@ -3704,7 +3705,7 @@ FROM dbo.MboAreaManagers
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3707')
 
 
 def save_area_manager(*, row_uuid: str | None, manager_name: str, ilp_am_value: str | None, sort_order: int = 0, is_active: bool = True) -> str:
@@ -3744,7 +3745,7 @@ VALUES (?, ?, ?, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3747')
 
 
 def delete_area_manager(row_uuid: str) -> None:
@@ -3762,7 +3763,7 @@ def delete_area_manager(row_uuid: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3765')
 
 
 def sync_area_managers_from_ilp() -> int:
@@ -3796,14 +3797,14 @@ END
             try:
                 created += int(cur.rowcount or 0)
             except Exception:
-                pass
+                log_swallowed('mbo_repository:3799')
         conn.commit()
         return created
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3806')
 
 
 def _match_default_manager_uuid(raw_am_value: str, managers: List[Dict[str, Any]]) -> str:
@@ -3840,7 +3841,7 @@ WHERE year_month >= ? AND year_month <= ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3843')
 
 
 def build_mbo_store_month_matrix(year: int) -> Dict[str, Any]:
@@ -3950,7 +3951,7 @@ def save_store_month_assignments(year: int, assignments: Dict[tuple[str, str], s
                 try:
                     deleted += int(cur.rowcount or 0)
                 except Exception:
-                    pass
+                    log_swallowed('mbo_repository:3953')
                 continue
 
             cur.execute(
@@ -3980,7 +3981,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:3983')
 
 
 MBO_REWARD_ROLE_PROFILES = [
@@ -4038,7 +4039,7 @@ WHERE year_month >= ? AND year_month <= ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4041')
 
     manager_rows = []
     for am in managers:
@@ -4118,7 +4119,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4121')
 
 
 def propagate_area_manager_monthly_setting(area_manager_uuid: str, from_year_month: str, is_active: bool, reward_eur: Any) -> Dict[str, int]:
@@ -4157,7 +4158,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4160')
 
 
 def save_role_monthly_rewards(year: int, form_data: Any) -> Dict[str, int]:
@@ -4195,7 +4196,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4198')
 
 
 def propagate_role_monthly_reward(role_name: str, from_year_month: str, reward_eur: Any) -> Dict[str, int]:
@@ -4234,7 +4235,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4237')
 
 
 def save_reward_weights(form_data: Any) -> Dict[str, int]:
@@ -4273,7 +4274,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4276')
 
 
 def save_mbo_report_definition(*, report_uuid: str | None, report_name: str, start_year_month: str, end_year_month: str, created_by: str | None = None) -> str:
@@ -4313,7 +4314,7 @@ VALUES (?, ?, ?, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4316')
 
 
 def list_mbo_report_definitions() -> List[Dict[str, Any]]:
@@ -4344,7 +4345,7 @@ ORDER BY created_at DESC
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4347')
 
 
 def get_mbo_report_definition(report_uuid: str) -> Dict[str, Any] | None:
@@ -4372,7 +4373,7 @@ WHERE report_uuid = ? AND report_type = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4375')
 
 
 def save_mbo_report_multipliers(report_uuid: str, report_type: str, form_data: Any) -> Dict[str, int]:
@@ -4426,7 +4427,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4429')
 
 
 def _pct(points_taken: float, points_theoretical: float) -> float | None:
@@ -4516,7 +4517,7 @@ def _load_role_rewards_for_months(months: List[str]) -> Dict[str, float]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4519')
 
 
 def _load_am_settings_for_months(months: List[str]) -> Dict[tuple[str, str], Dict[str, Any]]:
@@ -4535,7 +4536,7 @@ def _load_am_settings_for_months(months: List[str]) -> Dict[tuple[str, str], Dic
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4538')
 
 
 def _load_reward_weight_map() -> Dict[str, Dict[str, float]]:
@@ -4551,7 +4552,7 @@ def _load_reward_weight_map() -> Dict[str, Dict[str, float]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4554')
 
 
 def _load_custom_survey_averages(start_year_month: str, end_year_month: str) -> Dict[tuple[str, str], Dict[str, Any]]:
@@ -4579,7 +4580,7 @@ GROUP BY sub.target_type, sub.target_code
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('mbo_repository:4582')
 
 
 def _soft_skill_pct(final_score: float | None) -> float | None:

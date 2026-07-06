@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import math
 import statistics
 import os
@@ -186,7 +187,7 @@ def _get_price_list(store_code: str, supplier_name: str, listino: str) -> Tuple[
                     if rows2:
                         return rows2, info2
         except Exception:
-            pass
+            log_swallowed('orders_repository:189')
 
     return rows, info
 
@@ -243,7 +244,7 @@ def _get_last_inv_by_code(store_code: str, codes: List[str], up_to_day: date) ->
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('orders_repository:246')
 
 
 def _get_agg_pz_by_code(store_code: str, table: str, codes: List[str], start_d: date, end_d: date, *, kind: str) -> Dict[str, float]:
@@ -317,7 +318,7 @@ def _get_agg_pz_by_code(store_code: str, table: str, codes: List[str], start_d: 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('orders_repository:320')
 
 
 def _get_revenues_net_daily(store_code: str, start_d: date, end_d: date) -> Dict[date, float]:
@@ -340,7 +341,7 @@ def _get_revenues_net_daily(store_code: str, start_d: date, end_d: date) -> Dict
                 out[d] = 0.0
         return out
     except Exception:
-        pass
+        log_swallowed('orders_repository:343')
 
     conn = get_connection(store_code)
     try:
@@ -433,7 +434,7 @@ def _get_revenues_net_daily(store_code: str, start_d: date, end_d: date) -> Dict
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('orders_repository:436')
 
 
 def _sum_sales_forecast(store_code: str, start_d: date, end_d: date) -> Tuple[float, Dict[str, float]]:
@@ -445,7 +446,7 @@ def _sum_sales_forecast(store_code: str, start_d: date, end_d: date) -> Tuple[fl
         try:
             tot += float(v or 0.0)
         except Exception:
-            pass
+            log_swallowed('orders_repository:448')
     return float(tot), out
 
 

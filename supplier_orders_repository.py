@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
@@ -189,7 +190,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:192')
     migrate_legacy_fornitori_contacts()
 
 
@@ -273,7 +274,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:276')
 
 
 def migrate_legacy_fornitori_contacts() -> int:
@@ -309,7 +310,7 @@ VALUES (?, ?, ?, ?, ?, ?, 0)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:312')
 
 
 def migrate_legacy_pricelists() -> Dict[str, int]:
@@ -456,7 +457,7 @@ WHEN NOT MATCHED THEN
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:459')
 
 
 def list_listino_types(include_inactive: bool = False) -> List[Dict[str, Any]]:
@@ -482,7 +483,7 @@ def list_listino_types(include_inactive: bool = False) -> List[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:485')
 
 
 def list_listino_groups(include_inactive: bool = False) -> List[Dict[str, Any]]:
@@ -508,7 +509,7 @@ def list_listino_groups(include_inactive: bool = False) -> List[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:511')
 
 
 def save_listino_type(row_uuid: str | None, tipo_listino: str, sort_order: int = 0, is_active: bool = True) -> str:
@@ -545,7 +546,7 @@ VALUES (?, ?, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:548')
 
 
 def delete_listino_type(row_uuid: str) -> None:
@@ -558,7 +559,7 @@ def delete_listino_type(row_uuid: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:561')
 
 
 def save_listino_group(row_uuid: str | None, gruppo: str, sort_order: int = 0, is_active: bool = True) -> str:
@@ -595,7 +596,7 @@ VALUES (?, ?, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:598')
 
 
 def delete_listino_group(row_uuid: str) -> None:
@@ -608,7 +609,7 @@ def delete_listino_group(row_uuid: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:611')
 
 
 def list_listino_type_names() -> List[str]:
@@ -636,7 +637,7 @@ def list_price_lists(include_inactive: bool = True) -> List[Dict[str, Any]]:
     try:
         ensure_price_lists_schema()
     except Exception:
-        pass
+        log_swallowed('supplier_orders_repository:639')
     conn = _conn(True)
     try:
         cur = conn.cursor()
@@ -672,7 +673,7 @@ FROM dbo.ListiniElenchi l
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:675')
 
 
 def get_price_list_for_store(store_code: str | None = None) -> Dict[str, Any]:
@@ -710,7 +711,7 @@ ORDER BY updated_at DESC
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:713')
 
 
 def save_price_list(row_uuid: str | None, nome: str, is_active: bool = True) -> str:
@@ -747,7 +748,7 @@ VALUES (?, 0, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:750')
 
 
 def set_default_price_list(listino_uuid: str) -> None:
@@ -776,7 +777,7 @@ SET is_default = CASE WHEN row_uuid = ? THEN 1 ELSE 0 END,
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:779')
 
 
 def delete_price_list(listino_uuid: str) -> None:
@@ -814,7 +815,7 @@ WHERE listino_uuid = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:817')
 
 
 def list_price_list_store_assignments() -> Dict[str, List[str]]:
@@ -831,7 +832,7 @@ def list_price_list_store_assignments() -> Dict[str, List[str]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:834')
 
 
 def replace_price_list_store_assignments(listino_uuid: str, store_codes: List[str]) -> None:
@@ -874,7 +875,7 @@ WHEN NOT MATCHED THEN INSERT (listino_uuid, store_code) VALUES (?, src.store_cod
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:877')
 
 
 def assign_default_price_list_to_store(store_code: str) -> bool:
@@ -903,7 +904,7 @@ WHEN NOT MATCHED THEN
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:906')
 
 
 def remove_price_list_store_assignment(store_code: str) -> bool:
@@ -922,7 +923,7 @@ def remove_price_list_store_assignment(store_code: str) -> bool:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:925')
 
 
 def copy_price_list_products(
@@ -1032,13 +1033,13 @@ WHERE 1 = 1
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1035')
         return {"ok": False, "copied": 0, "overwrite": bool(overwrite), "error": str(e)}
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1041')
 
 
 def _target_store_codes_for_assignments() -> List[str]:
@@ -1061,9 +1062,9 @@ def _target_store_codes_for_assignments() -> List[str]:
                     codes = [str((r or {}).get("store_code") or "").strip() for r in rows or []]
                     return [c for c in codes if c]
             except Exception:
-                pass
+                log_swallowed('supplier_orders_repository:1064')
     except Exception:
-        pass
+        log_swallowed('supplier_orders_repository:1066')
 
     try:
         from db_integration import get_warehouse_stores
@@ -1104,7 +1105,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1107')
 
 
 def list_fornitori() -> List[Dict[str, Any]]:
@@ -1144,7 +1145,7 @@ ORDER BY Fornitore
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1147')
 
 
 def save_fornitore(row_uuid: str | None, data: Dict[str, Any]) -> str:
@@ -1192,7 +1193,7 @@ VALUES (?, ?, ?, ?, ?, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1195')
 
 
 def delete_fornitore(row_uuid: str) -> None:
@@ -1215,7 +1216,7 @@ WHERE c.fornitore_row_uuid = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1218')
 
 
 def list_fornitore_contacts(fornitore_row_uuid: str) -> List[Dict[str, Any]]:
@@ -1259,7 +1260,7 @@ ORDER BY sort_order, created_at, row_uuid
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1262')
 
 
 def save_fornitore_contact(
@@ -1319,7 +1320,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1322')
 
 
 def delete_fornitore_contact(fornitore_row_uuid: str, row_uuid: str) -> None:
@@ -1333,7 +1334,7 @@ def delete_fornitore_contact(fornitore_row_uuid: str, row_uuid: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1336')
 
 
 def load_pricelist(type_name: str, price_list_uuid: str | None = None) -> Dict[str, Any]:
@@ -1396,7 +1397,7 @@ ORDER BY FORNITORE, Descrizione
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1399')
 
 
 def export_pricelist_for_store(store_code: str, type_name: str | None = None) -> Dict[str, Any]:
@@ -1453,7 +1454,7 @@ WHERE listino_uuid = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1456')
 
 
 def _export_pricelist_legacy(type_name: str | None = None) -> Dict[str, Any]:
@@ -1502,7 +1503,7 @@ WHERE 1 = 1
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1505')
 
 
 def _load_pricelist_legacy(type_name: str) -> Dict[str, Any]:
@@ -1558,7 +1559,7 @@ ORDER BY FORNITORE, Descrizione
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1561')
 
 
 def upsert_pricelist_rows(type_name: str, rows: List[Dict[str, Any]], price_list_uuid: str | None = None) -> Dict[str, Any]:
@@ -1644,7 +1645,7 @@ WHEN NOT MATCHED THEN
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1647')
         stats["ok"] = False
         stats["stores_ok"] = 0
         stats["stores_fail"] = 1
@@ -1656,7 +1657,7 @@ WHEN NOT MATCHED THEN
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1659')
 
 
 def _upsert_pricelist_rows_legacy(type_name: str, rows: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -1709,7 +1710,7 @@ WHEN NOT MATCHED THEN
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1712')
         stats["ok"] = False
         stats["stores_ok"] = 0
         stats["stores_fail"] = 1
@@ -1721,7 +1722,7 @@ WHEN NOT MATCHED THEN
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1724')
 
 
 def list_prices_for_supplier_all_types(supplier_code: str, max_rows: int = 500, store_code: str | None = None, price_list_uuid: str | None = None) -> Dict[str, Any]:
@@ -1778,7 +1779,7 @@ ORDER BY tipo_listino, Descrizione
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1781')
 
 
 def _list_prices_for_supplier_all_types_legacy(supplier_code: str, max_rows: int = 500) -> Dict[str, Any]:
@@ -1828,4 +1829,4 @@ ORDER BY tipo_listino, Descrizione
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('supplier_orders_repository:1831')

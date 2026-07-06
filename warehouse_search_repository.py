@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -45,7 +46,7 @@ def _to_iso_from_access_date(v: Any) -> str:
         if isinstance(v, _dt.date):
             return v.isoformat()
     except Exception:
-        pass
+        log_swallowed('warehouse_search_repository:48')
 
     s = str(v).strip()
     if not s:
@@ -157,7 +158,7 @@ def search_ddt_headers(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('warehouse_search_repository:160')
 
 
 def search_inventory_headers(
@@ -364,4 +365,4 @@ def search_inventory_headers(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('warehouse_search_repository:367')

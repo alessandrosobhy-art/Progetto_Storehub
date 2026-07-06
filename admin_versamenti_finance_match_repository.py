@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import hashlib
 from datetime import date, datetime
 from decimal import Decimal
@@ -91,7 +92,7 @@ def ensure_match_table() -> None:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('admin_versamenti_finance_match_repository:94')
         conn.close()
 
 
@@ -174,11 +175,11 @@ def list_finance_versamenti(*, start_iso: str = "", end_iso: str = "", assignmen
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('admin_versamenti_finance_match_repository:177')
         try:
             app_cur.close()
         except Exception:
-            pass
+            log_swallowed('admin_versamenti_finance_match_repository:181')
         conn.close()
         app_conn.close()
 
@@ -217,7 +218,7 @@ def get_matches_for_app_keys(app_record_keys: List[str]) -> Dict[str, List[Dict[
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('admin_versamenti_finance_match_repository:220')
         conn.close()
 
 
@@ -285,11 +286,11 @@ def replace_app_matches(
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('admin_versamenti_finance_match_repository:288')
         raise
     finally:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('admin_versamenti_finance_match_repository:294')
         conn.close()

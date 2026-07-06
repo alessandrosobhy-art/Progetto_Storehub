@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 import re
 import csv
@@ -157,7 +158,7 @@ def _get_table_schema(conn, table_name: str) -> Dict[str, Dict[str, Any]]:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('listini_repository:160')
     return schema
 
 
@@ -422,7 +423,7 @@ def load_admin_pricelist(listino_type: str, source_store_code: str = "9001", max
             if conn is not None:
                 conn.close()
         except Exception:
-            pass
+            log_swallowed('listini_repository:425')
 
 def _row_get_case_insensitive(row: Dict[str, Any], col: str) -> Any:
     if col in row:
@@ -621,7 +622,7 @@ def apply_pricelist_to_stores(
                                     cur.execute(f"DELETE FROM [{conv_table}] WHERE {' AND '.join(conv_where_sql)}", conv_where_params)
                                     store_res["conv_deletes"] += 1
                             except Exception:
-                                pass
+                                log_swallowed('listini_repository:624')
 
                         ops += 1
                         if ops % 200 == 0:
@@ -686,7 +687,7 @@ def apply_pricelist_to_stores(
                                 else:
                                     store_res["conv_inserts"] += 1
                             except Exception:
-                                pass
+                                log_swallowed('listini_repository:689')
 
                     ops += 1
                     if ops % 200 == 0:
@@ -704,19 +705,19 @@ def apply_pricelist_to_stores(
                     if conn is not None:
                         conn.rollback()
                 except Exception:
-                    pass
+                    log_swallowed('listini_repository:707')
             finally:
                 try:
                     if own_conn and conn is not None:
                         conn.close()
                 except Exception:
-                    pass
+                    log_swallowed('listini_repository:713')
     finally:
         try:
             if shared_conn is not None:
                 shared_conn.close()
         except Exception:
-            pass
+            log_swallowed('listini_repository:719')
 
     result["ok"] = result["stores_fail"] == 0
     if not result["ok"] and not result["error"]:

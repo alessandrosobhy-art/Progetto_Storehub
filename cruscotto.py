@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import date, datetime, timedelta
 import re
 import time
@@ -37,7 +38,7 @@ def _parse_week_start(value: str) -> date:
         try:
             return datetime.strptime(value[:10], "%Y-%m-%d").date()
         except Exception:
-            pass
+            log_swallowed('cruscotto:40')
     today = date.today()
     return today - timedelta(days=today.weekday())
 
@@ -49,13 +50,13 @@ def _parse_month_start(value: str) -> date:
             d = datetime.strptime(value[:10], "%Y-%m-%d").date()
             return d.replace(day=1)
         except Exception:
-            pass
+            log_swallowed('cruscotto:52')
         try:
             # support "YYYY-MM"
             d = datetime.strptime(value[:7], "%Y-%m").date()
             return d.replace(day=1)
         except Exception:
-            pass
+            log_swallowed('cruscotto:58')
     today = date.today()
     return today.replace(day=1)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import datetime
 from typing import Dict, Iterable, Optional
 
@@ -44,7 +45,7 @@ def _ensure_table() -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('rendiconto_verifiche_repository:47')
 
 
 def get_meta_map(record_keys: Iterable[str]) -> Dict[str, Dict[str, object]]:
@@ -79,7 +80,7 @@ def get_meta_map(record_keys: Iterable[str]) -> Dict[str, Dict[str, object]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('rendiconto_verifiche_repository:82')
 
 
 def save_meta(*, record_key: str, record_kind: str, site: str, verificato: bool, nota: Optional[str]) -> None:
@@ -134,4 +135,4 @@ def save_meta(*, record_key: str, record_kind: str, site: str, verificato: bool,
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('rendiconto_verifiche_repository:137')

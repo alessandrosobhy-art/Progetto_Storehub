@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import date, datetime
 from typing import Any, Dict, List
 
@@ -50,7 +51,7 @@ def _ensure_table() -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('rendiconto_convalide_repository:53')
 
 
 def _parse_iso(v: str) -> date:
@@ -103,7 +104,7 @@ def list_convalide_overlapping(*, store_code: str, start_iso: str, end_iso: str)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('rendiconto_convalide_repository:106')
 
 
 def list_convalida_days_month(*, store_code: str, year: int, month: int) -> Dict[str, Dict[str, Any]]:
@@ -180,7 +181,7 @@ def insert_convalida_periodo(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('rendiconto_convalide_repository:183')
 
 
 def list_convalide_store(*, store_code: str) -> List[Dict[str, Any]]:
@@ -202,7 +203,7 @@ def list_convalide_store(*, store_code: str) -> List[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('rendiconto_convalide_repository:205')
 
 
 def delete_convalida_by_id(*, convalida_id: int, store_code: str) -> bool:
@@ -225,4 +226,4 @@ def delete_convalida_by_id(*, convalida_id: int, store_code: str) -> bool:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('rendiconto_convalide_repository:228')

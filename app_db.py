@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -104,9 +105,9 @@ def get_storehub_database_name() -> str:
                     if db_name:
                         return db_name
                 except Exception:
-                    pass
+                    log_swallowed('app_db:107')
     except Exception:
-        pass
+        log_swallowed('app_db:109')
     return (
         os.getenv("STOREHUB_TENANT_DATABASE")
         or os.getenv("SQLSERVER_DATABASE")

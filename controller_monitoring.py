@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 import threading
 import time
@@ -136,7 +137,7 @@ class _ControllerMonitor:
                 try:
                     conn.close()
                 except Exception:
-                    pass
+                    log_swallowed('controller_monitoring:139')
             return {
                 "status": "ok",
                 "database": database_name,

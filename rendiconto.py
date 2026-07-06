@@ -1,5 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import date as _date, datetime, timedelta
 import io
 from decimal import Decimal, ROUND_HALF_UP
@@ -812,7 +813,7 @@ def spese():
                         filename=str(foto_file),
                     )
                 except Exception:
-                    pass
+                    log_swallowed('rendiconto:816')
             current_app.logger.exception("Errore salvataggio spesa")
             flash(f"Errore salvataggio spesa: {e}", "danger")
 
@@ -1008,7 +1009,7 @@ def spese_update():
                         filename=str(new_foto_file),
                     )
                 except Exception:
-                    pass
+                    log_swallowed('rendiconto:1012')
     except Exception as e:
         current_app.logger.exception("Errore aggiornamento spesa")
         if new_foto_file:
@@ -1020,7 +1021,7 @@ def spese_update():
                     filename=str(new_foto_file),
                 )
             except Exception:
-                pass
+                log_swallowed('rendiconto:1024')
         flash(f"Errore aggiornamento spesa: {e}", "danger")
 
     return redirect(url_for("rendiconto.spese", ym=ym_norm))
@@ -1157,7 +1158,7 @@ def versamenti():
                 return redirect(url_for("rendiconto.versamenti", ym=ym_norm))
         except Exception:
             # se la verifica overlap fallisce, non blocchiamo: la UI gestisce comunque il check via /compute
-            pass
+            log_swallowed('rendiconto:1161')
 
         nome = (request.form.get("nome_cognome") or "").strip()
         tipo = (request.form.get("tipo_versamento") or "").strip()
@@ -1242,7 +1243,7 @@ def versamenti():
                         filename=str(foto_file),
                     )
                 except Exception:
-                    pass
+                    log_swallowed('rendiconto:1246')
             flash(f"Errore salvataggio versamento: {e}", "danger")
 
         return redirect(url_for("rendiconto.versamenti", ym=ym_norm))
@@ -1371,7 +1372,7 @@ def versamenti_delete():
                 flash(f"Nel periodo selezionato ci sono giorni giÃ  versati: {preview}. Modifica il periodo.", "warning")
                 return redirect(url_for("rendiconto.versamenti", ym=ym_norm))
         except Exception:
-            pass
+            log_swallowed('rendiconto:1375')
 
     old_foto = None
     try:
@@ -1476,7 +1477,7 @@ def versamenti_update():
                 return redirect(url_for("rendiconto.versamenti", ym=ym_norm))
         except Exception:
             # la UI fa comunque il check via /compute
-            pass
+            log_swallowed('rendiconto:1480')
 
     new_nome = (request.form.get("nome_cognome") or "").strip()
     new_tipo = (request.form.get("tipo_versamento") or "").strip()
@@ -1547,7 +1548,7 @@ def versamenti_update():
                 flash(f"Nel periodo selezionato ci sono giorni giÃ  versati: {preview}. Modifica il periodo.", "warning")
                 return redirect(url_for("rendiconto.versamenti", ym=ym_norm))
         except Exception:
-            pass
+            log_swallowed('rendiconto:1551')
 
     old_foto = None
     try:
@@ -1634,7 +1635,7 @@ def versamenti_update():
                         filename=str(new_foto_file),
                     )
                 except Exception:
-                    pass
+                    log_swallowed('rendiconto:1638')
     except Exception as e:
         current_app.logger.exception("Errore aggiornamento versamento")
         if new_foto_file:
@@ -1646,7 +1647,7 @@ def versamenti_update():
                     filename=str(new_foto_file),
                 )
             except Exception:
-                pass
+                log_swallowed('rendiconto:1650')
         flash(f"Errore aggiornamento versamento: {e}", "danger")
 
     return redirect(url_for("rendiconto.versamenti", ym=ym_norm))
@@ -1799,7 +1800,7 @@ def api_versamenti_compute():
             )
     except Exception:
         # se fallisce la verifica overlap, non blocchiamo l'utente: continuerÃ  il calcolo
-        pass
+        log_swallowed('rendiconto:1803')
 
     try:
         dist = float(
@@ -2237,7 +2238,7 @@ def api_versamenti_commit():
                         filename=new_foto_file,
                     )
                 except Exception:
-                    pass
+                    log_swallowed('rendiconto:2241')
             return jsonify(error=f"Errore aggiornamento versamento: {e}"), 500
 
         if new_foto_file and old_foto and old_foto != new_foto_file:
@@ -2249,7 +2250,7 @@ def api_versamenti_commit():
                     filename=old_foto,
                 )
             except Exception:
-                pass
+                log_swallowed('rendiconto:2253')
 
         return jsonify({"ok": True, "ym": ym_norm})
 
@@ -2294,7 +2295,7 @@ def api_versamenti_commit():
                     filename=foto_file,
                 )
             except Exception:
-                pass
+                log_swallowed('rendiconto:2298')
         return jsonify(error=f"Errore salvataggio versamento: {e}"), 500
 
     return jsonify({"ok": True, "ym": ym_norm})
@@ -2948,7 +2949,7 @@ def distinta_cassa():
                         qta = int(parts[2].split("=", 1)[1])
                         init["distinte1"].append({"taglio": taglio, "qta": qta})
                     except Exception:
-                        pass
+                        log_swallowed('rendiconto:2952')
                 elif v.startswith("D2|TAGLIO="):
                     try:
                         parts = v.split("|")
@@ -2956,7 +2957,7 @@ def distinta_cassa():
                         qta = int(parts[2].split("=", 1)[1])
                         init["distinte2"].append({"taglio": taglio, "qta": qta})
                     except Exception:
-                        pass
+                        log_swallowed('rendiconto:2960')
 
             elif cat == "Ticket":
                 init["tickets"].append({"voce": voce, "tipo": tipo, "valore": val_f})
@@ -3282,7 +3283,7 @@ def distinta_cassa_save():
             try:
                 totale_delivery_si += float(e.get("valore") or 0.0)
             except Exception:
-                pass
+                log_swallowed('rendiconto:3286')
     try:
         scontrini_int = int(round(float(chiusura_vals.get("scontrini", 0.0) or 0.0)))
     except Exception:
@@ -3341,7 +3342,7 @@ def distinta_cassa_save():
                         filename=str(new_photo_file),
                     )
                 except Exception:
-                    pass
+                    log_swallowed('rendiconto:3345')
                 flash(f"Distinta salvata, ma errore salvataggio foto: {ex3}", "warning")
 
         flash("Distinta cassa salvata.", "success")
@@ -3355,7 +3356,7 @@ def distinta_cassa_save():
                     filename=str(new_photo_file),
                 )
             except Exception:
-                pass
+                log_swallowed('rendiconto:3359')
         current_app.logger.exception("Errore salvataggio Distinta cassa")
         flash(f"Errore salvataggio Distinta cassa: {e}", "danger")
 
@@ -4011,7 +4012,7 @@ def _available_stores_for_user(user_id: str | None):
                         session["role_verified_for"] = user_id
                         session["role_verified_at"] = now
         except Exception:
-            pass
+            log_swallowed('rendiconto:4015')
 
         if role == "admin":
             stores = get_warehouse_stores() or []
@@ -4046,7 +4047,7 @@ def _available_stores_for_user(user_id: str | None):
             ),
         )
     except Exception:
-        pass
+        log_swallowed('rendiconto:4050')
 
     return stores
 
@@ -4627,7 +4628,7 @@ def api_ricerca_export_xlsx():
                 max_len = max(max_len, len(str(v)))
             ws.column_dimensions[chr(64 + col_idx)].width = min(max(10, max_len + 2), 60)
     except Exception:
-        pass
+        log_swallowed('rendiconto:4631')
 
     ws.freeze_panes = "A2"
 
@@ -4879,7 +4880,7 @@ def api_riepilogo_mensile():
     try:
         rows = sorted(rows, key=lambda r: (str(r.get("store_name") or "").lower(), str(r.get("store_code") or "")))
     except Exception:
-        pass
+        log_swallowed('rendiconto:4883')
 
     return jsonify(
         {
@@ -5050,25 +5051,25 @@ def api_riepilogo_mensile_xlsx():
             r["coupon_detail"] = _rendiconto_detail_list(detail_map, "Coupon")
         except Exception:
             # Se fallisce, lasciamo 0 e continuiamo
-            pass
+            log_swallowed('rendiconto:5054')
 
         # Spese
         try:
             r["spese"] = float(spese_map.get(str(code), 0.0)) if spese_map else float(sum_spese_month_total_net(store_code=str(code), year=y, month=m))
         except Exception:
-            pass
+            log_swallowed('rendiconto:5060')
 
         # Versamenti
         try:
             r["versamenti"] = float(vers_map.get(str(code), 0.0)) if vers_map else float(sum_versamenti_month_total(store_code=str(code), year=y, month=m))
         except Exception:
-            pass
+            log_swallowed('rendiconto:5065')
 
         # Contanti iPratico
         try:
             r["contanti_ipratico"] = float(ipratico_cash_map.get(str(code), 0.0))
         except Exception:
-            pass
+            log_swallowed('rendiconto:5071')
 
         # Giorni non versati
         try:
@@ -5078,7 +5079,7 @@ def api_riepilogo_mensile_xlsx():
             )
             r["giorni_non_versati"] = int(status.get("giorni_non_versati") or 0)
         except Exception:
-            pass
+            log_swallowed('rendiconto:5081')
 
         # Diff cassa
         try:
@@ -5099,7 +5100,7 @@ def api_riepilogo_mensile_xlsx():
     try:
         rows = sorted(rows, key=lambda rr: (str(rr.get("store_name") or "").lower(), str(rr.get("store_code") or "")))
     except Exception:
-        pass
+        log_swallowed('rendiconto:5103')
 
     # Excel
     wb = Workbook()
@@ -5304,7 +5305,7 @@ def api_riepilogo_giornaliero_xlsx():
                     else:
                         by_day[d_iso]["coupon_no"] += s_val
         except Exception:
-            pass
+            log_swallowed('rendiconto:5308')
 
         # Spese per giorno (net)
         try:
@@ -5313,7 +5314,7 @@ def api_riepilogo_giornaliero_xlsx():
                 if d_iso in by_day:
                     by_day[d_iso]["spese"] = _num((vals or {}).get("net"))
         except Exception:
-            pass
+            log_swallowed('rendiconto:5317')
 
         # Giorni coperti da versamenti per competenza
         try:
@@ -5331,7 +5332,7 @@ def api_riepilogo_giornaliero_xlsx():
                     if d_iso in by_day:
                         by_day[d_iso]["versato"] = True
         except Exception:
-            pass
+            log_swallowed('rendiconto:5334')
 
         # Costruzione righe output
         for d_iso in days:
@@ -5373,7 +5374,7 @@ def api_riepilogo_giornaliero_xlsx():
     try:
         out_rows = sorted(out_rows, key=lambda rr: (rr.get("date_iso") or "", str(rr.get("store") or "").lower()))
     except Exception:
-        pass
+        log_swallowed('rendiconto:5377')
 
     wb = Workbook()
     ws = wb.active

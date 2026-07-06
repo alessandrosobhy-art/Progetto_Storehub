@@ -1,6 +1,7 @@
 # PATCH: rendiconto_ricerca_v1.3.1
 from __future__ import annotations
 
+from app_logging import log_swallowed
 SCRIPT_VERSION = "versamenti_repository_v1.4.5_site_rowuuid_fix"
 
 from dataclasses import dataclass
@@ -231,12 +232,12 @@ def _ensure_versamenti_optional_columns(store_code: str, table_name: str = "VERS
                 try:
                     conn.rollback()
                 except Exception:
-                    pass
+                    log_swallowed('versamenti_repository:234')
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:239')
 
 def _resolve_versamenti_columns(store_code: str, *, ensure_schema: bool = True) -> VersamentiColumns:
     # Di default manteniamo l'auto-fix dello schema (colonna foto).
@@ -268,7 +269,7 @@ def _resolve_versamenti_columns(store_code: str, *, ensure_schema: bool = True) 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:271')
 
 
 def sum_versamenti_month_total(*, store_code: str, year: int, month: int) -> float:
@@ -307,7 +308,7 @@ def sum_versamenti_month_total(*, store_code: str, year: int, month: int) -> flo
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:310')
 
 def sum_versamenti_month_total_multi(store_codes: List[str], *, year: int, month: int) -> Dict[str, float]:
     """Totale versamenti nel mese per più store (solo SQL Server).
@@ -371,7 +372,7 @@ def sum_versamenti_month_total_multi(store_codes: List[str], *, year: int, month
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:374')
 
     return out
 
@@ -481,7 +482,7 @@ def insert_versamento(
         except Exception:
             # Se per qualche motivo il check fallisce, continuiamo comunque:
             # il blocco overlap lato endpoint dovrebbe prevenire i duplicati.
-            pass
+            log_swallowed('versamenti_repository:485')
 
         cur.execute(sql, values)
         conn.commit()
@@ -489,7 +490,7 @@ def insert_versamento(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:492')
 
 
 def list_versamenti_month(*, store_code: str, year: int, month: int) -> Dict[str, Any]:
@@ -619,7 +620,7 @@ def list_versamenti_month(*, store_code: str, year: int, month: int) -> Dict[str
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:622')
 
 
 def get_versamento_photo_file(
@@ -689,7 +690,7 @@ def get_versamento_photo_file(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:692')
 
 
 def delete_versamento(
@@ -753,7 +754,7 @@ def delete_versamento(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:756')
 
 
 def update_versamento(
@@ -868,7 +869,7 @@ def update_versamento(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:871')
 
 
 # -------------------------
@@ -997,7 +998,7 @@ def list_versamenti_periods_overlapping(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:1000')
 
 
 # -------------------------
@@ -1158,7 +1159,7 @@ def search_versamenti_range_multi(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:1161')
 
 
 def _search_versamenti_range_one_store(*, store_code: str, start: date, end_excl: date) -> Dict[str, Any]:
@@ -1267,7 +1268,7 @@ def _search_versamenti_range_one_store(*, store_code: str, start: date, end_excl
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('versamenti_repository:1270')
 
 
 def _fmt_date(v) -> tuple[str, str]:

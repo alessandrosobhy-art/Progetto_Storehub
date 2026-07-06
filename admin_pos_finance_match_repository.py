@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -66,7 +67,7 @@ def ensure_match_table() -> None:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('admin_pos_finance_match_repository:69')
         conn.close()
 
 
@@ -202,11 +203,11 @@ def list_finance_pos_rows(*, start_iso: str = "", end_iso: str = "", assignment_
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('admin_pos_finance_match_repository:205')
         try:
             app_cur.close()
         except Exception:
-            pass
+            log_swallowed('admin_pos_finance_match_repository:209')
         conn.close()
         app_conn.close()
 
@@ -247,7 +248,7 @@ def get_matches_for_app_keys(app_record_keys: List[str]) -> Dict[str, List[Dict[
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('admin_pos_finance_match_repository:250')
         conn.close()
 
 
@@ -315,11 +316,11 @@ def replace_app_matches(*, app_record_key: str, app_store: str, app_date: str, i
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('admin_pos_finance_match_repository:318')
         raise
     finally:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('admin_pos_finance_match_repository:324')
         conn.close()

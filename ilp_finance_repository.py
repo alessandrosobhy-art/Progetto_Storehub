@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import re
 from typing import Any, Dict, List
 
@@ -254,7 +255,7 @@ def list_finance_rows(
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('ilp_finance_repository:257')
         conn.close()
 
     return {
@@ -296,5 +297,5 @@ def list_distinct_store_values(table_key: str) -> List[str]:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('ilp_finance_repository:299')
         conn.close()

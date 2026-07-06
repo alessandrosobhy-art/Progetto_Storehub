@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import date, datetime
 from typing import Dict, Any, List, Optional
 
@@ -114,7 +115,7 @@ def list_fatturato_lordo_range(*, store_code: str, start_day: date, end_day: dat
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('dati_database_repository:117')
 
 
 def list_legacy_daily_sales_range(*, store_code: str, start_day: date, end_day: date) -> Dict[str, Dict[str, float]]:
@@ -207,7 +208,7 @@ def list_legacy_daily_sales_range(*, store_code: str, start_day: date, end_day: 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('dati_database_repository:210')
 
 
 def _safe_num(value: Any) -> float:
@@ -413,13 +414,13 @@ def upsert_datidatabase_from_distinta(
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('dati_database_repository:416')
         return out
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('dati_database_repository:422')
 
 
 def delete_datidatabase_day(*, store_code: str, data_iso: str) -> Dict[str, Any]:
@@ -482,10 +483,10 @@ def delete_datidatabase_day(*, store_code: str, data_iso: str) -> Dict[str, Any]
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('dati_database_repository:485')
         return out
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('dati_database_repository:491')

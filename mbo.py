@@ -1,5 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+from app_logging import log_swallowed
 import io
 from datetime import datetime
 
@@ -1277,7 +1278,7 @@ def settings():
     try:
         sync_area_managers_from_ilp()
     except Exception:
-        pass
+        log_swallowed('mbo:1280')
 
     try:
         matrix = build_mbo_store_month_matrix(year)

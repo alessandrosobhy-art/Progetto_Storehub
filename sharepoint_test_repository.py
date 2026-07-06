@@ -11,6 +11,7 @@ Note operative:
 
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import base64
 import io
 import os
@@ -391,7 +392,7 @@ def access_read_test_info(mdb_bytes: bytes, password: str | None) -> Dict[str, A
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('sharepoint_test_repository:394')
 
 
 def access_insert_test_ddt(
@@ -429,7 +430,7 @@ def access_insert_test_ddt(
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('sharepoint_test_repository:432')
 
         # Leggiamo bytes aggiornati dopo aver chiuso la connessione (evita lock su Windows)
         with open(db_path, "rb") as rf:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 from datetime import date as _date, datetime as _dt
 
@@ -130,13 +131,13 @@ def ensure_kpi_period_notes_schema() -> None:
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('kpi_notes_repository:133')
         raise
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('kpi_notes_repository:139')
 
 
 def get_note(store_code: str, period_type: str, period_start: _date) -> dict[str, object] | None:
@@ -178,7 +179,7 @@ def get_note(store_code: str, period_type: str, period_start: _date) -> dict[str
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('kpi_notes_repository:181')
 
 
 def upsert_note(store_code: str, period_type: str, period_start: _date, text: str) -> dict[str, object]:
@@ -213,13 +214,13 @@ def upsert_note(store_code: str, period_type: str, period_start: _date, text: st
         try:
             conn.rollback()
         except Exception:
-            pass
+            log_swallowed('kpi_notes_repository:216')
         raise
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('kpi_notes_repository:222')
 
     # return current row
     return get_note(sc, pt, period_start) or {

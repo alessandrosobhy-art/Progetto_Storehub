@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import csv
 import io
 import math
@@ -38,7 +39,7 @@ def _dict_rows(cur) -> List[Dict[str, Any]]:
                 try:
                     v = v.isoformat()
                 except Exception:
-                    pass
+                    log_swallowed('admin_labor_cost_repository:41')
             if isinstance(v, float):
                 # Clean NaN/inf for JSON
                 if math.isnan(v) or math.isinf(v):
@@ -224,7 +225,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:227')
 
 
 def _norm_key(s: Any) -> str:
@@ -286,7 +287,7 @@ def _parse_date(v: Any) -> Optional[date]:
         try:
             return datetime.strptime(s, fmt).date()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:289')
     try:
         return datetime.fromisoformat(s).date()
     except Exception:
@@ -430,7 +431,7 @@ ORDER BY sort_order, staff_role_label
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:433')
 
 
 def replace_company_role_rates(company_profile_id: int, role_rates: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -483,7 +484,7 @@ VALUES (?,?,?,?,?,?,?,?,?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:486')
 
 
 def _read_company_role_rate_map(company_profile_id: int) -> Dict[str, Dict[str, Any]]:
@@ -534,7 +535,7 @@ ORDER BY p.is_active DESC, p.name ASC
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:537')
 
 
 def get_company_profile(profile_id: int) -> Optional[Dict[str, Any]]:
@@ -566,7 +567,7 @@ def get_company_profile(profile_id: int) -> Optional[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:569')
 
 
 def save_company_profile(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -686,7 +687,7 @@ VALUES (?,?,?,?,?,?,?,?,?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:689')
 
 
 def list_company_extras(company_profile_id: int) -> List[Dict[str, Any]]:
@@ -710,7 +711,7 @@ def list_company_extras(company_profile_id: int) -> List[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:713')
 
 
 def replace_company_extras(company_profile_id: int, extras: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -748,7 +749,7 @@ VALUES (?,?,?,?,?,?,?)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:751')
 
 
 # ----------------------------
@@ -870,7 +871,7 @@ ORDER BY c.employee_code ASC
                         try:
                             used_cfg_ids.add(int(cfg.get("id")))
                         except Exception:
-                            pass
+                            log_swallowed('admin_labor_cost_repository:873')
 
                     # Fill missing anagrafica fields from Orari (do not overwrite explicit config values)
                     base["employee_code"] = (base.get("employee_code") or "").strip() or staff_code
@@ -928,7 +929,7 @@ ORDER BY c.employee_code ASC
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:931')
 def upsert_employee_config(payload: Dict[str, Any]) -> Dict[str, Any]:
     _ensure_tables()
     employee_code = str(payload.get("employee_code") or "").strip()
@@ -999,7 +1000,7 @@ OUTPUT inserted.id;
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:1002')
 
 
 def import_employee_configs_csv(content_bytes: bytes, *, default_store_code: str | None = None, default_company_profile_id: int | None = None) -> Dict[str, Any]:
@@ -1097,7 +1098,7 @@ def list_cmo_rates() -> List[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('admin_labor_cost_repository:1100')
 
 
 # ----------------------------

@@ -15,6 +15,7 @@ La logica è robusta rispetto a:
 
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
@@ -80,7 +81,7 @@ def _parse_any_date_to_iso(d: Any) -> Optional[str]:
         if len(s10) == 10 and s10[4] == "-" and s10[7] == "-":
             return datetime.strptime(s10, "%Y-%m-%d").date().isoformat()
     except Exception:
-        pass
+        log_swallowed('collect_repository:83')
 
     # Numeric dates
     for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%m/%d/%Y", "%m-%d-%Y", "%m.%d.%Y"):
@@ -98,14 +99,14 @@ def _parse_any_date_to_iso(d: Any) -> Optional[str]:
         if len(s) >= 10 and s[4] == "-" and s[7] == "-":
             return datetime.strptime(s[:10], "%Y-%m-%d").date().isoformat()
     except Exception:
-        pass
+        log_swallowed('collect_repository:101')
 
     # dd/mm/yyyy
     try:
         if "/" in s:
             return datetime.strptime(s[:10], "%d/%m/%Y").date().isoformat()
     except Exception:
-        pass
+        log_swallowed('collect_repository:108')
 
     return None
 
@@ -158,7 +159,7 @@ def _parse_any_date_to_iso_in_range(raw_date: Any, start: date, end: date) -> Op
         if len(s) >= 10 and s[4] == "-" and s[7] == "-":
             candidates.append(datetime.strptime(s[:10], "%Y-%m-%d").date())
     except Exception:
-        pass
+        log_swallowed('collect_repository:161')
 
     # dd/mm/yyyy and mm/dd/yyyy (and with '-')
     for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%m-%d-%Y"):
@@ -626,7 +627,7 @@ def _fill_delivery_month(store_code: str, start: date, end: date, category: str,
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('collect_repository:629')
 
 
 def _delivery_breakdown_day(store_code: str, day: date, day_iso: str) -> List[Tuple[str, Any, Any]]:
@@ -728,7 +729,7 @@ def _delivery_breakdown_day(store_code: str, day: date, day_iso: str) -> List[Tu
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('collect_repository:731')
 
 # ------------------------------
 #  Inventory / TX / Waste
@@ -812,7 +813,7 @@ def _fill_inventory_like_month(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('collect_repository:815')
 
 
 def _inventory_like_breakdown_day(
@@ -910,4 +911,4 @@ def _inventory_like_breakdown_day(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('collect_repository:913')

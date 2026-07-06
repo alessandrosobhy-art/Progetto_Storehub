@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 import threading
 import time
@@ -101,7 +102,7 @@ def ensure_translations_schema() -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:104')
 
 
 def ensure_platform_translations_schema() -> None:
@@ -112,7 +113,7 @@ def ensure_platform_translations_schema() -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:115')
 
 
 def _auto_translate(source_text: str, language_code: str) -> str:
@@ -1528,7 +1529,7 @@ def backfill_supported_languages(*, include_platform: bool = True, include_tenan
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('translation_repository:1531')
     if include_tenant:
         try:
             conn = get_connection(None)
@@ -1538,9 +1539,9 @@ def backfill_supported_languages(*, include_platform: bool = True, include_tenan
                 try:
                     conn.close()
                 except Exception:
-                    pass
+                    log_swallowed('translation_repository:1541')
         except Exception:
-            pass
+            log_swallowed('translation_repository:1543')
     return total
 
 
@@ -1595,7 +1596,7 @@ VALUES (?, ?, ?, ?, ?, ?, 0)
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:1598')
 
 
 def seed_base_translations() -> None:
@@ -2528,7 +2529,7 @@ def list_translation_templates(*, include_platform: bool = True, include_tenant_
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('translation_repository:2531')
     if include_tenant_custom:
         try:
             ensure_translations_schema()
@@ -2539,9 +2540,9 @@ def list_translation_templates(*, include_platform: bool = True, include_tenant_
                 try:
                     conn.close()
                 except Exception:
-                    pass
+                    log_swallowed('translation_repository:2542')
         except Exception:
-            pass
+            log_swallowed('translation_repository:2544')
     seen: dict[str, str] = {}
     for r in rows:
         label = _translation_area_label(str(r.get("namespace") or ""), str(r.get("translation_key") or ""))
@@ -2561,7 +2562,7 @@ def list_base_translation_groups(language_code: str = "it", template: str = "") 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2564')
     selected_template = str(template or "").strip()
     buckets: dict[str, dict[str, Any]] = {}
     for r in rows:
@@ -2616,11 +2617,11 @@ def list_tenant_translation_overrides(language_code: str = "it", template: str =
         try:
             platform_conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2619')
         try:
             tenant_conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2623')
     base_by_key = {(r["namespace"], r["translation_key"], r["language_code"]): r for r in base_rows}
     selected_template = str(template or "").strip()
     out = []
@@ -2673,7 +2674,7 @@ WHERE namespace = ? AND translation_key = ? AND language_code = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2676')
 
 
 def upsert_tenant_translation_keys(occurrences: List[Dict[str, str]], language_code: str, text_value: str) -> int:
@@ -2700,7 +2701,7 @@ def upsert_tenant_translation_keys(occurrences: List[Dict[str, str]], language_c
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2703')
 
 
 def list_effective_translations(namespace: str = "", language_code: str = "") -> List[Dict[str, Any]]:
@@ -2718,11 +2719,11 @@ def list_effective_translations(namespace: str = "", language_code: str = "") ->
         try:
             platform_conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2721')
         try:
             tenant_conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2725')
 
     overrides = {
         (r["namespace"], r["translation_key"], r["language_code"]): r
@@ -2781,7 +2782,7 @@ def update_translation_key(namespace: str, translation_key: str, language_code: 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2784')
 
 
 def update_translation(row_uuid: str, text_value: str) -> bool:
@@ -2808,7 +2809,7 @@ WHERE row_uuid = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2811')
 
 
 def upsert_tenant_custom_translation(
@@ -2853,7 +2854,7 @@ WHERE namespace = ? AND translation_key = ? AND language_code = ?
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2856')
 
 
 def reset_translation_key(namespace: str, translation_key: str, language_code: str) -> bool:
@@ -2880,7 +2881,7 @@ WHERE namespace = ? AND translation_key = ? AND language_code = ? AND customized
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('translation_repository:2883')
 
 
 def translation_map(language_code: str = "it") -> Dict[str, str]:
@@ -2940,5 +2941,5 @@ def translate_text(namespace: str, translation_key: str, source_text: str, langu
                 if value:
                     return value
     except Exception:
-        pass
+        log_swallowed('translation_repository:2943')
     return _auto_translate(source, lang) or source

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from datetime import datetime, date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -182,7 +183,7 @@ def _sum_delivery_car_by_code(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('consumi_repository:185')
 
 
 def _sum_inventory_totpz_by_code(
@@ -322,7 +323,7 @@ def _sum_inventory_totpz_by_code(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('consumi_repository:325')
 
 
 def get_product_consumption_table(

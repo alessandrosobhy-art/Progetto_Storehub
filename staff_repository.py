@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -105,15 +106,15 @@ def _delete_staff_turni_rows(conn, *, store_code: str, nominativo: str) -> int:
                 deleted_total += int(cur.rowcount or 0)
             except Exception:
                 # Some ODBC drivers return -1; we still proceed.
-                pass
+                log_swallowed('staff_repository:109')
         except Exception:
             # Best-effort: keep deleting staff even if schedules can't be removed.
-            pass
+            log_swallowed('staff_repository:112')
 
     try:
         conn.commit()
     except Exception:
-        pass
+        log_swallowed('staff_repository:116')
 
     return deleted_total
 
@@ -158,13 +159,13 @@ def _ensure_staff_table(conn) -> None:
             cur.execute(f"ALTER TABLE {_qname('STAFF')} {add_kw} {ddl}")
             conn.commit()
         except Exception:
-            pass
+            log_swallowed('staff_repository:161')
 
     try:
         cur.execute(f"UPDATE {_qname('STAFF')} SET {_qname('Attivo')}=1 WHERE {_qname('Attivo')} IS NULL")
         conn.commit()
     except Exception:
-        pass
+        log_swallowed('staff_repository:167')
 
 
 def ensure_staff_schema() -> None:
@@ -175,7 +176,7 @@ def ensure_staff_schema() -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('staff_repository:178')
 
 
 @dataclass
@@ -412,7 +413,7 @@ def list_staff(*, store_code: str, only_active: bool = False) -> List[Dict[str, 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('staff_repository:415')
 
 
 def insert_staff(
@@ -462,7 +463,7 @@ def insert_staff(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('staff_repository:465')
 
 
 def update_staff(
@@ -525,7 +526,7 @@ def update_staff(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('staff_repository:528')
 
 
 def set_staff_active(*, store_code: str, staff_id: Optional[str], orig_nome_cognome: str, active: bool) -> bool:
@@ -565,7 +566,7 @@ def set_staff_active(*, store_code: str, staff_id: Optional[str], orig_nome_cogn
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('staff_repository:568')
 
 
 def delete_staff(*, store_code: str, staff_id: Optional[str], orig_nome_cognome: str) -> bool:
@@ -597,7 +598,7 @@ def delete_staff(*, store_code: str, staff_id: Optional[str], orig_nome_cognome:
         try:
             _delete_staff_turni_rows(conn, store_code=str(store_code), nominativo=str(orig_nome_cognome).strip())
         except Exception:
-            pass
+            log_swallowed('staff_repository:600')
 
         # 2) Delete staff record
         sql = f"DELETE FROM {_qname('STAFF')}{where_sql}"
@@ -611,4 +612,4 @@ def delete_staff(*, store_code: str, staff_id: Optional[str], orig_nome_cognome:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('staff_repository:614')

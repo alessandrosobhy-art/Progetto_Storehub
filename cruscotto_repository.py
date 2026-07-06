@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -37,7 +38,7 @@ def _delivery_provider_aliases() -> Dict[str, str]:
             if key:
                 aliases[key] = platform
     except Exception:
-        pass
+        log_swallowed('cruscotto_repository:40')
     return aliases
 
 
@@ -55,7 +56,7 @@ def _to_date_iso(d: Any) -> Optional[str]:
         if len(s) >= 10 and s[4] == '-' and s[7] == '-':
             return datetime.strptime(s[:10], '%Y-%m-%d').date().isoformat()
     except Exception:
-        pass
+        log_swallowed('cruscotto_repository:58')
     try:
         return datetime.fromisoformat(s).date().isoformat()
     except Exception:
@@ -207,7 +208,7 @@ def _access_has_table(cur, table_name: str) -> bool:
             if rn == t:
                 return True
     except Exception:
-        pass
+        log_swallowed('cruscotto_repository:210')
     return False
 
 
@@ -219,7 +220,7 @@ def _access_columns(cur, table_name: str) -> List[str]:
             if name:
                 cols.append(name)
     except Exception:
-        pass
+        log_swallowed('cruscotto_repository:222')
     return cols
 
 
@@ -288,7 +289,7 @@ def load_cmo_rates(store_code: str) -> Dict[str, float]:
             try:
                 conn.close()
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:291')
     except Exception:
         rates = {}
 
@@ -381,7 +382,7 @@ def fetch_dati_database_day(*, store_code: str, day: date) -> Dict[str, Any]:
                 "scontrini": _int(row.get("receipts_count")),
             }
     except Exception:
-        pass
+        log_swallowed('cruscotto_repository:384')
 
     conn = get_connection(store_code)
     try:
@@ -415,7 +416,7 @@ def fetch_dati_database_day(*, store_code: str, day: date) -> Dict[str, Any]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('cruscotto_repository:418')
 
 
 def fetch_dati_database_range(*, store_code: str, start_day: date, end_day: date) -> Dict[str, Dict[str, Any]]:
@@ -470,7 +471,7 @@ def fetch_budget_day(*, store_code: str, day: date) -> float:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('cruscotto_repository:473')
 
 
 def fetch_budget_range(*, store_code: str, start_day: date, end_day: date) -> Dict[str, float]:
@@ -524,7 +525,7 @@ def fetch_budget_range(*, store_code: str, start_day: date, end_day: date) -> Di
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('cruscotto_repository:527')
 
 
 def get_day_summary_kpis(*, store_code: str, day: date) -> Dict[str, Any]:
@@ -815,7 +816,7 @@ def get_weekly_analysis(*, store_code: str, week_start: date, delivery_voci: Lis
                 agg["online"] += float(bucket.get("online") or 0.0)
                 agg["cash"] += float(bucket.get("cash") or 0.0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:818')
     totals["delivery_providers"] = tot_delivery_providers
 
     totals["ore_totali"] = tot_ore
@@ -919,7 +920,7 @@ def get_monthly_analysis(*, store_code: str, month_start: date, delivery_voci: L
                     try:
                         scontrini += int(val)
                     except Exception:
-                        pass
+                        log_swallowed('cruscotto_repository:922')
                     has_actual = True
             elif cat == "Delivery":
                 # Totale delivery (lorda) + split Online/Contanti + split per provider
@@ -1128,7 +1129,7 @@ def get_monthly_analysis(*, store_code: str, month_start: date, delivery_voci: L
                 agg["online"] += float(bucket.get("online") or 0.0)
                 agg["cash"] += float(bucket.get("cash") or 0.0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1131')
     totals["delivery_providers"] = tot_delivery_providers
 
     totals["ore_totali"] = tot_ore
@@ -1319,23 +1320,23 @@ def get_weekly_kpi_overview(store_code: str, week_start: date) -> Dict[str, Any]
             try:
                 mtd_actual += float(drow.get("revenues_actual") or 0.0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1322')
             try:
                 mtd_budget += float(drow.get("revenues_budget") or 0.0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1326')
             try:
                 mtd_ly += float(drow.get("revenues_ly") or 0.0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1330')
             try:
                 mtd_receipts += int(drow.get("receipts_actual") or 0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1334')
             try:
                 mtd_receipts_ly += int(drow.get("receipts_ly") or 0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1338')
 
     # MTD labor cost / hours (stesso periodo MTD di revenues)
     mtd_labor_cost = 0.0
@@ -1348,11 +1349,11 @@ def get_weekly_kpi_overview(store_code: str, week_start: date) -> Dict[str, Any]
             try:
                 mtd_labor_cost += float(drow.get("labor_cost") or 0.0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1351')
             try:
                 mtd_hours += float(drow.get("ore_totali") or 0.0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1355')
     mtd_labor_pct = (mtd_labor_cost / mtd_actual * 100.0) if mtd_actual else 0.0
 
     # MTD fino a fine settimana precedente (per confronti "vs week -1" sul progressivo)
@@ -1373,15 +1374,15 @@ def get_weekly_kpi_overview(store_code: str, week_start: date) -> Dict[str, Any]
             try:
                 _c += float(drow.get("labor_cost") or 0.0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1376')
             try:
                 _h += float(drow.get("ore_totali") or 0.0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1380')
             try:
                 _r += float(drow.get("revenues_actual") or 0.0)
             except Exception:
-                pass
+                log_swallowed('cruscotto_repository:1384')
         mtd_prev_cost = _c
         mtd_prev_hours = _h
         mtd_prev_pct = (_c / _r * 100.0) if _r else 0.0
@@ -1532,11 +1533,11 @@ def get_weekly_kpi_overview(store_code: str, week_start: date) -> Dict[str, Any]
     try:
         all_platforms |= set((delivery_providers or {}).keys())
     except Exception:
-        pass
+        log_swallowed('cruscotto_repository:1535')
     try:
         all_platforms |= set((rows_by_platform or {}).keys())
     except Exception:
-        pass
+        log_swallowed('cruscotto_repository:1539')
 
     for plat in sorted(p for p in all_platforms if str(p or '').strip()):
         r = (rows_by_platform or {}).get(plat)
@@ -1646,7 +1647,7 @@ def get_weekly_kpi_overview(store_code: str, week_start: date) -> Dict[str, Any]
             tags.append({"key": f"DELIVERY_{safe}_ONLINE", "label": f"Delivery {prov} online (da Distinte)", "value_formatted": _it_eur(fin.get('online') or 0.0, 0)})
             tags.append({"key": f"DELIVERY_{safe}_CASH", "label": f"Delivery {prov} contanti (da Distinte)", "value_formatted": _it_eur(fin.get('cash') or 0.0, 0)})
     except Exception:
-        pass
+        log_swallowed('cruscotto_repository:1649')
 
     return {
         "week_start": ws.isoformat(),

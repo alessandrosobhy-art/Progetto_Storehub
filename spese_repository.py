@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -155,12 +156,12 @@ def _ensure_foto_column(store_code: str, table_name: str = "SPESE", col_name: st
             try:
                 conn.rollback()
             except Exception:
-                pass
+                log_swallowed('spese_repository:158')
     finally:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:163')
 
 
 def _resolve_spese_columns(store_code: str, *, ensure_schema: bool = True) -> SpeseColumns:
@@ -182,7 +183,7 @@ def _resolve_spese_columns(store_code: str, *, ensure_schema: bool = True) -> Sp
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:185')
 
 
 def sum_spese_month_total_net(*, store_code: str, year: int, month: int) -> float:
@@ -243,7 +244,7 @@ def sum_spese_month_total_net(*, store_code: str, year: int, month: int) -> floa
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:246')
 
     net = total - nc
 
@@ -322,7 +323,7 @@ def sum_spese_month_total_net_multi(store_codes: List[str], *, year: int, month:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:325')
 
     out: Dict[str, float] = {}
     for c in codes:
@@ -383,7 +384,7 @@ def insert_spesa(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:386')
 
 
 def list_spese_month(
@@ -481,7 +482,7 @@ def list_spese_month(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:484')
 
 
 
@@ -545,7 +546,7 @@ def sum_spese_day(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:548')
 
 
 
@@ -637,7 +638,7 @@ def sum_spese_month_by_day(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:640')
 
 
 
@@ -692,7 +693,7 @@ def delete_spesa(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:695')
 
 
 def get_spesa_photo_file(
@@ -746,7 +747,7 @@ def get_spesa_photo_file(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:749')
 
 
 def update_spesa(
@@ -831,7 +832,7 @@ def update_spesa(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:834')
 
 
 # -------------------------
@@ -969,7 +970,7 @@ def search_spese_range_multi(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:972')
 
 
 def _search_spese_range_one_store(*, store_code: str, start: date, end_excl: date) -> Dict[str, Any]:
@@ -1055,4 +1056,4 @@ def _search_spese_range_one_store(*, store_code: str, start: date, end_excl: dat
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('spese_repository:1058')

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import os
 from datetime import datetime
 from typing import Optional
@@ -75,7 +76,7 @@ END
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('distinta_cassa_photo_repository:78')
 
 
 def get_distinta_cassa_photo_file(*, store_code: str, data_iso: str, tenant_key: str | None = None) -> Optional[str]:
@@ -101,7 +102,7 @@ def get_distinta_cassa_photo_file(*, store_code: str, data_iso: str, tenant_key:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('distinta_cassa_photo_repository:105')
 
 
 def upsert_distinta_cassa_photo_file(
@@ -147,7 +148,7 @@ def upsert_distinta_cassa_photo_file(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('distinta_cassa_photo_repository:151')
 
 
 def delete_distinta_cassa_photo_assoc(*, store_code: str, data_iso: str, tenant_key: str | None = None) -> None:
@@ -165,7 +166,7 @@ def delete_distinta_cassa_photo_assoc(*, store_code: str, data_iso: str, tenant_
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('distinta_cassa_photo_repository:169')
 
 
 
@@ -205,4 +206,4 @@ def list_distinta_cassa_photo_days(
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('distinta_cassa_photo_repository:209')

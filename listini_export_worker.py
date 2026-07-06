@@ -8,6 +8,7 @@ Serve per isolare eventuali crash del driver Access/ODBC dal processo Flask.
 
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import argparse
 import json
 import sys
@@ -33,7 +34,7 @@ def _json_write_atomic(path: Path, obj: dict) -> None:
         try:
             path.write_text(json.dumps(obj, ensure_ascii=False), encoding="utf-8")
         except Exception:
-            pass
+            log_swallowed('listini_export_worker:36')
 
 
 def _append_log(st: dict, msg: str) -> None:
@@ -68,7 +69,7 @@ def main() -> int:
         import pyodbc  # type: ignore
         pyodbc.pooling = False  # type: ignore[attr-defined]
     except Exception:
-        pass
+        log_swallowed('listini_export_worker:71')
 
     inp = _json_read_safe(input_path)
     if not inp:

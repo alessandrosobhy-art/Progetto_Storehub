@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import json
 from datetime import date
 from typing import List
@@ -52,7 +53,7 @@ def ensure_orari_visibility_table() -> None:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('orari_visibility_repository:55')
         conn.close()
 
 
@@ -95,7 +96,7 @@ def get_visible_people_week(*, store_code: str, week_start: date) -> List[str]:
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('orari_visibility_repository:98')
         conn.close()
 
 
@@ -130,5 +131,5 @@ def save_visible_people_week(*, store_code: str, week_start: date, names: list[s
         try:
             cur.close()
         except Exception:
-            pass
+            log_swallowed('orari_visibility_repository:133')
         conn.close()

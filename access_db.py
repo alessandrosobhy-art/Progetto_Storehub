@@ -1,3 +1,4 @@
+from app_logging import log_swallowed
 import os
 import sys
 import tempfile
@@ -15,7 +16,7 @@ try:  # pragma: no cover
     if pyodbc is not None:
         pyodbc.pooling = False
 except Exception:
-    pass
+    log_swallowed('access_db:18')
 
 
 def _in_flask_request() -> bool:
@@ -96,7 +97,7 @@ class AccessConnectionWrapper:
                 try:
                     os.remove(self._cleanup_path)
                 except Exception:
-                    pass
+                    log_swallowed('access_db:99')
 
         # Evitiamo di sovrascrivere eccezioni già in corso (es. in un finally).
         # Se non ci sono eccezioni attive, propaghiamo l'errore di upload/close.
@@ -326,7 +327,7 @@ def _cloud_download_db_bytes_cached(access_token: str, store_code: str) -> bytes
             for k, _v in oldest:
                 _CLOUD_DB_CACHE.pop(k, None)
     except Exception:
-        pass
+        log_swallowed('access_db:329')
 
     return data
 
@@ -374,7 +375,7 @@ def _connect_with_retry(conn_str_variants, attempts: int = 4, connect_timeout: i
                 try:
                     conn.timeout = query_timeout
                 except Exception:
-                    pass
+                    log_swallowed('access_db:377')
                 return conn
             except Exception as e:
                 last_exc = e
@@ -384,7 +385,7 @@ def _connect_with_retry(conn_str_variants, attempts: int = 4, connect_timeout: i
 
             time.sleep(min(0.25 * attempt, 1.0))
         except Exception:
-            pass
+            log_swallowed('access_db:387')
     if last_exc is not None:
         raise last_exc
     raise RuntimeError("Impossibile aprire la connessione Access")
@@ -424,11 +425,11 @@ def get_connection(store_code: str, read_only: bool = False):
             try:
                 os.close(fd)
             except Exception:
-                pass
+                log_swallowed('access_db:427')
             try:
                 os.remove(tmp_path)
             except Exception:
-                pass
+                log_swallowed('access_db:431')
             raise
 
         base = f"Driver={{{driver}}};DBQ={tmp_path};"
@@ -498,4 +499,4 @@ def test_connection(store_code: str, max_tables: int = 10) -> dict:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('access_db:501')

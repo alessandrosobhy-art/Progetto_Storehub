@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import csv
 import io
 import os
@@ -120,7 +121,7 @@ def ensure_fabbisogno_table() -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('estrazioni_repository:123')
 
 
 def list_fabbisogno_sites() -> List[Dict[str, Any]]:
@@ -143,7 +144,7 @@ def list_fabbisogno_sites() -> List[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('estrazioni_repository:146')
 
 
 def upsert_fabbisogno_site(site: str, codice_fabbisogno: str) -> None:
@@ -172,7 +173,7 @@ def upsert_fabbisogno_site(site: str, codice_fabbisogno: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('estrazioni_repository:175')
 
 
 def delete_fabbisogno_site(site: str) -> None:
@@ -189,7 +190,7 @@ def delete_fabbisogno_site(site: str) -> None:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('estrazioni_repository:192')
 
 
 def import_fabbisogno_csv(text: str) -> Tuple[int, List[str]]:
@@ -258,4 +259,4 @@ def get_fabbisogno_code_for_site(site: str) -> Optional[str]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('estrazioni_repository:261')

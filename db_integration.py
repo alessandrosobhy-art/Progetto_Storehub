@@ -3,6 +3,7 @@
 # - Aggiunta chiamata _ensure_location_exists(location_id) PRIMA degli upserts su reviews e media
 # - Così evitiamo errori 409/23503 quando la location non è ancora presente
 
+from app_logging import log_swallowed
 import os, time, threading, json, requests
 from datetime import datetime, timezone
 from typing import Callable, List, Dict, Any, Optional
@@ -221,7 +222,7 @@ def _is_fresh(entity: str, location_id: str) -> bool:
                 ts = datetime.fromisoformat(last.replace("Z","+00:00")).timestamp()
                 return (time.time() - ts) <= DB_TTL_SECONDS
     except Exception:
-        pass
+        log_swallowed('db_integration:224')
     return False
 
 def _kickoff_once(entity: str, location_id: str, target):
@@ -313,7 +314,7 @@ def get_warehouse_stores(include_inactive: bool = False) -> List[Dict[str,Any]]:
             if allowed:
                 out = [row for row in out if str((row or {}).get("code") or "").strip() in allowed]
     except Exception:
-        pass
+        log_swallowed('db_integration:316')
     return out
 
 
@@ -354,7 +355,7 @@ def upsert_warehouse_store(code: str, name: str, is_active: bool = True, sort_or
                 is_active=bool(is_active),
             )
     except Exception:
-        pass
+        log_swallowed('db_integration:357')
     return row
 
 

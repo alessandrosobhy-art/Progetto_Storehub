@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import re
 from typing import Any, Dict, List
 
@@ -51,19 +52,19 @@ def _ensure_legenda_table(conn) -> None:
             cur.execute(f"ALTER TABLE {_qname('LEGENDA')} ADD COLUMN Site TEXT(20)")
             conn.commit()
         except Exception:
-            pass
+            log_swallowed('legenda_repository:54')
     if "nomelegenda" not in low:
         try:
             cur.execute(f"ALTER TABLE {_qname('LEGENDA')} ADD COLUMN nomelegenda TEXT(255)")
             conn.commit()
         except Exception:
-            pass
+            log_swallowed('legenda_repository:60')
     if "colorelegenda" not in low:
         try:
             cur.execute(f"ALTER TABLE {_qname('LEGENDA')} ADD COLUMN colorelegenda TEXT(20)")
             conn.commit()
         except Exception:
-            pass
+            log_swallowed('legenda_repository:66')
 
 
 def _norm_hex(color: str) -> str:
@@ -139,7 +140,7 @@ def list_legenda(*, store_code: str) -> List[Dict[str, Any]]:
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('legenda_repository:142')
 
 
 def insert_legenda(*, store_code: str, nomelegenda: str, colorelegenda: str) -> bool:
@@ -161,7 +162,7 @@ def insert_legenda(*, store_code: str, nomelegenda: str, colorelegenda: str) -> 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('legenda_repository:164')
 
     return False
 
@@ -183,4 +184,4 @@ def delete_legenda(*, store_code: str, nomelegenda: str, colorelegenda: str) -> 
         try:
             conn.close()
         except Exception:
-            pass
+            log_swallowed('legenda_repository:186')

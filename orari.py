@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app_logging import log_swallowed
 import re
 import time
 
@@ -546,7 +547,7 @@ def api_stores_all():
         try:
             out = sorted(out, key=lambda x: (str(x.get("name") or "").lower(), str(x.get("code") or "").lower()))
         except Exception:
-            pass
+            log_swallowed('orari:549')
 
         return jsonify({"stores": out})
     except Exception as e:
@@ -831,7 +832,7 @@ def api_save():
                 r0['inquadramento'] = _id_m.get(sid) or _m.get(nn, '')
         except Exception:
             # Non blocchiamo il salvataggio se l'inquadramento non è recuperabile
-            pass
+            log_swallowed('orari:834')
 
         res = save_turni_week(store_code=str(store_code), rows=rows)
         res['sales_saved'] = len(sales_out)
