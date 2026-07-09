@@ -279,6 +279,7 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # In production behind HTTPS (Render), this should be True.
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', '1') == '1'
+app.config['SESSION_COOKIE_NAME'] = os.getenv('SESSION_COOKIE_NAME', 'storehub_session_v2')
 app.config['PREFERRED_URL_SCHEME'] = 'https'
 
 # ---- Sessioni server-side (Flask-Session) ----

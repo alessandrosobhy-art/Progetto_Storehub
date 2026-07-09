@@ -13,6 +13,21 @@ if exist ".venv\Scripts\python.exe" (
   exit /b 1
 )
 
+echo.>> "%WATCHDOG_LOG%"
+echo [%DATE% %TIME%] Verifica dipendenze ambiente...>> "%WATCHDOG_LOG%"
+%PY% -c "import flask_session, flask_wtf, flask_limiter, flask_compress" >nul 2>&1
+if errorlevel 1 (
+  echo [%DATE% %TIME%] Dipendenze mancanti: avvio installazione da requirements.txt...
+  echo [%DATE% %TIME%] Dipendenze mancanti: avvio installazione da requirements.txt...>> "%WATCHDOG_LOG%"
+  %PY% -m pip install -r requirements.txt >> "%WATCHDOG_LOG%" 2>>&1
+  if errorlevel 1 (
+    echo [%DATE% %TIME%] Installazione dipendenze fallita. Nuovo tentativo tra 10 secondi...
+    echo [%DATE% %TIME%] Installazione dipendenze fallita. Nuovo tentativo tra 10 secondi...>> "%WATCHDOG_LOG%"
+    timeout /t 10 /nobreak >nul
+    goto :eof
+  )
+)
+
 :loop
 echo.
 echo [%DATE% %TIME%] Avvio server (Waitress)...
