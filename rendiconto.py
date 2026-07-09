@@ -561,9 +561,12 @@ def _build_dashboard_day_snapshot(*, store_code: str, d_iso: str) -> Dict[str, A
         delivery_no = float(sales_row.get("delivery_cash_amount") or delivery_no)
         coupon_si = float(sales_row.get("coupon_cash_effect") or coupon_si)
         pos = float(sales_row.get("pos_amount") or pos)
-        # Le spese possono essere state modificate dopo il salvataggio della distinta:
-        # ricalcoliamo la differenza usando sempre il netto spese corrente.
-        diff = distinte + ticket_si + delivery_si + coupon_si + pos + spnet - giro
+        # La differenza cassa salvata in StoreHub include anche comportamenti custom
+        # di campi e voci personalizzate. Se le spese sono cambiate dopo il salvataggio
+        # adeguiamo solo il delta spese rispetto al valore memorizzato.
+        saved_diff = float(sales_row.get("cash_difference") or diff)
+        saved_spnet = float(sales_row.get("expenses_net") or 0.0)
+        diff = saved_diff - saved_spnet + spnet
 
     chiusura_rows = []
     for (key, lbl, t) in _CHIUSURA_FIELDS:
@@ -646,6 +649,66 @@ def _build_dashboard_day_snapshot(*, store_code: str, d_iso: str) -> Dict[str, A
         "has_photo": bool(foto_file),
         "photo_url": photo_url,
     }
+
+
+def _storehub_corrected_day_diffs(
+    *,
+    store_code: str,
+    year: int,
+    month: int,
+    start_day: _date,
+    end_day: _date,
+    tenant_key: str,
+    by_day_primanota: Dict[str, Dict[str, Any]],
+) -> Dict[str, float]:
+    """Differenza di cassa per giorno, StoreHub-aware.
+
+    Stessa logica già usata da _build_dashboard_day_snapshot/api_dashboard_month:
+    se per il giorno esiste una riga StoreHubDailySales, la differenza salvata
+    (che include già voci personalizzate/campi custom) viene presa come base e
+    aggiustata solo per il delta spese rispetto al salvataggio. Per i giorni
+    senza riga StoreHub (legacy) resta la formula grezza da prima nota, invariata.
+
+    ``by_day_primanota`` è un dict {d_iso: {vendite_lorde, annullati, pos,
+    distinte, ticket_si, delivery_si, coupon_si}}, come già costruito in
+    api_riepilogo_giornaliero_xlsx.
+    """
+    try:
+        sp_by_day = sum_spese_month_by_day(store_code=str(store_code), year=int(year), month=int(month)) or {}
+    except Exception:
+        sp_by_day = {}
+    try:
+        daily_sales_map = list_daily_sales_range(
+            store_code=str(store_code),
+            start_day=start_day,
+            end_day=end_day,
+            tenant_key=tenant_key,
+            include_legacy_fallback=True,
+        )
+    except Exception:
+        daily_sales_map = {}
+
+    out: Dict[str, float] = {}
+    for d_iso, a in (by_day_primanota or {}).items():
+        a = a or {}
+        giro = float(a.get("vendite_lorde") or 0.0) - float(a.get("annullati") or 0.0)
+        spnet = float((sp_by_day.get(d_iso) or {}).get("net") or 0.0)
+        diff = (
+            float(a.get("distinte") or 0.0)
+            + float(a.get("ticket_si") or 0.0)
+            + float(a.get("delivery_si") or 0.0)
+            + float(a.get("coupon_si") or 0.0)
+            + float(a.get("pos") or 0.0)
+            + spnet
+            - giro
+        )
+        sales_row = daily_sales_map.get(d_iso) or {}
+        if sales_row and str(sales_row.get("source_family") or "").strip().lower() == "storehub":
+            saved_diff = float(sales_row.get("cash_difference") if sales_row.get("cash_difference") is not None else diff)
+            saved_spnet = float(sales_row.get("expenses_net") or 0.0)
+            diff = saved_diff - saved_spnet + spnet
+        out[d_iso] = diff
+    return out
 
 
 def _build_versamenti_status_for_store(*, store_code: str, year: int | None = None, today: _date | None = None) -> Dict[str, Any]:
@@ -3692,7 +3755,9 @@ def api_dashboard_month():
             coupon_si = float(sales_row.get("coupon_cash_effect") or a.get("coupon_si", 0.0))
             annullati = float(sales_row.get("cancelled_amount") or a.get("annullati", 0.0))
             scontrini = float(sales_row.get("receipts_count") or a.get("scontrini", 0.0))
-            diff = distinte + ticket_si + delivery_si + coupon_si + pos + spnet - giro
+            saved_diff = float(sales_row.get("cash_difference") or diff)
+            saved_spnet = float(sales_row.get("expenses_net") or 0.0)
+            diff = saved_diff - saved_spnet + spnet
         else:
             pos = float(a.get("pos", 0.0))
             distinte = float(a.get("distinte", 0.0))
@@ -4664,6 +4729,12 @@ def api_riepilogo_mensile():
     except Exception:
         stores = []
 
+    try:
+        from tenant_config_repository import current_tenant_key
+
+        tenant_key = str(session.get("tenant_key") or current_tenant_key()).strip() or current_tenant_key()
+    except Exception:
+        tenant_key = str(session.get("tenant_key") or "").strip() or "default"
 
     rows = []
     warnings_all = []
@@ -4851,9 +4922,53 @@ def api_riepilogo_mensile():
             warnings_all.append(f"[{code}] Giorni non versati: {e}")
             row["warnings"].append("Giorni non versati non disponibili")
 
-        # --- Differenza di cassa (mese) ---
-        # Coerente con il calcolo usato nella dashboard: distinte + ticket_si + delivery_si + coupon_si + pos + spese_net - giro
+        # --- Differenza di cassa (mese), StoreHub-aware ---
+        # Usa la cash_difference salvata in StoreHubDailySales (che include gia' voci
+        # personalizzate/campi custom) come base per i giorni con distinta salvata,
+        # aggiustata solo per il delta spese. Fallback alla formula grezza per i
+        # giorni senza riga StoreHub (legacy). Vedi _storehub_corrected_day_diffs.
         try:
+            by_day_pn: Dict[str, Dict[str, Any]] = {}
+            for r in load_primanota_month_agg(str(code), year=y, month=m) or []:
+                d_iso = str(r.get("date") or "").strip()
+                if not d_iso:
+                    continue
+                cat = str(r.get("categoria") or "").strip()
+                voce = str(r.get("voce") or "").strip()
+                tipo = str(r.get("tipo") or "SI").strip().upper()
+                s_val = float(r.get("sum") or 0.0)
+                dd = by_day_pn.setdefault(
+                    d_iso,
+                    {"vendite_lorde": 0.0, "annullati": 0.0, "pos": 0.0, "distinte": 0.0,
+                     "ticket_si": 0.0, "delivery_si": 0.0, "coupon_si": 0.0},
+                )
+                if cat == "Dati chiusura":
+                    k = _CHIUSURA_VOICE_TO_KEY.get(voce.upper())
+                    if k in ("vendite_lorde", "annullati", "pos"):
+                        dd[k] += s_val
+                elif cat == "Distinte":
+                    dd["distinte"] += s_val
+                elif cat == "Ticket" and tipo == "SI":
+                    dd["ticket_si"] += s_val
+                elif cat == "Delivery" and tipo == "SI":
+                    dd["delivery_si"] += s_val
+                elif cat == "Coupon" and tipo == "SI":
+                    dd["coupon_si"] += s_val
+
+            corrected_diffs = _storehub_corrected_day_diffs(
+                store_code=str(code),
+                year=y,
+                month=m,
+                start_day=start_d,
+                end_day=end_d,
+                tenant_key=tenant_key,
+                by_day_primanota=by_day_pn,
+            )
+            row["diff_cassa"] = sum(corrected_diffs.values())
+        except Exception as e:
+            current_app.logger.exception("Errore riepilogo rendiconto (diff cassa StoreHub-aware) store %s", code)
+            warnings_all.append(f"[{code}] Differenza cassa: {e}")
+            # Fallback: formula grezza precedente, per non lasciare la cella vuota.
             row["diff_cassa"] = (
                 float(row.get("distinte") or 0.0)
                 + float(row.get("ticket_si") or 0.0)
@@ -4863,8 +4978,6 @@ def api_riepilogo_mensile():
                 + float(row.get("spese") or 0.0)
                 - float(row.get("giro_affari") or 0.0)
             )
-        except Exception:
-            row["diff_cassa"] = 0.0
 
         rows.append(row)
 
@@ -4914,6 +5027,12 @@ def api_riepilogo_mensile_xlsx():
     except Exception:
         stores = []
 
+    try:
+        from tenant_config_repository import current_tenant_key
+
+        tenant_key = str(session.get("tenant_key") or current_tenant_key()).strip() or current_tenant_key()
+    except Exception:
+        tenant_key = str(session.get("tenant_key") or "").strip() or "default"
 
     prim_map = {}
     spese_map = {}
@@ -5081,9 +5200,51 @@ def api_riepilogo_mensile_xlsx():
         except Exception:
             log_swallowed('rendiconto:5081')
 
-        # Diff cassa
+        # Diff cassa, StoreHub-aware (vedi _storehub_corrected_day_diffs: usa la
+        # cash_difference salvata, che include voci personalizzate/campi custom,
+        # invece di ricalcolare dalla formula grezza).
         try:
-            r["diff_cassa"] = float(
+            by_day_pn: Dict[str, Dict[str, Any]] = {}
+            for pr in load_primanota_month_agg(str(code), year=y, month=m) or []:
+                d_iso = str(pr.get("date") or "").strip()
+                if not d_iso:
+                    continue
+                cat = str(pr.get("categoria") or "").strip()
+                voce = str(pr.get("voce") or "").strip()
+                tipo = str(pr.get("tipo") or "SI").strip().upper()
+                s_val = float(pr.get("sum") or 0.0)
+                dd = by_day_pn.setdefault(
+                    d_iso,
+                    {"vendite_lorde": 0.0, "annullati": 0.0, "pos": 0.0, "distinte": 0.0,
+                     "ticket_si": 0.0, "delivery_si": 0.0, "coupon_si": 0.0},
+                )
+                if cat == "Dati chiusura":
+                    k = _CHIUSURA_VOICE_TO_KEY.get(voce.upper())
+                    if k in ("vendite_lorde", "annullati", "pos"):
+                        dd[k] += s_val
+                elif cat == "Distinte":
+                    dd["distinte"] += s_val
+                elif cat == "Ticket" and tipo == "SI":
+                    dd["ticket_si"] += s_val
+                elif cat == "Delivery" and tipo == "SI":
+                    dd["delivery_si"] += s_val
+                elif cat == "Coupon" and tipo == "SI":
+                    dd["coupon_si"] += s_val
+
+            corrected_diffs = _storehub_corrected_day_diffs(
+                store_code=str(code),
+                year=y,
+                month=m,
+                start_day=start_d,
+                end_day=end_d,
+                tenant_key=tenant_key,
+                by_day_primanota=by_day_pn,
+            )
+            r["diff_cassa"] = sum(corrected_diffs.values())
+        except Exception:
+            log_swallowed('rendiconto:diff_cassa_mensile_xlsx')
+            # Fallback: formula grezza precedente, per non lasciare la cella vuota.
+            r["diff_cassa"] = (
                 float(r.get("distinte") or 0.0)
                 + float(r.get("ticket_si") or 0.0)
                 + float(r.get("delivery_si") or 0.0)
@@ -5092,8 +5253,6 @@ def api_riepilogo_mensile_xlsx():
                 + float(r.get("spese") or 0.0)
                 - float(r.get("giro_affari") or 0.0)
             )
-        except Exception:
-            r["diff_cassa"] = 0.0
 
         rows.append(r)
 
@@ -5222,6 +5381,16 @@ def api_riepilogo_giornaliero_xlsx():
     except Exception:
         stores = []
 
+    try:
+        from tenant_config_repository import current_tenant_key
+
+        tenant_key = str(session.get("tenant_key") or current_tenant_key()).strip() or current_tenant_key()
+    except Exception:
+        tenant_key = str(session.get("tenant_key") or "").strip() or "default"
+
+    start_day_obj = datetime.strptime(start_iso, "%Y-%m-%d").date()
+    end_day_obj = datetime.strptime(end_iso, "%Y-%m-%d").date()
+
     # Pre-costruzione giorni del mese
     days = list(_iter_days_iso(start_iso, end_iso))
 
@@ -5334,6 +5503,22 @@ def api_riepilogo_giornaliero_xlsx():
         except Exception:
             log_swallowed('rendiconto:5334')
 
+        # Differenza di cassa StoreHub-aware (usa cash_difference salvata, che include
+        # voci personalizzate/campi custom, invece di ricalcolare dalla formula grezza).
+        try:
+            corrected_diffs = _storehub_corrected_day_diffs(
+                store_code=str(code),
+                year=y,
+                month=m,
+                start_day=start_day_obj,
+                end_day=end_day_obj,
+                tenant_key=tenant_key,
+                by_day_primanota=by_day,
+            )
+        except Exception:
+            log_swallowed('rendiconto:corrected_diffs_giornaliero')
+            corrected_diffs = {}
+
         # Costruzione righe output
         for d_iso in days:
             dd = by_day.get(d_iso) or {}
@@ -5341,15 +5526,18 @@ def api_riepilogo_giornaliero_xlsx():
             ticket = _num(dd.get("ticket_si")) + _num(dd.get("ticket_no"))
             delivery = _num(dd.get("delivery_si")) + _num(dd.get("delivery_no"))
             coupon = _num(dd.get("coupon_si")) + _num(dd.get("coupon_no"))
-            diff = (
-                _num(dd.get("distinte"))
-                + _num(dd.get("ticket_si"))
-                + _num(dd.get("delivery_si"))
-                + _num(dd.get("coupon_si"))
-                + _num(dd.get("pos"))
-                + _num(dd.get("spese"))
-                - giro
-            )
+            if d_iso in corrected_diffs:
+                diff = corrected_diffs[d_iso]
+            else:
+                diff = (
+                    _num(dd.get("distinte"))
+                    + _num(dd.get("ticket_si"))
+                    + _num(dd.get("delivery_si"))
+                    + _num(dd.get("coupon_si"))
+                    + _num(dd.get("pos"))
+                    + _num(dd.get("spese"))
+                    - giro
+                )
 
             out_rows.append(
                 {
