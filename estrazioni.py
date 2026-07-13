@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List
 
@@ -584,16 +585,30 @@ def _norm_causale(value: str) -> str:
     return "".join(ch for ch in s if ch.isalnum())
 
 
-def _should_export_slot(causale: str, start_hhmm: str, end_hhmm: str) -> bool:
-    c = _norm_causale(causale)
-    has_times = bool((start_hhmm or "").strip() and (end_hhmm or "").strip())
+def _load_causali_rules() -> dict[str, dict]:
+    """Regole causali normalizzate per nome, da richiamare UNA volta per export.
+
+    list_orari_causali() apre una connessione e, a monte, seed_default_orari_config()
+    esegue un MERGE su ogni causale/inquadramento di default: e' un'operazione da
+    fare una volta per richiesta, non per ogni turno/slot controllato.
+    """
     try:
-        rules = {
+        return {
             _norm_causale(str((r or {}).get("name") or "")): dict(r or {})
             for r in list_orari_causali(active_only=True)
         }
     except Exception:
-        rules = {}
+        return {}
+
+
+def _should_export_slot(causale: str, start_hhmm: str, end_hhmm: str, rules: dict[str, dict] | None = None) -> bool:
+    c = _norm_causale(causale)
+    has_times = bool((start_hhmm or "").strip() and (end_hhmm or "").strip())
+    # rules=None (retrocompatibilita' per eventuali altri chiamanti): richiede ancora
+    # una lettura a chiamata. I chiamanti che processano molte righe (es. l'export
+    # HQ) DEVONO passare le regole gia' caricate con _load_causali_rules().
+    if rules is None:
+        rules = _load_causali_rules()
 
     if c == "extra":
         return False
@@ -617,17 +632,47 @@ def _build_csv_rows(*, week_start: date, week_end: date, progressivo: str, sites
 
     rows: list[list[str]] = []
 
-    for site in sites:
-        site_code = (site or "").strip()
+    clean_sites = [str(s or "").strip() for s in sites if str(s or "").strip()]
+
+    # Il fetch per store (fabbisogno + staff + turni settimana) e' I/O di rete verso
+    # SQL Server: ogni chiamata apre la sua connessione (nessun pooling nel progetto)
+    # e con molti store selezionati farlo in serie e' la causa dei timeout su
+    # Estrazioni HQ -> Scheduling. Lo eseguiamo in parallelo con un pool limitato;
+    # la logica di costruzione righe sotto resta identica e sequenziale.
+    def _fetch_site_data(site_code: str) -> tuple[str, str, list[dict]]:
+        fab = get_fabbisogno_code_for_site(site_code)
+        fab_10 = _pad_int(str(fab or ""), 10)
+        staff = list_staff(store_code=site_code) or []
+        turni_raw = list_turni_week(store_code=site_code, start_day=week_start, end_day=week_end) or []
+        return fab_10, staff, turni_raw
+
+    site_data: dict[str, tuple[str, list[dict], list[dict]]] = {}
+    max_workers = min(8, len(clean_sites)) or 1
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        future_to_site = {pool.submit(_fetch_site_data, s): s for s in clean_sites}
+        for future in as_completed(future_to_site):
+            site_code = future_to_site[future]
+            try:
+                fab_10, staff, turni_raw = future.result()
+            except Exception:
+                current_app.logger.exception("Errore fetch dati scheduling per store %s", site_code)
+                fab_10, staff, turni_raw = "0000000000", [], []
+            site_data[site_code] = (fab_10, staff, turni_raw)
+
+    # Caricata UNA volta per l'intero export, non per ogni turno/slot (vedi
+    # _load_causali_rules): era questo, non il fetch per-store, il vero collo di
+    # bottiglia dei timeout su esportazioni con molti store/turni.
+    causali_rules = _load_causali_rules()
+
+    for site in clean_sites:
+        site_code = site
         if not site_code:
             continue
 
         rows.append(["C01", "C", "000000", prog, _fmt_ddmmyyyy(week_start), _fmt_ddmmyyyy(week_end)])
 
-        fab = get_fabbisogno_code_for_site(site_code)
-        fab_10 = _pad_int(str(fab or ""), 10)
+        fab_10, staff, turni_raw = site_data.get(site_code, ("0000000000", [], []))
 
-        staff = list_staff(store_code=site_code) or []
         name_to_code: dict[str, str] = {}
         contract_hours_by_name: dict[str, int] = {}
         sched_allowed: set[str] = set()
@@ -645,7 +690,6 @@ def _build_csv_rows(*, week_start: date, week_end: date, progressivo: str, sites
                 name_to_code[low] = _pad_int(code, 7)
                 sched_allowed.add(low)
 
-        turni_raw = list_turni_week(store_code=site_code, start_day=week_start, end_day=week_end) or []
         turni: list[dict] = []
         for t in turni_raw:
             nom = (t.get("nominativo") or "").strip()
@@ -687,7 +731,7 @@ def _build_csv_rows(*, week_start: date, week_end: date, progressivo: str, sites
                 (2, caus2, in2, fi2),
             ]
             for slot_no, causale, start_hhmm, end_hhmm in slot_defs:
-                if not _should_export_slot(causale, start_hhmm, end_hhmm):
+                if not _should_export_slot(causale, start_hhmm, end_hhmm, causali_rules):
                     continue
 
                 if start_hhmm and end_hhmm:
