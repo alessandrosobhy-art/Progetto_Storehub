@@ -564,7 +564,10 @@ def _build_dashboard_day_snapshot(*, store_code: str, d_iso: str) -> Dict[str, A
         # La differenza cassa salvata in StoreHub include anche comportamenti custom
         # di campi e voci personalizzate. Se le spese sono cambiate dopo il salvataggio
         # adeguiamo solo il delta spese rispetto al valore memorizzato.
-        saved_diff = float(sales_row.get("cash_difference") or diff)
+        # NB: 'is not None' e NON 'or' -> una differenza salvata di 0.0 e' un valore
+        # VALIDO (tipico proprio quando le voci custom pareggiano la giornata); con
+        # 'or' veniva scartata e si ricadeva sulla formula grezza senza voci custom.
+        saved_diff = float(sales_row.get("cash_difference") if sales_row.get("cash_difference") is not None else diff)
         saved_spnet = float(sales_row.get("expenses_net") or 0.0)
         diff = saved_diff - saved_spnet + spnet
 
@@ -3767,7 +3770,9 @@ def api_dashboard_month():
             coupon_si = float(sales_row.get("coupon_cash_effect") or a.get("coupon_si", 0.0))
             annullati = float(sales_row.get("cancelled_amount") or a.get("annullati", 0.0))
             scontrini = float(sales_row.get("receipts_count") or a.get("scontrini", 0.0))
-            saved_diff = float(sales_row.get("cash_difference") or diff)
+            # 'is not None' e NON 'or': una differenza salvata di 0.0 e' valida
+            # (tipica quando le voci custom pareggiano) e va usata, non scartata.
+            saved_diff = float(sales_row.get("cash_difference") if sales_row.get("cash_difference") is not None else diff)
             saved_spnet = float(sales_row.get("expenses_net") or 0.0)
             diff = saved_diff - saved_spnet + spnet
         else:

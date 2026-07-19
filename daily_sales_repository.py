@@ -695,6 +695,75 @@ SELECT store_code, business_date, expenses_net, source, source_payload
     return report
 
 
+def recompute_daily_sales_from_payload(*, tenant_key: str) -> Dict[str, Any]:
+    """Ricalcola le righe StoreHubDailySales del tenant indicato partendo dal
+    payload originale salvato (chiusura + entries), con la configurazione ATTUALE
+    del tenant. Serve quando le voci personalizzate sono state configurate (o
+    modificate) DOPO il salvataggio: il valore memorizzato non le includeva.
+
+    Non cambia chiave ne' elimina righe: aggiorna in-place. Sicura anche per il
+    tenant principale ('default'). Idempotente. Va chiamata nel contesto del
+    database giusto (storehub_database_context) quando serve.
+    """
+    ensure_daily_sales_schema()
+    tenant = str(tenant_key or "").strip() or "default"
+    report: Dict[str, Any] = {"tenant_key": tenant, "recomputed": 0, "skipped_no_payload": 0, "errors": []}
+
+    with _conn(read_only=True) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+SELECT store_code, business_date, expenses_net, source_payload
+  FROM dbo.StoreHubDailySales
+ WHERE tenant_key = ?
+""",
+            tenant,
+        )
+        rows = [
+            {
+                "store_code": str(r[0] or "").strip(),
+                "business_date": r[1],
+                "expenses_net": _num(r[2]),
+                "source_payload": r[3],
+            }
+            for r in (cur.fetchall() or [])
+        ]
+
+    for row in rows:
+        bdate = row["business_date"]
+        if isinstance(bdate, datetime):
+            d_iso = bdate.date().isoformat()
+        elif isinstance(bdate, date):
+            d_iso = bdate.isoformat()
+        else:
+            d_iso = str(bdate or "")[:10]
+        try:
+            payload = {}
+            try:
+                payload = json.loads(row.get("source_payload") or "{}")
+            except Exception:
+                payload = {}
+            chiusura = payload.get("chiusura")
+            entries = payload.get("entries")
+            if not (isinstance(chiusura, dict) and isinstance(entries, list)):
+                report["skipped_no_payload"] += 1
+                continue
+            new_row = build_daily_sales_from_distinta(
+                store_code=row["store_code"],
+                data_iso=d_iso,
+                chiusura_vals=chiusura,
+                entries=entries,
+                expenses_net=row["expenses_net"],
+                tenant_key=tenant,
+            )
+            upsert_daily_sales(new_row)
+            report["recomputed"] += 1
+        except Exception as exc:
+            report["errors"].append(f"{row['store_code']} {d_iso}: {exc}")
+
+    return report
+
+
 def upsert_historical_daily_sales_from_csv_row(
     *,
     csv_row: Dict[str, Any],

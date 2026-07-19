@@ -2490,7 +2490,10 @@ def master_tenants():
                 key = (request.form.get("tenant_key") or "").strip()
                 try:
                     from tenant_config_repository import get_tenant
-                    from daily_sales_repository import rebuild_tenant_daily_sales_from_default
+                    from daily_sales_repository import (
+                        rebuild_tenant_daily_sales_from_default,
+                        recompute_daily_sales_from_payload,
+                    )
 
                     tenant = get_tenant(key) or {}
                     db_name = str(tenant.get("database_name") or "").strip()
@@ -2500,20 +2503,42 @@ def master_tenants():
                         or os.getenv("SQLSERVER_DB")
                         or "APP_STOREHUB"
                     ).strip()
-                    if not key or key.lower() == "default":
-                        raise ValueError("La riparazione non si applica al tenant principale.")
-                    if not db_name or db_name.upper() == main_db.upper():
-                        # Nel DB principale le righe 'default' sono legittime: mai toccarle.
-                        raise ValueError("Riparazione consentita solo per tenant con database dedicato.")
-                    with storehub_database_context(db_name):
-                        rep = rebuild_tenant_daily_sales_from_default(tenant_key=key)
-                    current_app.logger.warning("Riparazione StoreHubDailySales tenant '%s' da master %s: %s", key, session.get("email"), rep)
-                    msg = (
-                        f"Riparazione distinte '{key}': {rep.get('rebuilt', 0)} giorni ricostruiti con le voci personalizzate, "
-                        f"{rep.get('rekeyed', 0)} solo ri-chiavati, {rep.get('deleted_default', 0)} righe obsolete rimosse."
+                    if not key:
+                        raise ValueError("Tenant non indicato.")
+                    is_main = key.lower() == "default" or not db_name or db_name.upper() == main_db.upper()
+
+                    rekey_rep = {"rebuilt": 0, "rekeyed": 0, "deleted_default": 0, "errors": []}
+                    if not is_main:
+                        # Passo 1 (solo tenant con DB dedicato): migra le righe salvate
+                        # con chiave 'default' ricostruendole con la config del tenant.
+                        with storehub_database_context(db_name):
+                            rekey_rep = rebuild_tenant_daily_sales_from_default(tenant_key=key)
+
+                    # Passo 2 (tutti, incluso il principale): ricalcola dal payload
+                    # originale le righe gia' sotto la chiave giusta, con la config
+                    # ATTUALE. Recupera le voci personalizzate configurate DOPO i
+                    # salvataggi (sintomo: distinta ok, dashboard senza voci custom).
+                    target_db = db_name if (db_name and not is_main) else main_db
+                    with storehub_database_context(target_db):
+                        rec_rep = recompute_daily_sales_from_payload(tenant_key=key)
+
+                    all_errors = list(rekey_rep.get("errors") or []) + list(rec_rep.get("errors") or [])
+                    current_app.logger.warning(
+                        "Riparazione StoreHubDailySales tenant '%s' da master %s: rekey=%s recompute=%s",
+                        key, session.get("email"), rekey_rep, rec_rep,
                     )
-                    if rep.get("errors"):
-                        flash(msg + f" Errori: {len(rep['errors'])} (vedi log).", "warning")
+                    parts = []
+                    if not is_main:
+                        parts.append(
+                            f"{rekey_rep.get('rebuilt', 0)} giorni migrati dalla chiave errata, "
+                            f"{rekey_rep.get('deleted_default', 0)} righe obsolete rimosse"
+                        )
+                    parts.append(f"{rec_rep.get('recomputed', 0)} giorni ricalcolati con la configurazione attuale")
+                    if rec_rep.get("skipped_no_payload"):
+                        parts.append(f"{rec_rep.get('skipped_no_payload')} senza dati originali (invariati)")
+                    msg = f"Riparazione distinte '{key}': " + ", ".join(parts) + "."
+                    if all_errors:
+                        flash(msg + f" Errori: {len(all_errors)} (vedi log).", "warning")
                     else:
                         flash(msg, "success")
                 except Exception as exc:
