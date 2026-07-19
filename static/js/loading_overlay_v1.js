@@ -93,6 +93,12 @@
     pending = 0;
     if (showTimer) { window.clearTimeout(showTimer); showTimer = null; }
     stopDownloadWatch();
+    clearNavWatchdog();
+    // IMPORTANTE: rimuovere anche 'storehub-page-loading' da <html>, altrimenti lo
+    // spinner CSS di base.html resta visibile per sempre dopo un download che non
+    // cambia pagina (es. Estrazioni HQ -> Scheduling: form con data-no-overlay che
+    // scatena beforeunload, il quale aggiunge la classe ma non la toglieva mai).
+    document.documentElement.classList.remove('storehub-page-loading');
     if (ensureElements()) {
       overlayEl.classList.remove('show');
       document.body.classList.remove('loading-overlay-open');
@@ -301,8 +307,9 @@
       window.setTimeout(function () {
         try {
           if (!rememberedNavigationActive && pending === 0 && document.visibilityState === 'visible') {
-            overlayEl.classList.remove('show');
-            document.body.classList.remove('loading-overlay-open');
+            // Download che ha tenuto la pagina: pulizia COMPLETA (include la
+            // rimozione di 'storehub-page-loading', altrimenti lo spinner resta).
+            forceHide();
           }
         } catch (_) {}
       }, 1500);
