@@ -3368,12 +3368,24 @@ def distinta_cassa_save():
         )
         # Scrittura StoreHub-native, pensata per report futuri e tenant separati.
         try:
+            # tenant_key ESPLICITO: senza, il repository salvava con 'default' e la
+            # dashboard (che legge filtrando per il tenant di sessione) non trovava
+            # la riga -> ricadeva sulla formula grezza perdendo le voci personalizzate.
+            # Inoltre i comportamenti custom venivano letti dalla config del tenant
+            # sbagliato. Stessa risoluzione tenant usata dai percorsi di lettura.
+            try:
+                from tenant_config_repository import current_tenant_key
+
+                _dt_tenant_key = str(session.get("tenant_key") or current_tenant_key()).strip() or current_tenant_key()
+            except Exception:
+                _dt_tenant_key = str(session.get("tenant_key") or "").strip() or "default"
             upsert_daily_sales_from_distinta(
                 store_code=str(store_code),
                 data_iso=d_iso,
                 chiusura_vals={**chiusura_vals, **custom_field_vals},
                 entries=entries,
                 expenses_net=float(spese_day_info.get("net") or 0.0),
+                tenant_key=_dt_tenant_key,
             )
         except Exception as ex_daily:
             current_app.logger.exception("Errore scrittura StoreHubDailySales da Distinta")
