@@ -131,7 +131,7 @@ from daily_sales_repository import (
 )
 from controller_monitoring import register_controller_monitoring
 
-APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.06.4"
+APP_BUILD_VERSION = os.getenv("APP_VERSION") or "v2026.07.19.1"
 ADMIN_USERS_UI_VERSION = APP_BUILD_VERSION
 
 
@@ -3827,6 +3827,12 @@ def _score_finance_candidate(app_row: dict, finance_row: dict, store_name: str) 
                     best_date_pts = max(best_date_pts, 18.0)
                 elif delta <= 3:
                     best_date_pts = max(best_date_pts, 10.0)
+                elif delta <= 5:
+                    # I versamenti bancari possono registrarsi in finance giorni dopo
+                    # (weekend/festivi): una distanza moderata resta un segnale debole.
+                    best_date_pts = max(best_date_pts, 6.0)
+                elif delta <= 7:
+                    best_date_pts = max(best_date_pts, 3.0)
     if best_date_pts:
         score += best_date_pts
         reasons.append("data")
@@ -3954,8 +3960,13 @@ def _validate_finance_match_selection(
                 d_fin = datetime.strptime(fin_date, "%Y-%m-%d").date()
             except Exception:
                 d_fin = None
+            # La distanza tra data versamento Hub e data contabile finance NON blocca
+            # piu' il salvataggio: i versamenti bancari possono registrarsi in finance
+            # anche giorni dopo (weekend/festivi). Resta un avviso informativo.
             if d_fin and abs((d_fin - d_app).days) > 3:
-                return {"ok": False, "error": f"Il versamento finance {fin_id} è troppo distante dalla data del versamento app."}
+                warnings.append(
+                    f"Il versamento finance {fin_id} ha una data distante {abs((d_fin - d_app).days)} giorni dal versamento app."
+                )
 
         total += float(fin.get("importo") or 0.0)
 
@@ -4012,7 +4023,9 @@ def _pick_finance_combo(app_row: dict, finance_pool: list[dict]) -> list[dict]:
                 d_fin = datetime.strptime(fin_date, "%Y-%m-%d").date()
             except Exception:
                 d_fin = None
-            if d_fin and abs((d_fin - d_app).days) > 3:
+            # Finestra allargata 3 -> 7 giorni, coerente con lo scoring: i versamenti
+            # possono registrarsi in finance giorni dopo (weekend/festivi).
+            if d_fin and abs((d_fin - d_app).days) > 7:
                 continue
         eligible.append(fin)
 
@@ -4154,7 +4167,11 @@ def _prepare_admin_finance_match_page(
 
         scored.sort(key=lambda x: (not x["assigned_here"], -float(x["score"]), -int(x["finance_id"])))
         top_candidates = scored[:30]
-        meaningful_candidates = [c for c in top_candidates if float(c.get("score") or 0.0) >= 70.0]
+        # Soglia visibilita' 55 (era 70): con 70 un candidato con importo ESATTO ma
+        # pochi altri segnali (es. importo 45pt + data a 2gg 10pt = 55) restava
+        # invisibile e il record finiva tra i "senza match". L'auto-selezione resta
+        # prudente a >= 90: qui si decide solo cosa MOSTRARE all'operatore.
+        meaningful_candidates = [c for c in top_candidates if float(c.get("score") or 0.0) >= 55.0]
         has_candidates = bool(meaningful_candidates)
 
         slot_values = {1: "", 2: "", 3: ""}
@@ -8175,6 +8192,30 @@ def admin_versamenti_finance_match_test_batch_save():
     return_end = (request.form.get('return_end') or '').strip()
     return_view = (request.form.get('return_view') or 'queue').strip()
 
+    # Prefetch UNICO per tutto il batch: prima venivano rifatte 2 query complete
+    # (ricerca versamenti app + lista versamenti finance) per OGNI record, rendendo
+    # la convalida massiva lentissima. Ora: 1 query app multi-store + 1 query finance.
+    batch_stores = sorted({str(it.get("app_store") or "").strip() for it in payload if str(it.get("app_store") or "").strip()})
+    app_rows_by_key: dict[str, dict] = {}
+    if batch_stores:
+        try:
+            b_start = datetime.strptime(return_start, "%Y-%m-%d").date()
+            b_end = datetime.strptime(return_end, "%Y-%m-%d").date()
+            res = search_versamenti_range_multi(batch_stores, start=b_start, end=b_end) or {}
+            for row in (res.get("rows") or []):
+                app_rows_by_key[build_app_record_key(row)] = row
+        except Exception:
+            current_app.logger.exception("Errore prefetch versamenti app per convalida massiva")
+
+    finance_by_id_cache: dict[int, dict] = {}
+    try:
+        for fr in (list_finance_versamenti(start_iso=return_start, end_iso=return_end, assignment_filter="all") or []):
+            if fr.get("id") is not None:
+                finance_by_id_cache[int(fr["id"])] = fr
+    except Exception:
+        current_app.logger.exception("Errore prefetch versamenti finance per convalida massiva")
+    finance_fallback_loaded = False
+
     pending_save: list[dict] = []
     warnings_list: list[dict] = []
     hard_errors: list[str] = []
@@ -8184,7 +8225,7 @@ def admin_versamenti_finance_match_test_batch_save():
         app_store = str(item.get("app_store") or "").strip()
         app_record_id = str(item.get("app_record_id") or "").strip()
         items = list(item.get("items") or [])
-        app_row = _load_app_match_row(app_record_key=app_record_key, app_store=app_store, start_iso=return_start, end_iso=return_end)
+        app_row = app_rows_by_key.get(app_record_key)
         if not app_row:
             hard_errors.append(f"{app_store}: record app non trovato nel filtro corrente.")
             continue
@@ -8194,7 +8235,17 @@ def admin_versamenti_finance_match_test_batch_save():
                 finance_ids.append(int(entry.get("finance_id") or 0))
             except Exception:
                 continue
-        finance_rows = _selected_finance_rows_for_match(finance_ids, start_iso=return_start, end_iso=return_end)
+        finance_rows = [finance_by_id_cache[fid] for fid in finance_ids if fid in finance_by_id_cache]
+        if len(finance_rows) != len(finance_ids) and not finance_fallback_loaded:
+            # Alcuni id fuori dal filtro data: carica UNA volta la lista completa.
+            finance_fallback_loaded = True
+            try:
+                for fr in (list_finance_versamenti(assignment_filter="all") or []):
+                    if fr.get("id") is not None:
+                        finance_by_id_cache.setdefault(int(fr["id"]), fr)
+            except Exception:
+                current_app.logger.exception("Errore fallback lista finance completa per convalida massiva")
+            finance_rows = [finance_by_id_cache[fid] for fid in finance_ids if fid in finance_by_id_cache]
         if len(finance_rows) != len(finance_ids):
             hard_errors.append(f"{app_store} {app_row.get('nome')}: uno o più versamenti finance non sono più disponibili.")
             continue
@@ -8238,7 +8289,7 @@ def admin_versamenti_finance_match_test_batch_save():
         saved += 1
     flash(f'Convalida massiva completata: {saved} record salvati.', 'success')
     if tessera_warning_count:
-        flash('Alcuni versamenti sono stati convalidati con numero tessera non coerente tra Store Hub e finance.', 'warning')
+        flash('Alcuni versamenti sono stati convalidati con avvisi (tessera o data non perfettamente coerenti tra Store Hub e finance).', 'warning')
     return redirect(url_for('admin_versamenti_finance_match_test', store_code=return_store_code, start=return_start, end=return_end, view=return_view))
 
 
