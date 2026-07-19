@@ -587,6 +587,114 @@ def upsert_daily_sales_from_distinta(
     return upsert_daily_sales(row)
 
 
+def rebuild_tenant_daily_sales_from_default(*, tenant_key: str) -> Dict[str, Any]:
+    """Ripara le righe StoreHubDailySales salvate con tenant_key='default' nel
+    database DEDICATO di un tenant (bug storico: il salvataggio distinta non
+    passava il tenant, quindi chiave sbagliata E voci personalizzate escluse).
+
+    Per ogni riga 'default':
+    - se source_payload contiene i dati originali (chiusura + entries), RICOSTRUISCE
+      la riga con build_daily_sales_from_distinta usando la config del tenant
+      corretto (recupera anche i contributi custom persi) e la salva sotto la
+      chiave giusta;
+    - altrimenti la ri-chiava soltanto (meglio di lasciarla invisibile);
+    - in entrambi i casi elimina la vecchia riga 'default'.
+
+    ATTENZIONE: va chiamata DENTRO storehub_database_context(db_del_tenant).
+    Il chiamante deve garantire che il DB corrente sia quello dedicato del tenant
+    (mai il principale, dove le righe 'default' sono legittime).
+    """
+    ensure_daily_sales_schema()
+    tenant = str(tenant_key or "").strip()
+    report: Dict[str, Any] = {"tenant_key": tenant, "rebuilt": 0, "rekeyed": 0, "deleted_default": 0, "errors": []}
+    if not tenant or tenant.lower() == "default":
+        report["errors"].append("tenant_key non valido per la riparazione")
+        return report
+
+    with _conn(read_only=True) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+SELECT store_code, business_date, expenses_net, source, source_payload
+  FROM dbo.StoreHubDailySales
+ WHERE tenant_key = 'default'
+"""
+        )
+        stale_rows = [
+            {
+                "store_code": str(r[0] or "").strip(),
+                "business_date": r[1],
+                "expenses_net": _num(r[2]),
+                "source": str(r[3] or ""),
+                "source_payload": r[4],
+            }
+            for r in (cur.fetchall() or [])
+        ]
+
+    for stale in stale_rows:
+        store = stale["store_code"]
+        bdate = stale["business_date"]
+        if isinstance(bdate, datetime):
+            d_iso = bdate.date().isoformat()
+        elif isinstance(bdate, date):
+            d_iso = bdate.isoformat()
+        else:
+            d_iso = str(bdate or "")[:10]
+        if not store or not d_iso:
+            report["errors"].append(f"riga senza store/data: {store!r} {d_iso!r}")
+            continue
+        try:
+            payload = {}
+            try:
+                payload = json.loads(stale.get("source_payload") or "{}")
+            except Exception:
+                payload = {}
+            chiusura = payload.get("chiusura")
+            entries = payload.get("entries")
+            if isinstance(chiusura, dict) and isinstance(entries, list):
+                new_row = build_daily_sales_from_distinta(
+                    store_code=store,
+                    data_iso=d_iso,
+                    chiusura_vals=chiusura,
+                    entries=entries,
+                    expenses_net=stale["expenses_net"],
+                    tenant_key=tenant,
+                )
+                upsert_daily_sales(new_row)
+                report["rebuilt"] += 1
+            else:
+                # Nessun payload originale: ri-chiava solo, se non esiste gia' una
+                # riga corretta per lo stesso (store, giorno).
+                with _conn(read_only=False) as conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "SELECT 1 FROM dbo.StoreHubDailySales WHERE tenant_key=? AND store_code=? AND business_date=?",
+                        tenant, store, bdate,
+                    )
+                    exists = cur.fetchone() is not None
+                    if not exists:
+                        cur.execute(
+                            "UPDATE dbo.StoreHubDailySales SET tenant_key=? WHERE tenant_key='default' AND store_code=? AND business_date=?",
+                            tenant, store, bdate,
+                        )
+                        conn.commit()
+                        report["rekeyed"] += 1
+                        continue  # riga aggiornata in-place: niente delete
+            # Elimina la vecchia riga 'default' (la versione corretta esiste ora)
+            with _conn(read_only=False) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "DELETE FROM dbo.StoreHubDailySales WHERE tenant_key='default' AND store_code=? AND business_date=?",
+                    store, bdate,
+                )
+                report["deleted_default"] += int(cur.rowcount or 0)
+                conn.commit()
+        except Exception as exc:
+            report["errors"].append(f"{store} {d_iso}: {exc}")
+
+    return report
+
+
 def upsert_historical_daily_sales_from_csv_row(
     *,
     csv_row: Dict[str, Any],

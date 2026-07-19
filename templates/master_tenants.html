@@ -90,6 +90,13 @@
                       <input type="hidden" name="active" value="{{ '0' if t.is_active else '1' }}">
                       <button class="btn btn-sm btn-outline-secondary">{{ 'Disattiva' if t.is_active else 'Attiva' }}</button>
                     </form>
+                    {% if t.tenant_key != 'default' %}
+                    <form method="post" class="d-inline" onsubmit="return confirm('Ripara i dati distinta di {{ t.tenant_key }}? Ricostruisce i giorni salvati con chiave errata includendo le voci personalizzate. Operazione sicura e ripetibile.');">
+                      <input type="hidden" name="action" value="repair_daily_sales">
+                      <input type="hidden" name="tenant_key" value="{{ t.tenant_key }}">
+                      <button class="btn btn-sm btn-outline-warning" title="Ricostruisce le righe StoreHubDailySales salvate con tenant_key='default' nel database del tenant">Ripara distinte</button>
+                    </form>
+                    {% endif %}
                     {% if t.deleted_at %}
                     <form method="post" class="d-inline">
                       <input type="hidden" name="action" value="restore_tenant">

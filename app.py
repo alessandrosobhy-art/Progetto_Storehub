@@ -2486,6 +2486,40 @@ def master_tenants():
                     current_app.logger.exception("Restore tenant fallito")
                     flash(f"Ripristino non riuscito: {exc}", "danger")
                 return redirect(url_for("master_tenants", tenant_key=key))
+            if action == "repair_daily_sales":
+                key = (request.form.get("tenant_key") or "").strip()
+                try:
+                    from tenant_config_repository import get_tenant
+                    from daily_sales_repository import rebuild_tenant_daily_sales_from_default
+
+                    tenant = get_tenant(key) or {}
+                    db_name = str(tenant.get("database_name") or "").strip()
+                    main_db = (
+                        os.getenv("STOREHUB_TENANT_DATABASE")
+                        or os.getenv("SQLSERVER_DATABASE")
+                        or os.getenv("SQLSERVER_DB")
+                        or "APP_STOREHUB"
+                    ).strip()
+                    if not key or key.lower() == "default":
+                        raise ValueError("La riparazione non si applica al tenant principale.")
+                    if not db_name or db_name.upper() == main_db.upper():
+                        # Nel DB principale le righe 'default' sono legittime: mai toccarle.
+                        raise ValueError("Riparazione consentita solo per tenant con database dedicato.")
+                    with storehub_database_context(db_name):
+                        rep = rebuild_tenant_daily_sales_from_default(tenant_key=key)
+                    current_app.logger.warning("Riparazione StoreHubDailySales tenant '%s' da master %s: %s", key, session.get("email"), rep)
+                    msg = (
+                        f"Riparazione distinte '{key}': {rep.get('rebuilt', 0)} giorni ricostruiti con le voci personalizzate, "
+                        f"{rep.get('rekeyed', 0)} solo ri-chiavati, {rep.get('deleted_default', 0)} righe obsolete rimosse."
+                    )
+                    if rep.get("errors"):
+                        flash(msg + f" Errori: {len(rep['errors'])} (vedi log).", "warning")
+                    else:
+                        flash(msg, "success")
+                except Exception as exc:
+                    current_app.logger.exception("Riparazione StoreHubDailySales fallita")
+                    flash(f"Riparazione non riuscita: {exc}", "danger")
+                return redirect(url_for("master_tenants", tenant_key=key))
             if action == "check_status":
                 edit_key = request.form.get("tenant_key") or edit_key
                 status = tenant_status(edit_key)
