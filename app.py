@@ -1873,9 +1873,16 @@ def _apply_tenant_module_gates(mods: dict, u: dict | None) -> dict:
         for module_key, _label in ACCESS_MODULES:
             flag = f"mod_{module_key}"
             gated[flag] = bool(gated.get(flag)) and bool(enabled.get(module_key, False))
+        # P&L store:
+        # - a livello UTENTE dipende solo dal Cruscotto (NON piu' dal permesso
+        #   Controlli del profilo): un profilo con Cruscotto lo vede anche senza
+        #   il permesso Controlli.
+        # - a livello TENANT resta legato ai Controlli: se il tenant non ha
+        #   Controlli di gestione attivo, non gestisce il P&L, quindi il P&L store
+        #   sparisce per tutti (pagina e link topbar), oltre al proprio flag tenant.
         gated["mod_cruscotto_pnl_store"] = (
             bool(gated.get("mod_cruscotto"))
-            and bool(gated.get("mod_controlli"))
+            and bool(enabled.get("controlli", False))
             and bool(enabled.get("cruscotto_pnl_store", False))
         )
         return gated
